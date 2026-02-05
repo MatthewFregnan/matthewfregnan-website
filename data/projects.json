@@ -561,6 +561,33 @@
       "production": "Elastic"
     },
     {
+      "id": "crkd---customer-review-ad",
+      "title": "CRKD - Customer Review Ad",
+      "category": "vertical",
+      "thumbnail": "vertical/crkd---customer-review-ad.png",
+      "client": "CRKD",
+      "role": "Editor",
+      "vimeoId": "1130172158"
+    },
+    {
+      "id": "crkd---casual-ad",
+      "title": "CRKD - Casual Ad",
+      "category": "vertical",
+      "thumbnail": "vertical/crkd---casual-ad.png",
+      "client": "CRKD",
+      "role": "Editor",
+      "vimeoId": "1162347243"
+    },
+    {
+      "id": "crkd---febuary-news-reel",
+      "title": "CRKD - February News Reel",
+      "category": "vertical",
+      "thumbnail": "vertical/crkd---febuary-news-reel.png",
+      "client": "CRKD",
+      "role": "Editor",
+      "vimeoId": "1162347291"
+    },
+    {
       "id": "rs-rewards-footy",
       "title": "RS Rewards - Friday Night Footy",
       "category": "vertical",
