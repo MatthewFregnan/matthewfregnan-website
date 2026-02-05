@@ -1,0 +1,41 @@
+<%# SEO Meta Tags Partial %>
+<%# Expects: pageDescription, pageUrl, pageImage, pageType, structuredData (all optional) %>
+<%
+  const desc = (typeof pageDescription !== 'undefined' && pageDescription) ? pageDescription : site.seo.defaultDescription;
+  const url = (typeof pageUrl !== 'undefined' && pageUrl) ? pageUrl : '/';
+  const img = (typeof pageImage !== 'undefined' && pageImage) ? pageImage : '/images/headshot.jpg';
+  const type = (typeof pageType !== 'undefined' && pageType) ? pageType : 'website';
+%>
+
+<!-- Primary Meta Tags -->
+<meta name="description" content="<%= desc %>">
+<meta name="keywords" content="<%= site.seo.keywords %>">
+<meta name="author" content="<%= site.title %>">
+<link rel="canonical" href="<%= site.domain %><%= url %>">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="<%= type %>">
+<meta property="og:url" content="<%= site.domain %><%= url %>">
+<meta property="og:title" content="<%= title %>">
+<meta property="og:description" content="<%= desc %>">
+<meta property="og:image" content="<%= site.domain %><%= img %>">
+<meta property="og:site_name" content="<%= site.title %>">
+<meta property="og:locale" content="en_AU">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="<%= title %>">
+<meta name="twitter:description" content="<%= desc %>">
+<meta name="twitter:image" content="<%= site.domain %><%= img %>">
+
+<!-- Additional SEO -->
+<meta name="robots" content="index, follow">
+<meta name="geo.region" content="AU-VIC">
+<meta name="geo.placename" content="Melbourne">
+
+<% if (typeof structuredData !== 'undefined' && structuredData) { %>
+<!-- Structured Data -->
+<script type="application/ld+json">
+<%- JSON.stringify(structuredData, null, 2) %>
+</script>
+<% } %>

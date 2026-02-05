@@ -2,5 +2,15 @@
   "title": "Matthew Fregnan",
   "tagline": "Melbourne-based Video Editor & Colourist",
   "email": "matthewfregnan@outlook.com",
-  "location": "Melbourne, Australia"
+  "location": "Melbourne, Australia",
+  "abn": "88 972 772 043",
+  "domain": "https://www.matthewfregnan.com",
+  "social": {
+    "vimeo": "https://vimeo.com/matthewfregnan",
+    "linkedin": "https://www.linkedin.com/in/matthew-fregnan-5a29b1193/"
+  },
+  "seo": {
+    "defaultDescription": "Matthew Fregnan is a Melbourne-based video editor and colourist with 5+ years experience. Commercial editing, branded content, and colour grading for KIA, Deakin University, Ladbrokes, and government agencies.",
+    "keywords": "video editor Melbourne, colourist Melbourne, commercial video editing, branded content editor, colour grading Australia, post production Melbourne, freelance video editor"
+  }
 }
