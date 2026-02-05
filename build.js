@@ -9,6 +9,7 @@ const TEMPLATES_DIR = path.join(__dirname, 'templates');
 const DATA_DIR = path.join(__dirname, 'data');
 const IMAGES_DIR = path.join(__dirname, 'images');
 const SRC_DIR = path.join(__dirname, 'src');
+const PUBLIC_DIR = path.join(__dirname, 'public');
 
 // Load data
 function loadData() {
@@ -221,6 +222,11 @@ function buildCSS() {
 // Copy static assets
 async function copyAssets() {
   console.log('Copying static assets...');
+
+  // Copy public folder contents to dist root (favicon, manifest, icons, etc.)
+  if (await fs.pathExists(PUBLIC_DIR)) {
+    await fs.copy(PUBLIC_DIR, DIST_DIR);
+  }
 
   // Copy images
   if (await fs.pathExists(IMAGES_DIR)) {
