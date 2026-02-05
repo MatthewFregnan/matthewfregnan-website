@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-site-bg text-site-text antialiased;
+  }
+
+  a {
+    @apply transition-opacity duration-200;
+  }
+
+  a:hover {
+    @apply opacity-80;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  /* Navigation */
+  .nav-link {
+    @apply text-sm tracking-wider text-site-text hover:text-site-text-muted transition-colors duration-200;
+  }
+
+  .nav-link.active {
+    @apply text-site-text-muted;
+  }
+
+  /* Portfolio grid */
+  .portfolio-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+
+  .portfolio-item {
+    @apply relative overflow-hidden aspect-video cursor-pointer;
+  }
+
+  .portfolio-item img {
+    @apply w-full h-full object-cover transition-transform duration-300;
+  }
+
+  .portfolio-item:hover img {
+    @apply scale-105;
+  }
+
+  .portfolio-item-title {
+    @apply absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent;
+  }
+
+  /* Vertical portfolio grid (for portrait videos) */
+  .portfolio-grid-vertical {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+  }
+
+  .portfolio-item-vertical {
+    @apply relative overflow-hidden cursor-pointer;
+    aspect-ratio: 9 / 16;
+  }
+
+  .portfolio-item-vertical img {
+    @apply w-full h-full object-cover transition-transform duration-300;
+  }
+
+  .portfolio-item-vertical:hover img {
+    @apply scale-105;
+  }
+
+  .portfolio-item-vertical .portfolio-item-title {
+    @apply absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent;
+  }
+
+  .portfolio-item-vertical .portfolio-item-title h2 {
+    @apply text-sm font-medium;
+  }
+
+  .portfolio-item-vertical .portfolio-item-title p {
+    @apply text-xs;
+  }
+
+  /* Header with blur effect */
+  .header-blur {
+    @apply fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-site-bg/80;
+  }
+
+  /* Vimeo responsive embed */
+  .video-container {
+    @apply relative w-full pt-[56.25%]; /* 16:9 aspect ratio */
+  }
+
+  .video-container iframe {
+    @apply absolute top-0 left-0 w-full h-full;
+  }
+}
+
+/* Hero video background */
+@layer components {
+  .hero-video-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .hero-video-container iframe {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vw;
+    height: 56.25vw; /* 16:9 aspect ratio */
+    min-height: 100vh;
+    min-width: 177.78vh; /* 16:9 aspect ratio */
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+}
+
+/* Custom utility styles */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

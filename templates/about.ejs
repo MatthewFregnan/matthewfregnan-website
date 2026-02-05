@@ -1,0 +1,54 @@
+<%- include('partials/header') %>
+
+<section class="py-12">
+  <div class="container mx-auto px-4">
+    <div class="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
+      <!-- Headshot -->
+      <div class="order-2 md:order-1">
+        <img
+          src="/images/headshot.jpg"
+          alt="<%= site.title %>"
+          class="w-full max-w-md mx-auto rounded-lg"
+        >
+      </div>
+
+      <!-- Bio -->
+      <div class="order-1 md:order-2">
+        <h1 class="text-3xl md:text-4xl font-light mb-6">About</h1>
+
+        <div class="space-y-4 text-site-text-muted">
+          <p>
+            I'm a post-production professional with over 5 years of experience based in Melbourne, Australia.
+            I specialize in editing diverse content types, from commercial campaigns to branded videos and social media content.
+          </p>
+
+          <p>
+            I studied at Swinburne University of Technology, completing a Diploma & Advanced Diploma of Screen and Media
+            plus a Bachelor of Film and Television (Honours).
+          </p>
+
+          <p>
+            My portfolio includes work with major brands such as KIA, Redoctane Games, CRKD, Deakin University,
+            Ladbrokes, Oporto, and Australian government agencies. I focus on creating content that tells a story
+            with clarity, energy, and style.
+          </p>
+        </div>
+
+        <!-- Contact Info -->
+        <div class="mt-8 pt-8 border-t border-white/10">
+          <h2 class="text-xl font-light mb-4">Get in Touch</h2>
+          <ul class="space-y-2 text-site-text-muted">
+            <li>
+              <a href="mailto:<%= site.email %>" class="hover:text-site-text transition-colors">
+                <%= site.email %>
+              </a>
+            </li>
+            <li><%= site.location %></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

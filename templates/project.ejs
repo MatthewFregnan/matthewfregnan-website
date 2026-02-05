@@ -1,0 +1,98 @@
+<%- include('partials/header') %>
+
+<section class="py-12">
+  <div class="container mx-auto px-4 max-w-5xl">
+    <!-- Back Link -->
+    <a href="/<%= category.slug %>/" class="inline-flex items-center text-site-text-muted hover:text-site-text mb-8 transition-colors">
+      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back to <%= category.name %>
+    </a>
+
+    <!-- Project Title -->
+    <h1 class="text-3xl md:text-4xl font-light mb-4">
+      <%= project.title %>
+    </h1>
+
+    <% if (project.client) { %>
+      <p class="text-site-text-muted mb-8"><%= project.client %></p>
+    <% } %>
+
+    <!-- Video Embed -->
+    <% if (project.vimeoId) { %>
+      <div class="video-container mb-8">
+        <iframe
+          src="https://player.vimeo.com/video/<%= project.vimeoId %>?h=0&title=0&byline=0&portrait=0"
+          frameborder="0"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
+    <% } else if (project.youtubeId) { %>
+      <div class="video-container mb-8">
+        <iframe
+          src="https://www.youtube.com/embed/<%= project.youtubeId %>?rel=0&modestbranding=1"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+        ></iframe>
+      </div>
+    <% } %>
+
+    <!-- Image Gallery (for colour grading) -->
+    <% if (project.gallery && project.gallery.length > 0) { %>
+      <div class="space-y-4 mb-8">
+        <% project.gallery.forEach((image, index) => { %>
+          <img
+            src="/images/gallery/<%= image %>"
+            alt="<%= project.title %> - Image <%= index + 1 %>"
+            class="w-full rounded-lg"
+            loading="lazy"
+          >
+        <% }) %>
+      </div>
+    <% } %>
+
+    <!-- Project Description -->
+    <% if (project.description) { %>
+      <div class="prose prose-invert max-w-none">
+        <p class="text-site-text-muted"><%= project.description %></p>
+      </div>
+    <% } %>
+
+    <!-- Project Details -->
+    <% if (project.client || project.production || project.role || project.year) { %>
+      <div class="mt-8 pt-8 border-t border-white/10">
+        <dl class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <% if (project.client) { %>
+            <div>
+              <dt class="text-site-text-muted">Client</dt>
+              <dd><%= project.client %></dd>
+            </div>
+          <% } %>
+          <% if (project.production) { %>
+            <div>
+              <dt class="text-site-text-muted">Production</dt>
+              <dd><%= project.production %></dd>
+            </div>
+          <% } %>
+          <% if (project.role) { %>
+            <div>
+              <dt class="text-site-text-muted">Role</dt>
+              <dd><%= project.role %></dd>
+            </div>
+          <% } %>
+          <% if (project.year) { %>
+            <div>
+              <dt class="text-site-text-muted">Year</dt>
+              <dd><%= project.year %></dd>
+            </div>
+          <% } %>
+        </dl>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,38 @@
+<%- include('partials/header') %>
+
+<!-- Hero Section with Video Background -->
+<section class="relative min-h-screen flex items-center justify-center overflow-hidden -mt-16">
+  <!-- YouTube Video Background -->
+  <div class="absolute inset-0 w-full h-full">
+    <div class="absolute inset-0 w-full h-full pointer-events-none">
+      <iframe
+        id="hero-video"
+        class="absolute top-1/2 left-1/2 min-w-[100vw] min-h-[100vh] w-auto h-auto -translate-x-1/2 -translate-y-1/2"
+        style="aspect-ratio: 16/9;"
+        src="https://www.youtube.com/embed/3bQmdVbqdjU?autoplay=1&mute=1&loop=1&playlist=3bQmdVbqdjU&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
+        frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen
+      ></iframe>
+    </div>
+    <!-- Dark overlay for text readability -->
+    <div class="absolute inset-0 bg-black/50"></div>
+  </div>
+
+  <!-- Hero Content -->
+  <div class="relative z-10 container mx-auto px-4 text-center">
+    <h1 class="text-4xl md:text-6xl lg:text-7xl font-light mb-6">
+      <%= site.title %>
+    </h1>
+    <p class="text-xl md:text-2xl text-white/80 max-w-2xl mx-auto">
+      <%= site.tagline %>
+    </p>
+    <div class="mt-12">
+      <a href="/my-work/" class="inline-block border border-white/50 px-8 py-3 text-sm uppercase tracking-wider hover:bg-white hover:text-site-bg transition-all duration-300">
+        View My Work
+      </a>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

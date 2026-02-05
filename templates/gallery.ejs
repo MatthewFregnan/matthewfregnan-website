@@ -1,0 +1,37 @@
+<%- include('partials/header') %>
+
+<section class="py-12">
+  <div class="container mx-auto px-4">
+    <!-- Page Title -->
+    <h1 class="text-3xl md:text-4xl font-light mb-12 text-center">
+      <%= category.name %>
+    </h1>
+
+    <!-- Portfolio Grid -->
+    <div class="<%= category.slug === 'vertical' ? 'portfolio-grid-vertical' : 'portfolio-grid' %>">
+      <% projects.forEach(project => { %>
+        <a href="/<%= category.slug %>/<%= project.id %>/" class="<%= category.slug === 'vertical' ? 'portfolio-item-vertical' : 'portfolio-item' %> group">
+          <img
+            src="/images/thumbnails/<%= project.thumbnail %>"
+            alt="<%= project.title %>"
+            loading="lazy"
+          >
+          <div class="portfolio-item-title">
+            <h2 class="text-lg font-medium"><%= project.title %></h2>
+            <% if (project.client) { %>
+              <p class="text-sm text-site-text-muted"><%= project.client %></p>
+            <% } %>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+
+    <% if (projects.length === 0) { %>
+      <p class="text-center text-site-text-muted py-12">
+        No projects in this category yet.
+      </p>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,46 @@
+<%- include('partials/header') %>
+
+<section class="py-12">
+  <div class="container mx-auto px-4">
+    <div class="max-w-4xl mx-auto">
+      <!-- Intro -->
+      <div class="mb-16">
+        <h1 class="text-3xl md:text-4xl font-light mb-8 text-center">My Work</h1>
+        <div class="flex flex-col md:flex-row gap-8 items-center">
+          <div class="text-site-text-muted space-y-4 md:flex-1">
+            <p>As a post-production professional with over 5 years of experience, I've edited a wide range of content — from high-end commercial campaigns to branded online videos and vertical social media content.</p>
+            <p>I've worked with notable clients including KIA, Redoctane Games, CRKD, Deakin University, Ladbrokes, Oporto, both the Australian and Victorian Governments, and more.</p>
+            <p>My work has also featured recognisable talent and influencers such as Millie Ford, Andy Griffiths, Justine Clarke, Melanie Zanetti, and many more.</p>
+            <p>Feel free to explore the range of projects I've worked on — each one tailored to tell a story with clarity, energy, and style.</p>
+          </div>
+          <div class="flex-shrink-0">
+            <img
+              src="/images/headshot.jpg"
+              alt="<%= site.title %>"
+              class="w-48 h-48 md:w-64 md:h-64 rounded-full object-cover"
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Category Grid -->
+      <div class="grid sm:grid-cols-2 gap-6">
+        <% categories.forEach(category => { %>
+          <a
+            href="/<%= category.slug %>/"
+            class="group block p-8 border border-white/10 hover:border-white/30 transition-colors"
+          >
+            <h2 class="text-2xl font-light mb-2 group-hover:text-site-text-muted transition-colors">
+              <%= category.name %>
+            </h2>
+            <p class="text-sm text-site-text-muted">
+              View <%= category.name.toLowerCase() %> projects &rarr;
+            </p>
+          </a>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

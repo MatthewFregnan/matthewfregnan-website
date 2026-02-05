@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <meta name="description" content="<%= site.tagline %>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="min-h-screen flex flex-col">
+  <!-- Header -->
+  <header class="header-blur border-b border-white/10">
+    <div class="container mx-auto px-4 py-4">
+      <nav class="flex items-center justify-between">
+        <!-- Logo -->
+        <a href="/" class="text-xl font-medium tracking-tight">
+          <%= site.title %>
+        </a>
+
+        <!-- Desktop Navigation -->
+        <div class="hidden md:flex items-center space-x-8">
+          <% categories.forEach(cat => { %>
+            <a href="/<%= cat.slug %>/" class="nav-link <%= activePage === cat.slug ? 'active' : '' %>">
+              <%= cat.name %>
+            </a>
+          <% }) %>
+          <a href="/about/" class="nav-link <%= activePage === 'about' ? 'active' : '' %>">
+            About
+          </a>
+          <a href="mailto:<%= site.email %>" class="nav-link">
+            Contact
+          </a>
+        </div>
+
+        <!-- Mobile Menu Button -->
+        <button id="menu-toggle" class="md:hidden p-2" aria-label="Toggle menu">
+          <span id="menu-open">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </span>
+          <span id="menu-close" class="hidden">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Mobile Menu -->
+  <div id="mobile-menu" class="hidden fixed inset-0 z-40 bg-site-bg pt-20">
+    <nav class="flex flex-col items-center space-y-6 p-8">
+      <% categories.forEach(cat => { %>
+        <a href="/<%= cat.slug %>/" class="text-2xl nav-link <%= activePage === cat.slug ? 'active' : '' %>">
+          <%= cat.name %>
+        </a>
+      <% }) %>
+      <a href="/about/" class="text-2xl nav-link <%= activePage === 'about' ? 'active' : '' %>">
+        About
+      </a>
+      <a href="mailto:<%= site.email %>" class="text-2xl nav-link">
+        Contact
+      </a>
+    </nav>
+  </div>
+
+  <!-- Main Content -->
+  <main class="flex-1 pt-16">
