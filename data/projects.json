@@ -115,7 +115,7 @@
     },
     {
       "id": "dont-miss-a-moment-film-1",
-      "title": "Don't Miss a Moment Film #1",
+      "title": "Don't Miss A Moment Film #1",
       "category": "commercial",
       "vimeoId": "766423920",
       "thumbnail": "commercial/dont-miss-a-moment-film-1.jpg",
@@ -127,7 +127,7 @@
     },
     {
       "id": "dont-miss-a-moment-film-2",
-      "title": "Don't Miss a Moment Film #2",
+      "title": "Don't Miss A Moment Film #2",
       "category": "commercial",
       "vimeoId": "766424123",
       "thumbnail": "commercial/dont-miss-a-moment-film-2.jpg",
@@ -718,7 +718,7 @@
     },
     {
       "id": "vaccho-dontmissamoment",
-      "title": "VACCHO - Don't Miss a Moment",
+      "title": "VACCHO - Don't Miss A Moment",
       "category": "colour-grading",
       "thumbnail": "colour-grading/vaccho-dontmissamoment.jpg",
       "client": "VACCHO",
@@ -842,10 +842,10 @@
       "role": "Colourist",
       "gallery": [
         "nonsense/nonsense-1.jpg",
-        "nonsense/nonsense-2.jpg",
         "nonsense/nonsense-3.jpg",
-        "nonsense/nonsense-4.jpg",
         "nonsense/nonsense-5.jpg",
+        "nonsense/nonsense-2.jpg",
+        "nonsense/nonsense-4.jpg",
         "nonsense/nonsense-6.jpg"
       ],
       "production": "Studio Supernatural"
