@@ -250,29 +250,9 @@ class ScrollableFrame(ttk.Frame):
         scrollbar.pack(side="right", fill="y")
 
         self.canvas.bind("<Configure>", self._resize)
-        
-        # Mouse wheel scrolling - only when mouse is over this widget
-        self.canvas.bind("<Enter>", self._bind_mousewheel)
-        self.canvas.bind("<Leave>", self._unbind_mousewheel)
 
     def _resize(self, event):
         self.canvas.itemconfig(self.window_id, width=event.width)
-        
-    def _bind_mousewheel(self, event):
-        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
-        self.canvas.bind_all("<Button-4>", self._on_mousewheel)
-        self.canvas.bind_all("<Button-5>", self._on_mousewheel)
-    
-    def _unbind_mousewheel(self, event):
-        self.canvas.unbind_all("<MouseWheel>")
-        self.canvas.unbind_all("<Button-4>")
-        self.canvas.unbind_all("<Button-5>")
-        
-    def _on_mousewheel(self, event):
-        if event.num == 5 or event.delta < 0:
-            self.canvas.yview_scroll(1, "units")
-        elif event.num == 4 or event.delta > 0:
-            self.canvas.yview_scroll(-1, "units")
 
 # =====================
 # APP
@@ -339,6 +319,25 @@ class PortfolioApp(TkinterDnD.Tk):
         
         # Configure frame
         style.configure("Card.TFrame", background=COLORS["bg"])
+        
+        # Configure scrollbars to match theme
+        style.configure("Vertical.TScrollbar",
+            background=COLORS["card"],
+            troughcolor=COLORS["bg"],
+            borderwidth=0,
+            arrowcolor=COLORS["text"])
+        style.map("Vertical.TScrollbar",
+            background=[("active", COLORS["primary"]), ("!active", COLORS["border"])],
+            arrowcolor=[("active", COLORS["primary"]), ("!active", COLORS["text_light"])])
+        
+        style.configure("Horizontal.TScrollbar",
+            background=COLORS["card"],
+            troughcolor=COLORS["bg"],
+            borderwidth=0,
+            arrowcolor=COLORS["text"])
+        style.map("Horizontal.TScrollbar",
+            background=[("active", COLORS["primary"]), ("!active", COLORS["border"])],
+            arrowcolor=[("active", COLORS["primary"]), ("!active", COLORS["text_light"])])
 
     def toggle_night_mode(self):
         global COLORS
@@ -397,7 +396,7 @@ class PortfolioApp(TkinterDnD.Tk):
         main.pack(fill="both", expand=True)
 
         # ==== LEFT SIDEBAR ====
-        left = tk.Frame(main, bg=COLORS["sidebar"], width=360)
+        left = tk.Frame(main, bg=COLORS["sidebar"], width=310)
         left.pack(side="left", fill="y")
         left.pack_propagate(False)
 
@@ -528,7 +527,7 @@ class PortfolioApp(TkinterDnD.Tk):
         left_column = tk.Frame(columns_container, bg=COLORS["bg"])
         left_column.pack(side="left", fill="both", expand=True, padx=(0, 15))
         
-        # Right column - thumbnail
+        # Right column - thumbnail (fixed height)
         right_column = tk.Frame(columns_container, bg=COLORS["bg"])
         right_column.pack(side="left", fill="y", padx=(15, 0))
 
@@ -551,23 +550,30 @@ class PortfolioApp(TkinterDnD.Tk):
                                 textvariable=self.category_var, state="readonly",
                                 font=("SF Pro Text", 12))
         cat_combo.pack(side="left", fill="x", expand=True)
+        cat_combo.bind("<<ComboboxSelected>>", self.on_category_change)
 
-        # Thumbnail section in right column
+        # Thumbnail section in right column with fixed height
         thumb_section = tk.Frame(right_column, bg=COLORS["card"], highlightthickness=1,
-                                highlightbackground=COLORS["border"], width=500)
-        thumb_section.pack(fill="both", expand=True)
+                                highlightbackground=COLORS["border"], width=500, height=450)
+        thumb_section.pack(fill="x")
         thumb_section.pack_propagate(False)
         
         tk.Label(thumb_section, text="📷 Thumbnail", bg=COLORS["card"],
                 fg=COLORS["text"], font=("SF Pro Text", 13, "bold"),
                 anchor="w").pack(fill="x", pady=(15, 10), padx=15)
         
-        self.thumbnail_label = tk.Label(thumb_section, bg=COLORS["bg"],
-                                       text="No thumbnail", fg=COLORS["text_light"])
-        self.thumbnail_label.pack(pady=10, padx=15)
+        # Thumbnail display area with fixed height
+        thumb_display_frame = tk.Frame(thumb_section, bg=COLORS["bg"], height=280)
+        thumb_display_frame.pack(fill="x", pady=10, padx=15)
+        thumb_display_frame.pack_propagate(False)
         
+        self.thumbnail_label = tk.Label(thumb_display_frame, bg=COLORS["bg"],
+                                       text="No thumbnail", fg=COLORS["text_light"])
+        self.thumbnail_label.pack(expand=True)
+        
+        # Buttons at bottom with padding
         thumb_btn_frame = tk.Frame(thumb_section, bg=COLORS["card"])
-        thumb_btn_frame.pack(padx=15, pady=(0, 15))
+        thumb_btn_frame.pack(side="bottom", padx=15, pady=15)
         
         ModernButton(thumb_btn_frame, text="📁 Choose",
                     command=self.pick_thumbnail, width=120, height=36).pack(pady=3, fill="x")
@@ -581,23 +587,33 @@ class PortfolioApp(TkinterDnD.Tk):
         self.thumbnail_label.drop_target_register(DND_FILES)
         self.thumbnail_label.dnd_bind('<<Drop>>', self.on_thumbnail_drop)
 
-        # Gallery section
-        gallery_section = tk.Frame(form, bg=COLORS["card"], highlightthickness=1,
+        # Gallery section (only shown for colour-grading projects)
+        self.gallery_section = tk.Frame(form, bg=COLORS["card"], highlightthickness=1,
                                   highlightbackground=COLORS["border"])
-        gallery_section.pack(fill="x", pady=20, ipady=20, ipadx=20)
+        gallery_section = self.gallery_section
         
         tk.Label(gallery_section, text="🖼 Gallery", bg=COLORS["card"],
                 fg=COLORS["text"], font=("SF Pro Text", 13, "bold"),
                 anchor="w").pack(fill="x", pady=(0, 10))
         
-        # Gallery canvas
-        self.gallery_canvas = tk.Canvas(gallery_section, height=170, bg=COLORS["bg"],
+        # Gallery canvas with horizontal scrollbar
+        gallery_container = tk.Frame(gallery_section, bg=COLORS["card"])
+        gallery_container.pack(fill="x", pady=10)
+        
+        self.gallery_canvas = tk.Canvas(gallery_container, height=170, bg=COLORS["bg"],
                                        highlightthickness=0)
+        gallery_scrollbar = tk.Scrollbar(gallery_container, orient="horizontal", 
+                                        command=self.gallery_canvas.xview)
+        self.gallery_canvas.configure(xscrollcommand=gallery_scrollbar.set)
+        
         self.gallery_frame = tk.Frame(self.gallery_canvas, bg=COLORS["bg"])
         self.gallery_window = self.gallery_canvas.create_window((0, 0),
                                                                 window=self.gallery_frame,
                                                                 anchor="nw")
-        self.gallery_canvas.pack(fill="x", pady=10)
+        
+        self.gallery_canvas.pack(fill="x")
+        gallery_scrollbar.pack(fill="x", pady=(5, 0))
+        
         self.gallery_frame.bind("<Configure>",
             lambda e: self.gallery_canvas.configure(scrollregion=self.gallery_canvas.bbox("all")))
 
@@ -685,6 +701,17 @@ class PortfolioApp(TkinterDnD.Tk):
         self.has_unsaved_changes = True
 
     # ========== SEARCH/FILTER ==========
+    def on_category_change(self, event=None):
+        """Handle category change to show/hide gallery section"""
+        if self.selected_index is None:
+            return
+        
+        selected_category = self.category_var.get()
+        if selected_category == "colour-grading":
+            self.gallery_section.pack(fill="x", pady=20, ipady=20, ipadx=20)
+        else:
+            self.gallery_section.pack_forget()
+    
     def on_search(self, *args):
         search_term = self.search_var.get().lower()
         filter_cat = self.filter_category.get()
@@ -798,14 +825,34 @@ class PortfolioApp(TkinterDnD.Tk):
         
         self.category_var.set(p.get("category", ""))
         self.load_thumbnail(p)
-        self.load_gallery(p)
+        
+        # Show/hide gallery based on category
+        if p.get("category") == "colour-grading":
+            self.gallery_section.pack(fill="x", pady=20, ipady=20, ipadx=20)
+            self.load_gallery(p)
+        else:
+            self.gallery_section.pack_forget()
 
     def load_thumbnail(self, project):
         if "thumbnail" in project and project["thumbnail"]:
             try:
                 img_path = os.path.join(THUMBNAILS_DIR, project["thumbnail"])
                 img = Image.open(img_path)
-                img.thumbnail(THUMBNAIL_SIZE)
+                
+                # Check if image is wide (landscape orientation)
+                # If width is significantly larger than height, scale to fit container width
+                is_wide = img.width > img.height * 1.3  # More than 30% wider than tall
+                
+                if is_wide:
+                    # For wide images, scale to fit the larger container width (~470px available)
+                    # Use 450px to leave some margin
+                    aspect_ratio = img.height / img.width
+                    new_width = 450
+                    new_height = int(new_width * aspect_ratio)
+                    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                else:
+                    # For portrait/square images, use standard thumbnail sizing
+                    img.thumbnail(THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
                 
                 # Add subtle shadow effect
                 shadow = Image.new('RGBA', (img.width + 10, img.height + 10), (0, 0, 0, 0))
@@ -839,7 +886,7 @@ class PortfolioApp(TkinterDnD.Tk):
             try:
                 img_path = os.path.join(GALLERY_DIR, rel)
                 img = Image.open(img_path)
-                img.thumbnail(GALLERY_SIZE)
+                img.thumbnail(GALLERY_SIZE, Image.Resampling.LANCZOS)
                 
                 tk_img = ImageTk.PhotoImage(img)
                 self.gallery_images.append(tk_img)
