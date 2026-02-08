@@ -17,7 +17,7 @@ THUMBNAILS_DIR = os.path.join(IMAGES_DIR, "thumbnails")
 GALLERY_DIR = os.path.join(IMAGES_DIR, "gallery")
 
 THUMBNAIL_SIZE = (260, 260)
-GALLERY_SIZE = (140, 140)
+GALLERY_SIZE = (150, 150)
 
 FIELD_MAP = {
     "title": "Title",
