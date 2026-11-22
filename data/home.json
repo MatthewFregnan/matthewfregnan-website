@@ -1,5 +1,5 @@
 {
-  "active": "balanced",
+  "active": "new-set",
   "sets": [
     {
       "id": "balanced",
@@ -36,6 +36,29 @@
         "vertical/ladbrokes-afl-leo-barry",
         "vertical/rs-rewards-bull-riding"
       ]
+    },
+    {
+      "id": "new-set",
+      "name": "Gaming",
+      "tagline": "",
+      "projectLayout": "standard",
+      "projects": [
+        "vertical/stage-tour-controller-deep-dive",
+        "vertical/stage-tour-comic-con",
+        "vertical/stage-tour-acai-vs-moose",
+        "commercial/redoctane-games-studio-launch-trailer",
+        "commercial/otropo-hair-salon",
+        "commercial/warning-levels",
+        "commercial/be-that-teacher",
+        "commercial/racism-it-stops-with-me",
+        "vertical/stage-tour-chart-guessing-game",
+        "vertical/crkd-pax-australia-2026",
+        "vertical/crkd---casual-ad",
+        "vertical/vce-games-design",
+        "vertical/kia-ao24-influencer",
+        "vertical/rs-rewards-footy"
+      ],
+      "shuffle": true
     }
   ]
 }
