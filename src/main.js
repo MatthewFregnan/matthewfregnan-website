@@ -870,3 +870,14 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => { copy.textContent = 'Copy'; copy.classList.remove('is-done'); }, 1800);
   });
 });
+
+// Back to top: shows once the footer comes into view, glides to the top.
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.querySelector('[data-to-top]');
+  const footer = btn?.closest('footer');
+  if (!btn || !footer) return;
+  const pageIsShort = () => document.documentElement.scrollHeight < window.innerHeight * 1.6;
+  new IntersectionObserver(([e]) => btn.classList.toggle('is-shown', e.isIntersecting && !pageIsShort()))
+    .observe(footer);
+  btn.addEventListener('click', () => glideTo(0, 900));
+});

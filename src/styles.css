@@ -721,7 +721,24 @@ footer { animation: page-fade 0.35s ease-out 0.1s backwards; }
 .duo-about:hover .duo-btn { background: #fff; color: #111; }
 .duo-contact .closing-cta-btn { padding: 10px 18px; font-size: 0.875rem; white-space: nowrap; flex: none; }
 @media (max-width: 639px) {
-  .duo-about, .duo-contact { flex-wrap: wrap; }
-  .duo-btn, .duo-contact .closing-cta-btn { margin-left: 0; }
+  /* text gets the full width; the button drops underneath */
+  .duo-about, .duo-contact { flex-wrap: wrap; row-gap: 14px; }
+  .duo-about .duo-text { flex: 1 1 calc(100% - 80px); }
+  .duo-contact .duo-text { flex: 1 1 100%; }
   .duo-about .duo-btn { margin-left: 74px; }
 }
+
+/* Back to top (partials/footer.ejs): a round button on the footer's top line */
+.site-footer { position: relative; }
+.to-top {
+  position: absolute; left: 50%; top: 0; z-index: 5; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  display: grid; place-items: center; border-radius: 50%; color: #fff;
+  background: #161618; border: 1px solid rgba(255, 255, 255, 0.18); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  opacity: 0; transform: translateY(10px); pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s, color 0.2s;
+}
+.to-top.is-shown { opacity: 1; transform: none; pointer-events: auto; }
+.to-top svg { width: 20px; height: 20px; transition: transform 0.2s; }
+.to-top:hover { background: #fff; color: #111; }
+.to-top:hover svg { transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) { .to-top { transition: none; } }
