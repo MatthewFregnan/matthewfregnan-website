@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS views (
   source  TEXT,                      -- where the visit came from (first page only): LinkedIn, Google, ...
   country TEXT,                      -- two-letter country code from Cloudflare
   device  TEXT,                      -- phone / tablet / computer
-  secs    INTEGER                    -- seconds spent on the page (filled in when they leave it)
+  secs    INTEGER,                   -- seconds spent on the page (filled in when they leave it)
+  city    TEXT                       -- rough location from Cloudflare (e.g. Melbourne); the IP is never stored
 );
+-- Added later; on an existing database run:  ALTER TABLE views ADD COLUMN city TEXT;
 CREATE INDEX IF NOT EXISTS views_ts ON views (ts);
 CREATE INDEX IF NOT EXISTS views_visit ON views (visit, seq);

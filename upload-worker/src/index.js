@@ -13,7 +13,7 @@
 //
 // Visit stats (anonymous, no cookies; see schema.sql):
 //   POST   /hit       (from the site, no sign-in)  body = {t:'view'|'leave', v, s, p, r, secs}
-//   GET    /stats?days=30   (signed in)            -> { rows: [[ts, visit, seq, path, source, country, device, secs]] }
+//   GET    /stats?days=30   (signed in)            -> { rows: [[ts, visit, seq, path, source, country, device, secs, city]] }
 //   DELETE /stats           (signed in)            -> { deleted } (reset: removes every recorded visit)
 
 const ALLOWED_ORIGINS = ['https://matthewfregnan.com', 'https://www.matthewfregnan.com'];
@@ -116,10 +116,17 @@ async function recordHit(request, env) {
   }
   const path = String(b.p || '');
   if (!/^\/[a-z0-9\-/]{0,200}$/.test(path) || path.startsWith('/admin')) return ok;
-  await env.STATS.prepare('INSERT INTO views (ts, visit, seq, path, source, country, device) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .bind(Date.now(), visit, seq, path, seq === 1 ? sourceOf(String(b.r || '')) : null,
-      (request.cf && request.cf.country) || null, deviceOf(ua))
-    .run();
+  const cf = request.cf || {};
+  const row = [Date.now(), visit, seq, path, seq === 1 ? sourceOf(String(b.r || '')) : null, cf.country || null, deviceOf(ua)];
+  // City comes from Cloudflare's own lookup; the IP address itself is never stored.
+  const city = typeof cf.city === 'string' ? cf.city.slice(0, 60) : null;
+  try {
+    await env.STATS.prepare('INSERT INTO views (ts, visit, seq, path, source, country, device, city) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(...row, city).run();
+  } catch {   // database not updated with the city column yet: still record the visit
+    await env.STATS.prepare('INSERT INTO views (ts, visit, seq, path, source, country, device) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(...row).run();
+  }
   return ok;
 }
 
@@ -128,10 +135,17 @@ async function stats(request, env, url) {
   const since = Date.now() - days * 86400000;
   // keep about a year
   await env.STATS.prepare('DELETE FROM views WHERE ts < ?').bind(Date.now() - 400 * 86400000).run();
-  const { results } = await env.STATS.prepare(
-    'SELECT ts, visit, seq, path, source, country, device, secs FROM views WHERE ts >= ? ORDER BY ts LIMIT 200000',
-  ).bind(since).all();
-  return json(request, { days, rows: results.map(r => [r.ts, r.visit, r.seq, r.path, r.source, r.country, r.device, r.secs]) });
+  let results;
+  try {
+    ({ results } = await env.STATS.prepare(
+      'SELECT ts, visit, seq, path, source, country, device, secs, city FROM views WHERE ts >= ? ORDER BY ts LIMIT 200000',
+    ).bind(since).all());
+  } catch {   // no city column yet
+    ({ results } = await env.STATS.prepare(
+      'SELECT ts, visit, seq, path, source, country, device, secs FROM views WHERE ts >= ? ORDER BY ts LIMIT 200000',
+    ).bind(since).all());
+  }
+  return json(request, { days, rows: results.map(r => [r.ts, r.visit, r.seq, r.path, r.source, r.country, r.device, r.secs, r.city || null]) });
 }
 
 export default {

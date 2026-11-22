@@ -9,9 +9,10 @@ const dayKey = t => { const d = new Date(t); return `${d.getFullYear()}-${String
 
 export function summarise(rows, days, now = Date.now()) {
   const visits = new Map();   // visit -> { pages: [{seq, path, secs}], source, country, device, start }
-  for (const [ts, visit, seq, path, source, country, device, secs] of rows) {
+  for (const [ts, visit, seq, path, source, country, device, secs, city] of rows) {
     let v = visits.get(visit);
-    if (!v) { v = { pages: [], source: null, country, device, start: ts }; visits.set(visit, v); }
+    if (!v) { v = { id: visit, pages: [], source: null, country, city: null, device, start: ts }; visits.set(visit, v); }
+    if (city && !v.city) v.city = city;
     v.pages.push({ seq, path, secs: secs || 0, ts });
     if (seq === 1 && source) v.source = source;
     v.start = Math.min(v.start, ts);
@@ -86,6 +87,9 @@ export function summarise(rows, days, now = Date.now()) {
     pages: [...pages.values()].map(p => ({ ...p, avgSecs: p.timed ? p.secs / p.timed : 0 })).sort((a, b) => b.views - a.views),
     sources: count(vs, v => v.source),
     countries: count(vs, v => v.country || '??'),
+    cities: count(vs.filter(v => v.city), v => `${v.city}|${v.country || ''}`),
+    // every visit, newest first, for the visit-by-visit log
+    visits: vs.slice().sort((a, b) => b.start - a.start),
     devices: count(vs, v => v.device || 'computer'),
     entries: count(vs, v => v.path[0]),
     journeys,
@@ -188,12 +192,55 @@ export function renderTraffic(h, sum, opts = {}) {
       h('span', { class: 'tr-num' }, `${j.n} visit${j.n === 1 ? '' : 's'}`))),
     'Paths appear once visitors look at more than one page.'),
     h('div', { class: 'tr-cols' },
-      list('Countries', sum.countries.slice(0, 8).map(c => h('div', { class: 'tr-row' },
-        h('span', { class: 'tr-name' }, countryName(c.name)), h('span', {}), h('span', { class: 'tr-num' }, String(c.n))))),
+      sum.cities.length
+        ? list('Cities', sum.cities.slice(0, 8).map(c => { const [city, cc] = c.name.split('|'); return h('div', { class: 'tr-row' },
+          h('span', { class: 'tr-name' }, `${city}${cc ? `, ${countryName(cc)}` : ''}`), h('span', {}), h('span', { class: 'tr-num' }, String(c.n))); }))
+        : list('Countries', sum.countries.slice(0, 8).map(c => h('div', { class: 'tr-row' },
+          h('span', { class: 'tr-name' }, countryName(c.name)), h('span', {}), h('span', { class: 'tr-num' }, String(c.n))))),
       list('Devices', sum.devices.map(d => h('div', { class: 'tr-row' },
         h('span', { class: 'tr-name' }, d.name[0].toUpperCase() + d.name.slice(1)), h('span', {}),
         h('span', { class: 'tr-num' }, `${Math.round((d.n / t.visitors) * 100)}%`))))),
+    visitLog(h, sum.visits, titleOf, pageLink),
     h('p', { class: 'muted small' }, 'Anonymous: no cookies, no IP addresses. A visit is one browser tab session (it resets after 30 idle minutes). Visitors who switch on Do Not Track aren’t counted.'));
+}
+
+/** A steady colour for a visit, so one person's journey is easy to follow down the log. */
+function visitColour(id) {
+  let n = 0;
+  for (const c of id) n = (n * 31 + c.charCodeAt(0)) >>> 0;
+  return `hsl(${n % 360} 70% 62%)`;
+}
+
+const DEVICE_ICON = { phone: '📱', tablet: '📱', computer: '💻' };
+
+/** Visit by visit: when, where from, where, which device, and the pages in order with time on each. */
+function visitLog(h, visits, titleOf, pageLink) {
+  const SHOW = 60;
+  const when = ts => {
+    const d = new Date(ts);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    if (ts >= today.getTime()) return `Today ${time}`;
+    if (ts >= today.getTime() - DAY) return `Yesterday ${time}`;
+    return `${d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} ${time}`;
+  };
+  const row = v => {
+    const colour = visitColour(v.id);
+    const place = [v.city, v.country ? countryName(v.country) : ''].filter(Boolean).join(', ') || 'Unknown place';
+    return h('div', { class: 'tr-visit', style: `--vc:${colour}` },
+      h('div', { class: 'tr-visit-head' },
+        h('span', { class: 'tr-visit-dot' }),
+        h('strong', {}, when(v.start)),
+        h('span', { class: 'muted' }, ` · ${v.source} · ${place} · ${DEVICE_ICON[v.device] || ''} ${v.device || 'computer'}`),
+        h('span', { class: 'tr-num' }, `${v.pages.length} page${v.pages.length === 1 ? '' : 's'}${v.secs ? ` · ${fmtSecs(v.secs)}` : ''}`)),
+      h('div', { class: 'tr-visit-pages' }, v.pages.flatMap((p, i) => [
+        i ? h('span', { class: 'tr-arrow' }, '→') : null,
+        h('span', { class: 'tr-step' }, pageLink(p.path), p.secs ? h('span', { class: 'muted' }, ` ${fmtSecs(p.secs)}`) : null)])));
+  };
+  return h('section', { class: 'tr-card' },
+    h('h4', {}, `Visit by visit${visits.length > SHOW ? ` (latest ${SHOW} of ${visits.length})` : ''}`),
+    h('p', { class: 'muted small', style: 'margin:0 0 8px' }, 'Each colour is one visit (one browser tab session), so you can follow a person’s path through the site.'),
+    visits.length ? h('div', { class: 'tr-visits' }, visits.slice(0, SHOW).map(row)) : h('p', { class: 'muted small' }, 'No visits yet.'));
 }
 
 /** Tiny line of the last days' visitors for the Overview card. */

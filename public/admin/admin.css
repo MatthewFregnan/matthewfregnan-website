@@ -758,3 +758,10 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .strip-row.drop-above { box-shadow: 0 -2px 0 var(--accent); }
 .strip-list { max-height: none; }
 .strip-add select { width: auto; }
+.tr-visits { display: grid; gap: 6px; max-height: 560px; overflow: auto; }
+.tr-visit { border-left: 3px solid var(--vc); padding: 6px 10px; border-radius: 6px; background: rgba(255,255,255,.025); font-size: 13px; }
+.tr-visit-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tr-visit-head .tr-num { margin-left: auto; }
+.tr-visit-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vc); flex: none; }
+.tr-visit-pages { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 5px; }
+.tr-visit .tr-step { border: 1px solid color-mix(in srgb, var(--vc) 45%, transparent); }
