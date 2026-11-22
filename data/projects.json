@@ -23,6 +23,19 @@
   ],
   "projects": [
     {
+      "id": "stage-tour-comic-con",
+      "title": "Stage Tour @ Comic-Con",
+      "category": "vertical",
+      "client": "RedOctane Games",
+      "role": "Editor",
+      "production": "",
+      "year": "2026",
+      "description": "",
+      "thumbnail": "vertical/stage-tour-comic-con.jpg",
+      "updated": "2026-11-22T08:30:11",
+      "videoFile": "https://videos.matthewfregnan.com/vertical/stage-tour-comic-con-mwrksuoc.mp4?v=1795336173791"
+    },
+    {
       "id": "stage-tour-acai-vs-moose",
       "title": "Stage Tour Acai VS Moose",
       "category": "vertical",
