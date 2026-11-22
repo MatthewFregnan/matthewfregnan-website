@@ -96,6 +96,24 @@
   .video-container iframe {
     @apply absolute top-0 left-0 w-full h-full;
   }
+
+  /* Vertical (9:16) videos: phone-shaped player instead of a letterboxed 16:9 one */
+  .video-container.is-vertical {
+    @apply mx-auto pt-0;
+    max-width: 420px;
+    aspect-ratio: 9 / 16;
+  }
+
+  /* Instagram's embed adds a header and footer (~200px) around the 9:16 video */
+  .video-container.is-instagram {
+    @apply mx-auto pt-0 rounded-lg overflow-hidden;
+    max-width: 420px;
+    height: calc(min(420px, 100vw - 2rem) * 16 / 9 + 200px);
+  }
+
+  .video-stats {
+    @apply mt-3 text-sm text-site-text-muted text-center;
+  }
 }
 
 /* Hero video background */

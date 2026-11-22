@@ -2,6 +2,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const ejs = require('ejs');
 const { execSync } = require('child_process');
+const sharp = require('sharp');
 
 // Paths
 const DIST_DIR = path.join(__dirname, 'dist');
@@ -29,7 +30,38 @@ function loadData() {
         location: 'Melbourne, Australia'
       };
 
+  projects.projects.forEach(normaliseProject);
   return { projects, siteConfig };
+}
+
+// The web admin (/admin) and the desktop app may store values slightly differently:
+// full links instead of IDs, and image paths with or without the /images/... prefix.
+// Tidy everything into one shape before building.
+function normaliseProject(p) {
+  const strip = (v, prefix) => (typeof v === 'string' && v.startsWith(prefix) ? v.slice(prefix.length) : v);
+  p.thumbnail = strip(p.thumbnail || '', '/images/thumbnails/');
+  if (Array.isArray(p.gallery)) p.gallery = p.gallery.filter(Boolean).map(g => strip(g, '/images/gallery/'));
+
+  const vimeo = String(p.vimeoId || '').trim();
+  if (vimeo && !/^\d+$/.test(vimeo)) {
+    const m = vimeo.match(/vimeo\.com\/(?:.*\/)?(\d{5,})(?:\/([0-9a-f]{6,}))?/);
+    const h = vimeo.match(/[?&]h=([0-9a-f]+)/);
+    p.vimeoId = m ? m[1] : '';
+    if (m && (m[2] || h)) p.vimeoHash = m[2] || h[1];
+  }
+  const yt = String(p.youtubeId || '').trim();
+  if (yt && !/^[\w-]{11}$/.test(yt)) {
+    const m = yt.match(/(?:[?&]v=|youtu\.be\/|\/(?:embed|shorts|live)\/)([\w-]{11})/);
+    p.youtubeId = m ? m[1] : '';
+  }
+  const ig = String(p.instagramId || '').trim();
+  if (ig.includes('/')) {
+    const m = ig.match(/instagram\.com\/(?:p|reels?|tv)\/([\w-]+)/);
+    p.instagramId = m ? m[1] : '';
+  }
+  if (!p.id) {
+    p.id = String(p.title || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
 }
 
 // SEO Helper Functions
@@ -84,29 +116,173 @@ function buildLocalBusinessSchema(siteConfig) {
   };
 }
 
+// ---------------------------------------------------------------- Video sources
+// A project can have Vimeo, YouTube and Instagram links. `videoPrimary` picks which shows first;
+// the others are backups. The build checks which actually play and starts on the first working
+// one; src/main.js re-checks in the visitor's browser and swaps to a backup if one has broken since.
+const SOURCE_ORDER = ['vimeo', 'youtube', 'instagram'];
+
+function videoSources(project) {
+  const all = {};
+  if (project.vimeoId) {
+    const h = project.vimeoHash ? `h=${project.vimeoHash}&` : '';
+    const page = `https://vimeo.com/${project.vimeoId}${project.vimeoHash ? `/${project.vimeoHash}` : ''}`;
+    all.vimeo = {
+      kind: 'vimeo', id: project.vimeoId, page,
+      embed: `https://player.vimeo.com/video/${project.vimeoId}?${h}title=0&byline=0&portrait=0`,
+      check: `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(page)}`
+    };
+  }
+  if (project.youtubeId) {
+    const page = `https://www.youtube.com/watch?v=${project.youtubeId}`;
+    all.youtube = {
+      kind: 'youtube', id: project.youtubeId, page,
+      embed: `https://www.youtube.com/embed/${project.youtubeId}?rel=0&modestbranding=1`,
+      check: `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(page)}`
+    };
+  }
+  if (project.instagramId) {
+    all.instagram = {
+      kind: 'instagram', id: project.instagramId,
+      page: `https://www.instagram.com/p/${project.instagramId}/`,
+      embed: `https://www.instagram.com/p/${project.instagramId}/embed/`,
+      check: null // Instagram can't be checked without a Meta API token
+    };
+  }
+  return SOURCE_ORDER
+    .slice()
+    .sort((a, b) => (b === project.videoPrimary) - (a === project.videoPrimary))
+    .filter(k => all[k])
+    .map(k => all[k]);
+}
+
+// true = plays, false = definitely broken, null = couldn't tell (offline etc.; treat as fine)
+async function sourcePlays(source) {
+  if (!source.check || process.env.SKIP_VIDEO_CHECK) return null;
+  try {
+    const res = await fetch(source.check, { signal: AbortSignal.timeout(8000) });
+    if (res.ok) return true;
+    return [401, 403, 404].includes(res.status) ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveVideos(projects) {
+  const results = await mapLimit(projects, 8, async (project) => {
+    const sources = videoSources(project);
+    let active = 0;
+    for (let i = 0; i < sources.length; i++) {
+      if ((await sourcePlays(sources[i])) !== false) { active = i; break; }
+      if (i === sources.length - 1) active = 0; // nothing plays: keep the first choice
+    }
+    if (sources.length && active > 0) {
+      console.warn(`  ${project.id}: ${sources[0].kind} isn't playing, using ${sources[active].kind} backup`);
+    }
+    return { sources, active };
+  });
+  projects.forEach((p, i) => { p._video = results[i]; });
+}
+
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i], i);
+    }
+  }));
+  return out;
+}
+
+// ---------------------------------------------------------------- View counts
+// Fetched at build time so API keys stay secret (GitHub Actions secrets). The deploy workflow
+// rebuilds daily, so counts are at most a day old. Without keys, no counts are shown.
+const compact = new Intl.NumberFormat('en-AU', { notation: 'compact', maximumFractionDigits: 1 });
+
+async function fetchStats(projects) {
+  const wanted = projects.filter(p => p.showStats && p._video && p._video.sources.length);
+  const yt = wanted.filter(p => p._video.sources[p._video.active].kind === 'youtube');
+  const vm = wanted.filter(p => p._video.sources[p._video.active].kind === 'vimeo');
+  const ytKey = process.env.YOUTUBE_API_KEY;
+  const vmToken = process.env.VIMEO_TOKEN;
+
+  if (yt.length && ytKey) {
+    for (let i = 0; i < yt.length; i += 50) {
+      const batch = yt.slice(i, i + 50);
+      const ids = [...new Set(batch.map(p => p.youtubeId))].join(',');
+      try {
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids}&key=${ytKey}`,
+          { signal: AbortSignal.timeout(10000) });
+        const json = await res.json();
+        for (const item of json.items || []) {
+          const views = Number(item.statistics.viewCount || 0);
+          const likes = Number(item.statistics.likeCount || 0);
+          batch.filter(x => x.youtubeId === item.id).forEach(p => { p._stats = { kind: 'youtube', views, likes }; });
+        }
+      } catch (e) {
+        console.warn('  Couldn\'t fetch YouTube stats:', e.message);
+      }
+    }
+  } else if (yt.length) {
+    console.warn('  YOUTUBE_API_KEY not set: skipping YouTube view counts');
+  }
+
+  if (vm.length && vmToken) {
+    await mapLimit(vm, 4, async (p) => {
+      try {
+        const res = await fetch(`https://api.vimeo.com/videos/${p.vimeoId}?fields=stats.plays,metadata.connections.likes.total`, {
+          headers: { Authorization: `bearer ${vmToken}` }, signal: AbortSignal.timeout(10000)
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        const views = json.stats && json.stats.plays;
+        if (views != null) {
+          p._stats = { kind: 'vimeo', views, likes: json.metadata?.connections?.likes?.total || 0 };
+        }
+      } catch (e) {
+        console.warn(`  Couldn't fetch Vimeo stats for ${p.id}:`, e.message);
+      }
+    });
+  } else if (vm.length) {
+    console.warn('  VIMEO_TOKEN not set: skipping Vimeo view counts');
+  }
+
+  for (const p of projects) {
+    if (!p._stats) continue;
+    const s = p._stats;
+    s.text = `${compact.format(s.views)} view${s.views === 1 ? '' : 's'}` +
+      (s.likes ? ` · ${compact.format(s.likes)} like${s.likes === 1 ? '' : 's'}` : '');
+  }
+}
+
 function buildVideoSchema(project, category, siteConfig) {
-  if (!project.vimeoId && !project.youtubeId) return null;
-
-  const videoUrl = project.vimeoId
-    ? `https://vimeo.com/${project.vimeoId}`
-    : `https://www.youtube.com/watch?v=${project.youtubeId}`;
-
-  const embedUrl = project.vimeoId
-    ? `https://player.vimeo.com/video/${project.vimeoId}`
-    : `https://www.youtube.com/embed/${project.youtubeId}`;
+  const video = project._video;
+  if (!video || !video.sources.length) return null;
+  const source = video.sources[video.active];
+  const videoUrl = source.page;
+  const embedUrl = source.embed;
 
   return {
     "@context": "https://schema.org",
     "@type": "VideoObject",
     "name": project.title,
     "description": project.description || `${category.name} project: ${project.title}${project.client ? ` for ${project.client}` : ''}`,
-    "thumbnailUrl": `${siteConfig.domain}/images/thumbnails/${project.thumbnail}`,
+    "thumbnailUrl": `${siteConfig.domain}${ogImagePath(project)}`,
     "contentUrl": videoUrl,
     "embedUrl": embedUrl,
     "creator": {
       "@type": "Person",
       "name": siteConfig.title
     },
+    ...(project._stats && {
+      "interactionStatistic": {
+        "@type": "InteractionCounter",
+        "interactionType": { "@type": "WatchAction" },
+        "userInteractionCount": project._stats.views
+      }
+    }),
     ...(project.production && {
       "productionCompany": {
         "@type": "Organization",
@@ -129,6 +305,34 @@ function buildItemListSchema(category, categoryProjects, siteConfig) {
       "url": `${siteConfig.domain}/${category.slug}/${project.id}/`
     }))
   };
+}
+
+// Social share images: link previews (LinkedIn, Facebook etc.) are most reliable
+// with JPEG, so make a 1200px JPEG copy of each WebP thumbnail.
+function ogImagePath(project) {
+  return `/images/og/${project.category}/${project.id}.jpg`;
+}
+
+async function ensureFile(file) {
+  await fs.ensureDir(path.dirname(file));
+  return file;
+}
+
+async function generateOgImages(projects) {
+  for (const project of projects.projects) {
+    if (!project.thumbnail) continue;
+    const src = path.join(IMAGES_DIR, 'thumbnails', project.thumbnail);
+    if (!(await fs.pathExists(src))) {
+      console.warn(`  Missing thumbnail for ${project.id}: ${project.thumbnail}`);
+      continue;
+    }
+    await sharp(src)
+      .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: '#000000' })
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toFile(await ensureFile(path.join(DIST_DIR, ogImagePath(project))));
+  }
+  console.log('Generated social share images');
 }
 
 // Category descriptions for SEO
@@ -187,6 +391,7 @@ ${urls.map(url => `  <url>
 async function generateRobotsTxt(siteConfig) {
   const robotsTxt = `User-agent: *
 Allow: /
+Disallow: /admin/
 
 Sitemap: ${siteConfig.domain}/sitemap.xml`;
 
@@ -250,6 +455,10 @@ async function copyAssets() {
 // Build pages
 async function buildPages() {
   const { projects, siteConfig } = loadData();
+
+  console.log('Checking video links...');
+  await resolveVideos(projects.projects);
+  await fetchStats(projects.projects);
 
   // Common data for all templates
   const commonData = {
@@ -333,7 +542,7 @@ async function buildPages() {
         project,
         pageDescription: projectDescription,
         pageUrl: `/${category.slug}/${project.id}/`,
-        pageImage: `/images/thumbnails/${project.thumbnail}`,
+        pageImage: project.thumbnail ? ogImagePath(project) : undefined,
         pageType: 'video.other',
         structuredData: buildVideoSchema(project, category, siteConfig)
       });
@@ -343,6 +552,8 @@ async function buildPages() {
       );
     }
   }
+
+  await generateOgImages(projects);
 
   // Generate sitemap and robots.txt
   await generateSitemap(projects, siteConfig);

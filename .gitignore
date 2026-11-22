@@ -19,3 +19,7 @@ Thumbs.db
 .env.local
 npm run build
 npx serve dist
+
+# Portfolio Manager app
+app/.venv/
+__pycache__/

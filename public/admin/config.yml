@@ -1,0 +1,126 @@
+# Web admin for matthewfregnan.com (Sveltia CMS) — open https://matthewfregnan.com/admin/
+#
+# Who can edit: only people who can write to the GitHub repo. Sign in with
+# "Sign In with Token" using a fine-grained GitHub token for this repo with
+# Contents: Read and write (see app/README.md). Every save is a commit and the
+# site redeploys automatically a minute or two later.
+
+backend:
+  name: github
+  repo: MatthewFregnan/matthewfregnan-website
+  branch: main
+  commit_messages:
+    update: "Update {{slug}} (web admin)"
+    uploadMedia: "Upload {{path}} (web admin)"
+
+# Default upload location (each image field below sets its own folder)
+media_folder: /images/uploads
+public_folder: /images/uploads
+
+media_libraries:
+  default:
+    config:
+      slugify_filename: true
+      max_file_size: 26214400 # 25 MB
+      transformations:
+        raster_image:
+          format: webp
+          quality: 82
+          width: 1920
+          height: 1920
+
+collections:
+  - name: portfolio
+    label: Portfolio
+    files:
+      - name: projects
+        label: Projects
+        file: data/projects.json
+        format: json
+        fields:
+          - name: categories
+            label: Categories (site sections)
+            widget: list
+            collapsed: true
+            allow_add: false
+            allow_remove: false
+            summary: "{{name}}"
+            hint: "The sections in the site menu. Only rename these if you know what you're doing."
+            fields:
+              - { name: id, label: ID, widget: string }
+              - { name: name, label: Menu name, widget: string }
+              - { name: slug, label: Web address, widget: string }
+          - name: projects
+            label: Projects
+            label_singular: Project
+            widget: list
+            summary: "{{title}} · {{category}}"
+            collapsed: true
+            add_to_top: true
+            thumbnail: thumbnail
+            hint: "Order here = order on the website (within each category). New projects are added at the top."
+            fields:
+              - { name: title, label: Title, widget: string }
+              - name: category
+                label: Category
+                widget: select
+                options:
+                  - { label: Commercial, value: commercial }
+                  - { label: Branded, value: branded }
+                  - { label: Vertical, value: vertical }
+                  - { label: Colour, value: colour-grading }
+              - { name: client, label: Client, widget: string, required: false }
+              - { name: role, label: Role, widget: string, required: false, default: Editor }
+              - { name: production, label: Production, widget: string, required: false }
+              - { name: year, label: Year, widget: string, required: false, pattern: ['^(\d{4})?$', "Four digits, e.g. 2025"] }
+              - { name: description, label: Description, widget: text, required: false }
+              - name: vimeoId
+                label: Vimeo link
+                widget: string
+                required: false
+                hint: "Paste the Vimeo link. For unlisted videos, paste the full share link (vimeo.com/123456/abc123)."
+              - name: youtubeId
+                label: YouTube link
+                widget: string
+                required: false
+                hint: "Paste the YouTube link. Used as a backup if Vimeo stops working (or shown first if chosen below)."
+              - name: instagramId
+                label: Instagram link
+                widget: string
+                required: false
+                hint: "Paste a public Instagram post or reel link. Used last, as it can't be checked automatically."
+              - name: videoPrimary
+                label: Show first
+                widget: select
+                required: false
+                hint: "Which video to show; the others are backups. Leave empty for Vimeo → YouTube → Instagram."
+                options:
+                  - { label: Vimeo, value: vimeo }
+                  - { label: YouTube, value: youtube }
+                  - { label: Instagram, value: instagram }
+              - { name: showStats, label: Show view count on the page, widget: boolean, required: false, default: false }
+              - name: thumbnail
+                label: Thumbnail
+                widget: image
+                required: false
+                media_folder: /images/thumbnails/uploads
+                public_folder: /images/thumbnails/uploads
+              - name: gallery
+                label: Gallery stills
+                widget: list
+                required: false
+                field:
+                  name: image
+                  label: Image
+                  widget: image
+                  media_folder: /images/gallery/uploads
+                  public_folder: /images/gallery/uploads
+              - name: id
+                label: Page address
+                widget: string
+                required: false
+                pattern: ['^[a-z0-9-]*$', "Lowercase letters, numbers and dashes only"]
+                hint: "e.g. kia-shipyard → matthewfregnan.com/vertical/kia-shipyard/. Leave empty to make one from the title. Changing it breaks old links."
+              # Kept so saving from the web doesn't drop them (set by the desktop app)
+              - { name: vimeoHash, label: Vimeo private code, widget: string, required: false, hint: "Set automatically from unlisted share links; leave as is." }
+              - { name: updated, label: Last updated, widget: hidden }

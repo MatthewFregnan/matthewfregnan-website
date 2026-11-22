@@ -5,6 +5,9 @@ on:
     branches:
       - main
   workflow_dispatch:
+  # Rebuild daily (~7am Melbourne) so view counts stay fresh and broken videos switch to their backup
+  schedule:
+    - cron: '0 20 * * *'
 
 permissions:
   contents: read
@@ -33,6 +36,10 @@ jobs:
 
       - name: Build site
         run: npm run build
+        env:
+          # Optional: only needed for view counts on project pages (see app/README.md)
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          VIMEO_TOKEN: ${{ secrets.VIMEO_TOKEN }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

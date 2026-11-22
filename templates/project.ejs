@@ -19,24 +19,26 @@
       <p class="text-site-text-muted mb-8"><%= project.client %></p>
     <% } %>
 
-    <!-- Video Embed -->
-    <% if (project.vimeoId) { %>
-      <div class="video-container mb-8">
-        <iframe
-          src="https://player.vimeo.com/video/<%= project.vimeoId %>?h=0&title=0&byline=0&portrait=0"
-          frameborder="0"
-          allow="autoplay; fullscreen; picture-in-picture"
-          allowfullscreen
-        ></iframe>
-      </div>
-    <% } else if (project.youtubeId) { %>
-      <div class="video-container mb-8">
-        <iframe
-          src="https://www.youtube.com/embed/<%= project.youtubeId %>?rel=0&modestbranding=1"
-          frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen
-        ></iframe>
+    <!-- Video Embed: starts on the first working source; js/main.js swaps to a backup if it breaks -->
+    <% const video = project._video; %>
+    <% if (video && video.sources.length) { %>
+      <% const src = video.sources[video.active]; const isVertical = category.slug === 'vertical'; %>
+      <div class="video-player mb-8" data-video-sources="<%= JSON.stringify(video.sources.map(s => ({ kind: s.kind, embed: s.embed, check: s.check }))) %>" data-active="<%= video.active %>">
+        <div class="video-container <%= src.kind === 'instagram' ? 'is-instagram' : (isVertical ? 'is-vertical' : '') %>" data-vertical="<%= isVertical %>">
+          <iframe
+            src="<%= src.embed %>"
+            title="<%= project.title %>"
+            frameborder="0"
+            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write"
+            allowfullscreen
+            loading="lazy"
+          ></iframe>
+        </div>
+        <% if (project._stats) { %>
+          <p class="video-stats" data-kind="<%= project._stats.kind %>">
+            <%= project._stats.text %> on <%= project._stats.kind === 'youtube' ? 'YouTube' : 'Vimeo' %>
+          </p>
+        <% } %>
       </div>
     <% } %>
 
