@@ -470,10 +470,9 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .pv-site.phone .pv-tag { font-size: 20px; }
 .pv-cta { display: inline-block; margin-top: 48px; border: 1px solid rgba(255,255,255,.5); padding: 12px 32px; font-size: 14px; text-transform: uppercase; letter-spacing: .05em; }
 .pv-cue { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 28px; opacity: .8; }
-.pv-container { max-width: 1280px; margin: 0 auto; padding: 32px 16px 64px; }
+.pv-container { max-width: 1280px; margin: 0 auto; padding: 0 16px 64px; }
 .pv-site:not(.phone) .pv-container { padding-left: 96px; padding-right: 96px; max-width: none; }
-.pv-work-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 20px; }
-.pv-site.phone .pv-work-head { flex-direction: column; }
+.pv-work-head { display: flex; align-items: flex-end; padding-bottom: 16px; }
 .pv-h2 { font-size: 24px; font-weight: 300; }
 .pv-browse { font-size: 14px; color: #a0a0a0; }
 .pv-h3 { font-size: 16px; font-weight: 300; color: #a0a0a0; margin: 4px 0 16px; }

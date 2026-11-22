@@ -80,7 +80,9 @@ export function homePreview(h, opts) {
   const social = set.showSocial === false ? [] : chosen.filter(p => p.category === 'vertical');
   const feat = featuredPick(set, landscape, seed);
 
-  const hero = h('div', { class: 'pv-hero', style: `height:${opts.heroHeight || (phone ? 690 : 790)}px` },
+  // Same split as the site: hero 82% of the screen, heading 12%, then the work peeks in
+  const screenH = SCREENS[screen].height;
+  const hero = h('div', { class: 'pv-hero', style: `height:${opts.heroHeight || Math.max(420, Math.round(screenH * 0.82))}px` },
     h('img', { class: 'pv-hero-img', src: site.heroPoster || '/images/hero-poster.webp', alt: '' }),
     h('div', { class: 'pv-hero-text' },
       h('div', { class: 'pv-h1' }, site.title || 'Matthew Fregnan'),
@@ -134,7 +136,7 @@ export function homePreview(h, opts) {
     nav(h, site, phone),
     hero,
     h('div', { class: 'pv-container' },
-      h('div', { class: 'pv-work-head' },
+      h('div', { class: 'pv-work-head', style: `height:${Math.max(64, Math.round(screenH * 0.12))}px` },
         h('span', { class: 'pv-h2' }, (set.heading || '').trim() || 'Featured Work')),
       rows.flatMap((r, i) => [
         r.title ? h('div', { class: `pv-h3${i ? ' gap' : ''}` }, r.title) : (i ? h('div', { class: 'pv-gap' }) : null),

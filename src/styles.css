@@ -64,8 +64,9 @@
 
   /* Home page hero: most of the screen for the background video, with the top of the
      selected work just peeking in below (and the scroll arrow as a nudge) */
-  .hero { min-height: 82vh; }
-  @media (min-width: 768px) { .hero { min-height: max(520px, calc(100vh - 110px)); } }
+  /* First screen, on every device: hero 82%, the "Featured Work" heading 12%, and the top 6% of the
+     first row of work peeking in to invite a scroll (svh = the visible screen on phones). */
+  .hero { height: max(420px, 82vh); height: max(420px, 82svh); }
 
   /* Background video: anchored towards the top so faces aren't cropped (or hidden under the
      menu bar) when the screen is wider than 16:9; any trimming comes off the bottom instead */
@@ -90,7 +91,7 @@
   @media (prefers-reduced-motion: reduce) { .scroll-cue { animation: none; } }
 
   /* "Selected Work" heading with a quiet Browse line beside it (under it on phones) */
-  .work-head { @apply flex flex-col gap-2 mb-5 md:flex-row md:items-baseline md:justify-between; }
+  .work-head { @apply flex items-end pb-4; height: max(64px, 12vh); height: max(64px, 12svh); }
   .work-browse { @apply flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-site-text-muted; }
   .work-browse a { @apply text-site-text-muted transition-colors; }
   .work-browse a:hover { @apply text-site-text; opacity: 1; }
