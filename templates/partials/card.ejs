@@ -22,7 +22,8 @@
   <% if (logo && pos === 'corner') { %><img class="card-logo" src="<%= logo %>" alt="<%= project.client %>" loading="lazy"><% } %>
   <div class="portfolio-item-title<%= inTitle ? ` has-logo logo-${pos}` : '' %>">
     <% if (inTitle) { %><div class="title-text"><% } %>
-    <h2 class="text-lg font-medium"><%= project.title %></h2>
+    <%# tiles use the optional short title (set in the admin when the full one is too long for a tile) %>
+    <h2 class="text-lg font-medium"><%= project.shortTitle || project.title %></h2>
     <% if (project.client) { %>
       <p class="text-sm text-site-text-muted"><%= project.client %></p>
     <% } %>

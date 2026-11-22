@@ -571,6 +571,83 @@ function renderEditor() {
   ed._for = p;
 }
 
+// ---------------------------------------------------------------- tile titles
+// Tiles show titles on one line. This measures a title in the site's font at the narrowest tile it can
+// appear on (a phone, at the smallest size the rows allow) to say whether it fits or gets cut with "…".
+// An optional short title (p.shortTitle) is used on tiles; the project page keeps the full title.
+const TILE_FIT = { vertical: { size: 11, width: 190 }, other: { size: 12.8, width: 255 } };
+let fitCanvas;
+function titleFits(p, text = p.shortTitle || p.title || '') {
+  const { size, width } = p.category === 'vertical' ? TILE_FIT.vertical : TILE_FIT.other;
+  fitCanvas ||= document.createElement('canvas').getContext('2d');
+  fitCanvas.font = `500 ${size}px Poppins, system-ui, sans-serif`;
+  if (fitCanvas.measureText(text).width <= width) return { fits: true, shown: text };
+  let cut = text;
+  while (cut && fitCanvas.measureText(`${cut}…`).width > width) cut = cut.slice(0, -1);
+  return { fits: false, shown: `${cut.trimEnd()}…` };
+}
+
+/** A starting point for a short title: drop words shared with the client's other titles (e.g. "Stage Tour"),
+ *  a repeated client name, and anything in brackets; then trim whole words until it fits. */
+function suggestShortTitle(p) {
+  let t = String(p.title || '').replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+  const client = String(p.client || '').trim();
+  if (client) t = t.replace(new RegExp(`^${client.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[-–:x@]*\\s*`, 'i'), '');
+  const others = projects().filter(x => x !== p && clientKey(x.client) === clientKey(p.client)).map(x => String(x.title || '').split(/\s+/));
+  const words = t.split(/\s+/);
+  let lead = 0;
+  while (lead < words.length - 2 && others.filter(o => o.slice(0, lead + 1).join(' ').toLowerCase() === words.slice(0, lead + 1).join(' ').toLowerCase()).length >= 2) lead += 1;
+  let out = words.slice(lead).join(' ').replace(/^[-–:@\s]+/, '');
+  // a title in two parts ("TRY NOT TO LAUGH: Ads That…"): the first part, if it fits on its own
+  const head = out.split(/\s*[:–—]\s*|\s+-\s+/)[0].trim();
+  if (head && head !== out && head.split(' ').length >= 2 && titleFits(p, head).fits) return head;
+  while (out.split(' ').length > 2 && !titleFits(p, out).fits) out = out.split(' ').slice(0, -1).join(' ');
+  return out || t;
+}
+
+function titleFitBox(p) {
+  const box = h('div', { class: 'title-fit', id: 'title-fit' });
+  box._p = p;
+  renderTitleFit(box, p);
+  document.fonts?.load('500 12px Poppins').then(() => renderTitleFit(box, p));   // measure in the real font
+  return box;
+}
+
+function updateTitleFit(p) {
+  const box = $('#title-fit');
+  if (box && box._p === p) renderTitleFit(box, p, true);
+}
+
+function renderTitleFit(box, p, keepField = false) {
+  const full = titleFits(p, p.title || '');
+  const used = titleFits(p);
+  const field = keepField && box.querySelector('#f-shortTitle');
+  const showField = !!p.shortTitle || box._open;
+  const status = !p.title ? null
+    : used.fits
+      ? h('span', { class: 'fit ok' }, p.shortTitle ? `✓ Tiles show the short title “${p.shortTitle}”` : '✓ Fits on tiles')
+      : h('span', { class: 'fit warn' }, `⚠ Too long for phone tiles: shows as “${used.shown}”`);
+  const offer = !p.title || showField || full.fits ? null
+    : h('button', { class: 'btn link', onclick: () => {
+      box._open = true;
+      mutate(() => { p.shortTitle = suggestShortTitle(p); });
+      renderTitleFit(box, p);
+      box.querySelector('#f-shortTitle')?.select();
+    } }, 'Use a short title');
+  if (field) {
+    box.querySelector('.fit-status').replaceChildren(status || '');
+    return;
+  }
+  box.replaceChildren(...[
+    h('div', { class: 'fit-status' }, status || ''),
+    offer,
+    showField ? h('label', { class: 'short-title' }, h('span', { class: 'muted small' }, 'Short title (tiles only)'),
+      textField(p, 'shortTitle', { placeholder: suggestShortTitle(p) }),
+      h('button', { class: 'btn link', title: 'Use the full title on tiles', onclick: () => {
+        box._open = false; mutate(() => { delete p.shortTitle; }); renderTitleFit(box, p);
+      } }, 'Remove')) : null].filter(Boolean));
+}
+
 function textField(p, key, opts = {}) {
   const tag = opts.multiline ? 'textarea' : 'input';
   const el = h(tag, {
@@ -585,6 +662,7 @@ function textField(p, key, opts = {}) {
       if (v !== e.target.value) e.target.value = v;
       mutate(() => { p[key] = v; }, { mergeKey: `${projects().indexOf(p)}:${key}` });
       if (key === 'title') $('#heading').textContent = v || '(untitled)';
+      if (key === 'title' || key === 'shortTitle') updateTitleFit(p);
     },
     onchange: e => {
       const v = e.target.value.trim();
@@ -592,6 +670,7 @@ function textField(p, key, opts = {}) {
       e.target.value = v;
       S.mergeKey = null;
       if (key === 'client') $('#client-logo')?.replaceChildren(clientLogoRow(p));
+      if (key === 'title' || key === 'shortTitle') updateTitleFit(p);
     },
   });
   if (tag === 'textarea') el.value = p[key] || '';
@@ -641,7 +720,7 @@ function detailsForm(p) {
   const client = textField(p, 'client', { list: true, placeholder: 'Client (e.g. Deakin University)' });
   client.classList.add('pe-client-input');
   return {
-    header: h('div', { class: 'pe-header' }, lists, title, client,
+    header: h('div', { class: 'pe-header' }, lists, title, titleFitBox(p), client,
       h('div', { class: 'pe-logo' }, h('span', { class: 'muted small' }, 'Client logo'), h('div', { id: 'client-logo' }, clientLogoRow(p)))),
     info: h('div', { class: 'form' },
     h('label', { for: 'f-role' }, 'Role'), textField(p, 'role', { list: true, placeholder: 'e.g. Editor' }),
@@ -982,6 +1061,17 @@ function hiddenCard(card, open) {
           h('span', { class: 'row-sub' }, `Hidden ${agoText(days)}${p.videoFile ? sizeOf(p) : ' · no hosted video'}`))),
       h('button', { class: 'btn link', title: 'Put it back on the site', onclick: () => { setHidden(p, false); renderOverview(); } }, 'Show'),
       h('button', { class: 'btn link danger', onclick: () => del(p) }, 'Delete')))));
+}
+
+/** Overview: titles that get cut on tiles (no short title, too long for a phone tile). */
+function cutTitlesCard(card, open) {
+  const list = projects().filter(p => !p.hidden && p.title && !titleFits(p).fits);
+  if (!list.length) return null;
+  return card(`Titles cut on tiles (${list.length})`,
+    h('p', { class: 'muted small' }, 'Too long for one line on a phone tile, so they end in “…”. Open one and use “Use a short title” (tiles only; the project page keeps the full title).'),
+    h('div', { class: 'ov-list' }, list.slice(0, 8).map(p => h('button', { class: 'ov-row', onclick: () => open(p) }, thumbFor(p),
+      h('span', { class: 'row-text' }, h('span', { class: 'row-title' }, p.title), h('span', { class: 'row-sub' }, `Shows as “${titleFits(p).shown}”`))))),
+    list.length > 8 ? h('p', { class: 'muted small' }, `…and ${list.length - 8} more`) : null);
 }
 
 const STATS_DUE_DAYS = 30;
@@ -1902,6 +1992,7 @@ function renderOverview() {
           : h('p', { class: 'muted' }, checking ? 'Checking videos…' : [h('span', { class: 'dot ok' }), ' Nothing to fix. Every video plays.']),
         h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: checkVideos }, 'Check Videos Now'))),
       hiddenCard(card, open),
+      cutTitlesCard(card, open),
       statsCard(card, p => { clearSearchFor(p); S.editorTab = 'details'; select(p);
         setTimeout(() => $('.stats-box')?.scrollIntoView({ block: 'center' }), 50); }),
       trafficCard, storageCard), h('div', { class: 'ov-col' },
