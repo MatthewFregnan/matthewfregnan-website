@@ -2209,6 +2209,12 @@ const SITE_TEXT = [
     ['ctaText', 'Closing band: line', 'I edit and colour commercials, branded content and social. Let’s make something together.'],
     ['ctaButton', 'Closing band: button', 'Get in touch'],
   ]],
+  ['Section pages', [
+    ['intro_commercial', 'Commercial: line under the heading', 'TV and online campaigns for brands, agencies and government.', "Type - (a dash) to hide it."],
+    ['intro_branded', 'Branded: line under the heading', 'Brand stories, profiles and series made with organisations and creators.'],
+    ['intro_vertical', 'Social: line under the heading', 'Short-form for TikTok, Instagram and YouTube Shorts, cut to hook fast and hold attention.'],
+    ['intro_colour-grading', 'Colour: line under the heading', 'Grading for commercials, music videos and short films.'],
+  ]],
   ['About page', [
     ['aboutHeading', 'Heading', 'Hi, I’m Matthew!'],
     ['aboutBody', 'About text', "I'm a post-production professional with over 5 years of experience based in Melbourne, Australia. I specialize in editing diverse content types, from commercial campaigns to branded videos and social media content.\n\nMy portfolio includes work with major brands such as KIA, Redoctane Games, CRKD, Deakin University, Ladbrokes, Oporto, and Australian government agencies. I focus on creating content that tells a story with clarity, energy, and style.", 'Leave a blank line between paragraphs.', 8],

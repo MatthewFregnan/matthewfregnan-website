@@ -768,6 +768,11 @@ const SITE_TEXT = {
   contactHeading: 'Let’s work together',
   contactText: 'Tell me a bit about the project: what it is, when it’s due and where it’ll live.',
   availability: '',
+  // one line under each section page's heading (key: intro_<section id>)
+  'intro_commercial': 'TV and online campaigns for brands, agencies and government.',
+  'intro_branded': 'Brand stories, profiles and series made with organisations and creators.',
+  'intro_vertical': 'Short-form for TikTok, Instagram and YouTube Shorts, cut to hook fast and hold attention.',
+  'intro_colour-grading': 'Grading for commercials, music videos and short films.',
 };
 function readHomeFile() {
   try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'home.json'), 'utf8')); } catch { return {}; }
@@ -778,7 +783,7 @@ function readSiteText() {
   try { saved = JSON.parse(fs.readFileSync(file, 'utf8')).text || {}; } catch { /* defaults */ }
   const text = { ...SITE_TEXT };
   for (const [k, v] of Object.entries(saved)) if (k in text && String(v || '').trim()) text[k] = String(v).trim();
-  if (text.clientsLabel === '-') text.clientsLabel = '';   // "-" hides the label over the logo strip
+  for (const k of Object.keys(text)) if (text[k] === '-') text[k] = '';   // "-" hides a line (e.g. the logo label, a section intro)
   // paragraphs (blank-line separated) and "Course | Where · When" lines, ready for the templates
   text.aboutParagraphs = text.aboutBody.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
   text.educationItems = text.education.split('\n').map(l => l.trim()).filter(Boolean)

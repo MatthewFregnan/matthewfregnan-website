@@ -742,3 +742,7 @@ footer { animation: page-fade 0.35s ease-out 0.1s backwards; }
 .to-top:hover { background: #fff; color: #111; }
 .to-top:hover svg { transform: translateY(-2px); }
 @media (prefers-reduced-motion: reduce) { .to-top { transition: none; } }
+
+/* Section pages: one line under the heading (Site Text) */
+.section-intro { max-width: 38em; margin: 0 auto 40px; text-align: center; color: #a0a0a0; font-size: 1rem; line-height: 1.6; }
+@media (max-width: 639px) { .section-intro { font-size: 0.95rem; margin-bottom: 28px; } }
