@@ -155,8 +155,8 @@ export function projectPreview(h, opts) {
   const { project: p, category: c, layout = 'standard', site, thumb, still, screen = 'desktop' } = opts;
   const phone = screen === 'phone';
   const vertical = c.id === 'vertical';
-  const hasVideo = !!(p.videoFile || p.vimeoId || p.youtubeId || p.instagramId);
-  const player = hasVideo ? h('div', { class: `pv-player${vertical || (p.instagramId && !p.videoFile && !p.vimeoId && !p.youtubeId) ? ' v' : ''}` },
+  const hasVideo = !!(p.videoFile || p.vimeoId || p.youtubeId || p.instagramId || p.tiktokId);
+  const player = hasVideo ? h('div', { class: `pv-player${vertical ||  ((p.instagramId || p.tiktokId) && !p.videoFile && !p.vimeoId && !p.youtubeId) ? ' v' : ''}` },
     img(h, thumb(p), p.thumbFocus),
     h('span', { class: 'pv-play' }, '▶')) : null;
   const gallery = (p.gallery || []).map(g => h('img', { class: 'pv-still', src: still(g), alt: '', loading: 'lazy' }));
@@ -222,6 +222,6 @@ export function statsText(p) {
   const part = (n, w) => (n ? `${fmt.format(n)} ${w}${n === 1 ? '' : 's'}` : '');
   const text = [part(num(p.statsViews), 'view'), part(num(p.statsLikes), 'like'), part(num(p.statsComments), 'comment')].filter(Boolean).join(' · ');
   if (!text) return '';
-  const where = PLATFORM_NAMES[p.statsPlatform ?? (p.instagramId ? 'instagram' : '')];
+  const where = PLATFORM_NAMES[p.statsPlatform ?? (p.instagramId ? 'instagram' : p.tiktokId ? 'tiktok' : '')];
   return where ? `${text} on ${where}` : text;
 }

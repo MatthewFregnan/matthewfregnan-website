@@ -59,6 +59,13 @@ function normaliseProject(p) {
     const m = ig.match(/instagram\.com\/(?:p|reels?|tv)\/([\w-]+)/);
     p.instagramId = m ? m[1] : '';
   }
+  const tt = String(p.tiktokId || '').trim();
+  if (tt && !/^\d{15,}$/.test(tt)) {
+    const m = tt.match(/\/(?:video|v2|v1|v)\/(\d{15,})/);
+    const u = tt.match(/\/@([\w.-]+)/);
+    p.tiktokId = m ? m[1] : '';
+    if (u && !p.tiktokUser) p.tiktokUser = u[1];
+  }
   if (!p.id) {
     p.id = String(p.title || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   }
@@ -117,10 +124,10 @@ function buildLocalBusinessSchema(siteConfig) {
 
 // ---------------------------------------------------------------- Video sources
 // A project can have its own hosted video file (videos.matthewfregnan.com, played in the site's
-// custom player: no ads or branding) plus Vimeo, YouTube and Instagram links as backups.
+// custom player: no ads or branding) plus Vimeo, YouTube, Instagram and TikTok links as backups.
 // `videoPrimary` picks which shows first. The build checks which actually play and starts on the
 // first working one; src/main.js swaps to a backup in the visitor's browser if one breaks later.
-const SOURCE_ORDER = ['file', 'vimeo', 'youtube', 'instagram'];
+const SOURCE_ORDER = ['file', 'vimeo', 'youtube', 'instagram', 'tiktok'];
 
 function videoSources(project) {
   const all = {};
@@ -153,6 +160,14 @@ function videoSources(project) {
       check: null // Instagram can't be checked without a Meta API token
     };
   }
+  if (project.tiktokId) {
+    const page = `https://www.tiktok.com/@${project.tiktokUser || ''}/video/${project.tiktokId}`;
+    all.tiktok = {
+      kind: 'tiktok', id: project.tiktokId, page,
+      embed: `https://www.tiktok.com/player/v1/${project.tiktokId}?music_info=1&description=1&rel=0`,
+      check: null // TikTok's oEmbed answers OK even for videos that don't exist, so it can't be verified
+    };
+  }
   return SOURCE_ORDER
     .slice()
     .sort((a, b) => (b === project.videoPrimary) - (a === project.videoPrimary))
@@ -167,7 +182,7 @@ async function sourcePlays(source) {
   try {
     const res = await fetch(url, { method: source.head ? 'HEAD' : 'GET', signal: AbortSignal.timeout(8000) });
     if (res.ok) return true;
-    return [401, 403, 404].includes(res.status) ? false : null;
+    return [400, 401, 403, 404].includes(res.status) ? false : null;
   } catch {
     return null;
   }
@@ -259,7 +274,7 @@ async function fetchStats(projects) {
     if (!p.showStats) continue;
     const typed = { views: parseCount(p.statsViews), likes: parseCount(p.statsLikes), comments: parseCount(p.statsComments) };
     if (typed.views == null && typed.likes == null && typed.comments == null) continue;
-    p._stats = { kind: p.statsPlatform ?? (p.instagramId ? 'instagram' : ''), ...typed, typed: true };
+    p._stats = { kind: p.statsPlatform ?? (p.instagramId ? 'instagram' : p.tiktokId ? 'tiktok' : ''), ...typed, typed: true };
   }
 
   for (const p of projects) {
@@ -268,6 +283,8 @@ async function fetchStats(projects) {
     const part = (n, word) => (n ? `${compact.format(n)} ${word}${n === 1 ? '' : 's'}` : '');
     s.text = [part(s.views, 'view'), part(s.likes, 'like'), part(s.comments, 'comment')].filter(Boolean).join(' · ');
     s.where = STATS_PLATFORMS[s.kind] || '';
+    // "on Instagram" etc. links to the post when the project has that platform's link
+    s.link = (p._video?.sources || []).find(src => src.kind === s.kind)?.page || '';
     if (!s.text) delete p._stats;
   }
 }

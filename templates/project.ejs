@@ -23,12 +23,12 @@
     <% } %>
 
     <!-- Video: starts on the first working source. Hosted video files play in the site's own player
-         (js/main.js); Vimeo / YouTube / Instagram use their embeds. main.js swaps to a backup if one breaks. -->
+         (js/main.js); Vimeo / YouTube / Instagram / TikTok use their embeds. main.js swaps to a backup if one breaks. -->
     <% const video = project._video; %>
     <% if (video && video.sources.length) { %>
       <% const src = video.sources[video.active];
          const isVertical = category.id === 'vertical';
-         const shape = src.kind === 'instagram' ? 'is-instagram' : (isVertical ? 'is-vertical' : '');
+         const shape = src.kind === 'instagram' ? 'is-instagram' : (isVertical || src.kind === 'tiktok' ? 'is-vertical' : '');
          const poster = project.thumbnail ? `/images/thumbnails/${project.thumbnail}` : ''; %>
       <div class="pp-media video-player mb-8"
            data-video-sources="<%= JSON.stringify(video.sources.map(s => ({ kind: s.kind, embed: s.embed, check: s.check }))) %>"
@@ -55,7 +55,7 @@
         </div>
         <% if (project._stats) { %>
           <p class="video-stats" data-kind="<%= project._stats.kind %>"<% if (project._stats.typed) { %> data-typed<% } %>>
-            <%= project._stats.text %><% if (project._stats.where) { %> on <%= project._stats.where %><% } %>
+            <%= project._stats.text %><% if (project._stats.where) { %> on <% if (project._stats.link) { %><a href="<%= project._stats.link %>" target="_blank" rel="noopener" class="stats-link"><%= project._stats.where %></a><% } else { %><%= project._stats.where %><% } %><% } %>
           </p>
         <% } %>
       </div>

@@ -563,12 +563,13 @@ function homeCheckboxes(p) {
 
 // ---------------------------------------------------------------- video
 
-const GENERIC = 'Paste a video file, Vimeo, YouTube or Instagram link';
+const GENERIC = 'Paste a video file, Vimeo, YouTube, Instagram or TikTok link';
 const PLACEHOLDER = {
   file: 'https://videos.matthewfregnan.com/…/name.mp4',
   vimeo: 'Vimeo link (unlisted share links work too)',
   youtube: 'YouTube link (video, Short or live)',
   instagram: 'Instagram post or reel link',
+  tiktok: 'TikTok video link (tiktok.com/@name/video/…)',
 };
 
 function activeSource(p) {
@@ -588,7 +589,7 @@ function renderVideo() {
   let player = card.querySelector('.player');
   const broken = V.state(p) === 'bad';
   const want = active && !broken ? V.embedUrl(active) : '';
-  const shape = active?.kind === 'instagram' ? 'instagram' : (p.category === 'vertical' ? 'vertical' : '');
+  const shape = active?.kind === 'instagram' ? 'instagram' : (p.category === 'vertical' || active?.kind === 'tiktok' ? 'vertical' : '');
   if (!player || player.dataset.src !== want || player.dataset.shape !== shape) {
     player = h('div', { class: `player ${shape}` });
     player.dataset.src = want;
@@ -598,7 +599,7 @@ function renderVideo() {
         ? h('video', { src: want, controls: true, preload: 'metadata', playsInline: true, poster: p.thumbnail ? I.src('thumbnails', p.thumbnail) : undefined })
         : h('iframe', { src: want, allow: 'autoplay; fullscreen; picture-in-picture; encrypted-media', allowFullscreen: true, title: 'Video preview' }))
       : h('div', { class: 'player-empty' }, broken
-        ? "This video can't play on the site. Fix it in Vimeo, or add a YouTube or Instagram backup below."
+        ? "This video can't play on the site. Fix it, or add a backup link below."
         : p.gallery?.length ? 'No video. The page shows the stills gallery.' : 'Paste a video link below to see it here.'));
   }
 
@@ -624,7 +625,7 @@ function renderVideo() {
 
   const tools = [];
   if (refs.length && !S.showBackups && refs.length < V.SOURCES.length) {
-    tools.push(h('button', { class: 'btn link', onclick: () => { S.showBackups = true; renderVideo(); } }, '+ Add a backup link (Vimeo, YouTube or Instagram)'));
+    tools.push(h('button', { class: 'btn link', onclick: () => { S.showBackups = true; renderVideo(); } }, '+ Add a backup link (Vimeo, YouTube, Instagram or TikTok)'));
   }
   if (refs.length > 1) {
     tools.push(h('label', {}, 'Show first: ', h('select', {
@@ -775,7 +776,7 @@ function statsFields(p) {
       const v = e.target.value.trim();
       mutate(() => { if (v) p[key] = v; else delete p[key]; });
     } }));
-  const where = p.statsPlatform ?? (p.instagramId ? 'instagram' : '');
+  const where = p.statsPlatform ?? (p.instagramId ? 'instagram' : p.tiktokId ? 'tiktok' : '');
   return h('div', { class: 'stats-box' },
     h('div', { class: 'stats-row' },
       field('statsViews', 'Views', 'e.g. 1.2M'),
@@ -1120,7 +1121,7 @@ function newFromLink() {
     st = null;
     create.disabled = !ref;
     if (!ref) {
-      info.replaceChildren(h('span'), h('span', { class: 'muted' }, link.value.trim() ? 'Not a video file, Vimeo, YouTube or Instagram link.' : ' '));
+      info.replaceChildren(h('span'), h('span', { class: 'muted' }, link.value.trim() ? 'Not a video file, Vimeo, YouTube, Instagram or TikTok link.' : ' '));
       return;
     }
     info.replaceChildren(h('span'), h('span', { class: 'muted' }, 'Looking up the video…'));

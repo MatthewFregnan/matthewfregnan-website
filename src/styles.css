@@ -463,3 +463,7 @@
   background: linear-gradient(to bottom, transparent 64%, rgba(10, 10, 10, 0.92) 86%);
 }
 .hero-bg.no-zoom .hero-media { transform: none; }
+
+/* "on Instagram" / "on TikTok" under a video links to the post */
+.video-stats .stats-link { color: #fff; text-decoration: underline; text-decoration-color: rgba(255, 255, 255, 0.35); text-underline-offset: 3px; }
+.video-stats .stats-link:hover { text-decoration-color: #fff; opacity: 1; }

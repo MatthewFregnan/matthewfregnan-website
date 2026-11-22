@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Video player
 // - Hosted video files (videos.matthewfregnan.com) play in the site's own player: our thumbnail
 //   and play button, then the video with a custom control bar over it. No ads, no branding.
-// - Vimeo / YouTube / Instagram (backups) use their normal embeds.
+// - Vimeo / YouTube / Instagram / TikTok (backups) use their normal embeds.
 // - If the video in use fails, switch to the project's next working link.
 // =====================================================================================
 
@@ -113,7 +113,7 @@ class VideoPlayer {
   mount(i) {
     this.index = i;
     const src = this.sources[i];
-    const shape = src.kind === 'instagram' ? 'is-instagram' : (this.vertical ? 'is-vertical' : '');
+    const shape = src.kind === 'instagram' ? 'is-instagram' : (this.vertical || src.kind === 'tiktok' ? 'is-vertical' : '');
     for (const node of [this.shell, this.container]) {
       node.classList.remove('is-instagram', 'is-vertical');
       if (shape) node.classList.add(shape);
@@ -485,17 +485,48 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Home page scroll nudge: smooth-scroll to the work, and fade the arrow out once the page scrolls.
+// Glide the page to a point: a quick, punchy start that "shoots" down, then a long soft settle
+// (a cubic-bezier(0.7, 0, 0.12, 1) curve). Any wheel, touch or key press takes over straight away.
+function glideTo(y, duration = 1150) {
+  const startY = window.scrollY;
+  const dist = y - startY;
+  if (Math.abs(dist) < 2) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    window.scrollTo({ top: y, behavior: 'instant' });
+    return;
+  }
+  const bez = (t, a, b) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3;
+  const ease = (x) => { // solve x(t) = x for the curve, then return y(t)
+    let lo = 0, hi = 1, t = x;
+    for (let i = 0; i < 20; i++) { t = (lo + hi) / 2; if (bez(t, 0.7, 0.12) < x) lo = t; else hi = t; }
+    return bez(t, 0, 1);
+  };
+  let stopped = false;
+  const stop = () => { stopped = true; };
+  const opts = { passive: true, once: true };
+  ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.addEventListener(ev, stop, opts));
+  const t0 = performance.now();
+  const step = (now) => {
+    if (stopped) return;
+    const x = Math.min(1, (now - t0) / duration);
+    window.scrollTo({ top: startY + dist * ease(x), behavior: 'instant' });
+    if (x < 1) requestAnimationFrame(step);
+    else ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.removeEventListener(ev, stop));
+  };
+  requestAnimationFrame(step);
+}
+
+// Home page scroll nudge and "View my work": glide to the work, and fade the arrow out once the page scrolls.
 document.addEventListener('DOMContentLoaded', () => {
   const cue = document.querySelector('.scroll-cue');
   if (!cue) return;
   const target = document.querySelector(cue.getAttribute('href'));
-  cue.addEventListener('click', (e) => {
+  document.querySelectorAll(`a[href="${cue.getAttribute('href')}"]`).forEach(link => link.addEventListener('click', (e) => {
     if (!target) return;
     e.preventDefault();
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
-  });
+    const navH = document.querySelector('header')?.offsetHeight || 64;
+    glideTo(target.getBoundingClientRect().top + window.scrollY - navH);
+  }));
   const update = () => cue.classList.toggle('is-hidden', window.scrollY > 40);
   window.addEventListener('scroll', update, { passive: true });
   update();

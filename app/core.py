@@ -178,18 +178,19 @@ def import_gallery(repo: Repo, project: dict, files: list[Path]) -> int:
 # --------------------------------------------------------------------------- video
 
 # Default order: your own hosted file first (no ads, no branding), then the platforms as backups.
-SOURCES = ["file", "vimeo", "youtube", "instagram"]
-SOURCE_NAMES = {"file": "Video file", "vimeo": "Vimeo", "youtube": "YouTube", "instagram": "Instagram"}
-SOURCE_KEYS = {"file": "videoFile", "vimeo": "vimeoId", "youtube": "youtubeId", "instagram": "instagramId"}
+SOURCES = ["file", "vimeo", "youtube", "instagram", "tiktok"]
+SOURCE_NAMES = {"file": "Video file", "vimeo": "Vimeo", "youtube": "YouTube", "instagram": "Instagram", "tiktok": "TikTok"}
+SOURCE_KEYS = {"file": "videoFile", "vimeo": "vimeoId", "youtube": "youtubeId", "instagram": "instagramId",
+               "tiktok": "tiktokId"}
 VIDEO_HOST = "https://videos.matthewfregnan.com"
 VIDEO_EXTS = (".mp4", ".m4v", ".mov", ".webm")
 
 
 @dataclass
 class VideoRef:
-    kind: str          # "file" | "vimeo" | "youtube" | "instagram"
+    kind: str          # "file" | "vimeo" | "youtube" | "instagram" | "tiktok"
     id: str            # for "file": the full https:// address of the video file
-    hash: str = ""     # Vimeo unlisted-link hash
+    hash: str = ""     # Vimeo unlisted-link hash, or the TikTok account name
 
     @property
     def page_url(self) -> str:
@@ -199,11 +200,13 @@ class VideoRef:
             return f"https://vimeo.com/{self.id}" + (f"/{self.hash}" if self.hash else "")
         if self.kind == "instagram":
             return f"https://www.instagram.com/p/{self.id}/"
+        if self.kind == "tiktok":
+            return f"https://www.tiktok.com/@{self.hash}/video/{self.id}"
         return f"https://www.youtube.com/watch?v={self.id}"
 
 
 def parse_video(text: str, hint: str | None = None) -> VideoRef | None:
-    """Accept a Vimeo, YouTube or Instagram URL (incl. unlisted Vimeo links), or a bare ID.
+    """Accept a Vimeo, YouTube, Instagram or TikTok URL (incl. unlisted Vimeo links), or a bare ID.
 
     `hint` is the field the text was typed into; it decides what a bare ID means.
     """
@@ -211,6 +214,8 @@ def parse_video(text: str, hint: str | None = None) -> VideoRef | None:
     if not t:
         return None
     if "/" not in t and "." not in t:
+        if hint == "tiktok" and re.fullmatch(r"\d{15,}", t):
+            return VideoRef("tiktok", t)
         if re.fullmatch(r"\d{5,}", t):
             return VideoRef("vimeo", t)
         if hint == "instagram" and re.fullmatch(r"[\w-]{5,}", t):
@@ -244,6 +249,11 @@ def parse_video(text: str, hint: str | None = None) -> VideoRef | None:
         for i, p in enumerate(parts[:-1]):
             if p in ("p", "reel", "reels", "tv"):
                 return VideoRef("instagram", parts[i + 1])
+    if "tiktok.com" in host:
+        m = re.search(r"/(?:video|v2|v1|v)/(\d{15,})", u.path)
+        if m:
+            user = next((p[1:] for p in parts if p.startswith("@")), "")
+            return VideoRef("tiktok", m.group(1), user)
     return None
 
 
@@ -258,6 +268,8 @@ def project_sources(project: dict) -> dict[str, VideoRef]:
         if ref and ref.kind == kind:
             if kind == "vimeo" and not ref.hash:
                 ref.hash = project.get("vimeoHash", "")
+            if kind == "tiktok" and not ref.hash:
+                ref.hash = project.get("tiktokUser", "")
             out[kind] = ref
     return out
 
@@ -279,10 +291,12 @@ def set_source(project: dict, kind: str, ref: VideoRef | None) -> None:
     project.pop(key, None)
     if kind == "vimeo":
         project.pop("vimeoHash", None)
+    if kind == "tiktok":
+        project.pop("tiktokUser", None)
     if ref:
         project[key] = ref.id
         if ref.hash:
-            project["vimeoHash"] = ref.hash
+            project["tiktokUser" if kind == "tiktok" else "vimeoHash"] = ref.hash
     if project.get("videoPrimary") not in project_sources(project):
         project.pop("videoPrimary", None)
 
@@ -301,6 +315,19 @@ class VideoStatus:
 
 def check_video(ref: VideoRef, timeout: float = 12) -> VideoStatus:
     """Ask the provider's public oEmbed endpoint whether the video can be embedded."""
+    if ref.kind == "tiktok":
+        # TikTok's oEmbed answers OK even for videos that don't exist; only real details count
+        api = "https://www.tiktok.com/oembed?url=" + urllib.parse.quote(ref.page_url, safe="")
+        try:
+            req = urllib.request.Request(api, headers={"User-Agent": "PortfolioManager/2.0"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                j = json.load(r)
+        except Exception:
+            j = {}
+        if j.get("title") or j.get("thumbnail_url"):
+            return VideoStatus(True, "Embeds OK", j.get("title", ""), j.get("thumbnail_url", ""), "",
+                               int(j.get("thumbnail_width") or 0), int(j.get("thumbnail_height") or 0))
+        return VideoStatus(None, "TikTok links can't be checked automatically. Open it to make sure the video is public.")
     if ref.kind == "instagram":
         # Instagram's public embed page answers "OK" even for posts that don't exist,
         # and its oEmbed API needs a Meta developer token, so it can't be verified here.
@@ -325,7 +352,7 @@ def check_video(ref: VideoRef, timeout: float = 12) -> VideoStatus:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             j = json.load(r)
     except urllib.error.HTTPError as e:
-        if e.code in (401, 403, 404):
+        if e.code in (400, 401, 403, 404):
             return VideoStatus(False, "Can't be embedded: it's private, deleted, or embedding is turned off")
         return VideoStatus(False, f"{SOURCE_NAMES[ref.kind]} returned an error ({e.code})")
     except Exception as e:  # network down etc.

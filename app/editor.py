@@ -22,12 +22,13 @@ from widgets import (
 )
 
 TEXT_KEYS = ["title", "client", "role", "production", "agency", "year", "platform", "deliverables", "description"]
-GENERIC = "Paste a video file, Vimeo, YouTube or Instagram link"
+GENERIC = "Paste a video file, Vimeo, YouTube, Instagram or TikTok link"
 PLACEHOLDERS = {
     "file": "https://videos.matthewfregnan.com/…/name.mp4",
     "vimeo": "Vimeo link (unlisted share links work too)",
     "youtube": "YouTube link (video, Short or live)",
     "instagram": "Instagram post or reel link",
+    "tiktok": "TikTok video link (tiktok.com/@name/video/…)",
 }
 
 
@@ -170,7 +171,7 @@ class ProjectEditor(QScrollArea):
             self.vfield[kind], self.vdot[kind] = e, d
         grid.setColumnStretch(2, 1)
         right.addLayout(grid)
-        self.add_backup = link_button("+ Add a backup link (Vimeo, YouTube or Instagram)")
+        self.add_backup = link_button("+ Add a backup link (Vimeo, YouTube, Instagram or TikTok)")
         self.add_backup.clicked.connect(lambda: self._toggle("_show_backups"))
         right.addWidget(self.add_backup)
 
@@ -334,7 +335,8 @@ class ProjectEditor(QScrollArea):
         self.show_stats.blockSignals(False)
         for key, e in self.stat_fields.items():
             set_text_quietly(e, str(p.get(key, "")))
-        where = p["statsPlatform"] if "statsPlatform" in p else ("instagram" if p.get("instagramId") else "")
+        where = p["statsPlatform"] if "statsPlatform" in p else \
+            ("instagram" if p.get("instagramId") else "tiktok" if p.get("tiktokId") else "")
         self.stats_platform.blockSignals(True)
         self.stats_platform.setCurrentIndex(max(0, self.stats_platform.findData(where)))
         self.stats_platform.blockSignals(False)

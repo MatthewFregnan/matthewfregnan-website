@@ -2,15 +2,17 @@
 // Mirrors app/core.py so the web admin and desktop app behave the same.
 
 // Default order: your own hosted file first (no ads, no branding), then the platforms as backups.
-export const SOURCES = ['file', 'vimeo', 'youtube', 'instagram'];
-export const NAMES = { file: 'Video file', vimeo: 'Vimeo', youtube: 'YouTube', instagram: 'Instagram' };
-const KEYS = { file: 'videoFile', vimeo: 'vimeoId', youtube: 'youtubeId', instagram: 'instagramId' };
+export const SOURCES = ['file', 'vimeo', 'youtube', 'instagram', 'tiktok'];
+export const NAMES = { file: 'Video file', vimeo: 'Vimeo', youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok' };
+const KEYS = { file: 'videoFile', vimeo: 'vimeoId', youtube: 'youtubeId', instagram: 'instagramId', tiktok: 'tiktokId' };
 export const VIDEO_HOST = 'videos.matthewfregnan.com';
 
 export function pageUrl(ref) {
   if (ref.kind === 'file') return ref.id;
   if (ref.kind === 'vimeo') return `https://vimeo.com/${ref.id}${ref.hash ? `/${ref.hash}` : ''}`;
   if (ref.kind === 'instagram') return `https://www.instagram.com/p/${ref.id}/`;
+  // TikTok: hash holds the account name (@name); TikTok also accepts the link without it
+  if (ref.kind === 'tiktok') return `https://www.tiktok.com/@${ref.hash || ''}/video/${ref.id}`;
   return `https://www.youtube.com/watch?v=${ref.id}`;
 }
 
@@ -20,14 +22,16 @@ export function embedUrl(ref) {
     return `https://player.vimeo.com/video/${ref.id}?${ref.hash ? `h=${ref.hash}&` : ''}title=0&byline=0&portrait=0`;
   }
   if (ref.kind === 'instagram') return `https://www.instagram.com/p/${ref.id}/embed/`;
+  if (ref.kind === 'tiktok') return `https://www.tiktok.com/player/v1/${ref.id}?music_info=1&description=1&rel=0`;
   return `https://www.youtube.com/embed/${ref.id}?rel=0&modestbranding=1`;
 }
 
-/** Accept a Vimeo/YouTube/Instagram link or a bare ID. `hint` = which box it was typed in. */
+/** Accept a Vimeo/YouTube/Instagram/TikTok link or a bare ID. `hint` = which box it was typed in. */
 export function parseVideo(text, hint) {
   const t = String(text || '').trim();
   if (!t) return null;
   if (!t.includes('/') && !t.includes('.')) {
+    if (hint === 'tiktok' && /^\d{15,}$/.test(t)) return { kind: 'tiktok', id: t, hash: '' };
     if (/^\d{5,}$/.test(t)) return { kind: 'vimeo', id: t, hash: '' };
     if (hint === 'instagram' && /^[\w-]{5,}$/.test(t)) return { kind: 'instagram', id: t, hash: '' };
     if (/^[\w-]{11}$/.test(t)) return { kind: 'youtube', id: t, hash: '' };
@@ -63,6 +67,12 @@ export function parseVideo(text, hint) {
     const i = parts.findIndex(p => ['p', 'reel', 'reels', 'tv'].includes(p));
     if (i >= 0 && parts[i + 1]) return { kind: 'instagram', id: parts[i + 1], hash: '' };
   }
+  if (host.endsWith('tiktok.com')) {
+    // tiktok.com/@name/video/123…, /embed/v2/123…, /player/v1/123… (short vm.tiktok.com links need opening first)
+    const id = u.pathname.match(/\/(?:video|v2|v1|v)\/(\d{15,})/)?.[1];
+    const user = (parts.find(p => p.startsWith('@')) || '').slice(1);
+    if (id) return { kind: 'tiktok', id, hash: user };
+  }
   return null;
 }
 
@@ -74,6 +84,7 @@ export function sources(p) {
     const ref = v.includes('/') || v.includes('.') ? parseVideo(v, kind) : { kind, id: v, hash: '' };
     if (ref && ref.kind === kind) {
       if (kind === 'vimeo' && !ref.hash) ref.hash = p.vimeoHash || '';
+      if (kind === 'tiktok' && !ref.hash) ref.hash = p.tiktokUser || '';
       out[kind] = ref;
     }
   }
@@ -89,9 +100,10 @@ export function ordered(p) {
 export function setSource(p, kind, ref) {
   delete p[KEYS[kind]];
   if (kind === 'vimeo') delete p.vimeoHash;
+  if (kind === 'tiktok') delete p.tiktokUser;
   if (ref) {
     p[KEYS[kind]] = ref.id;
-    if (ref.hash) p.vimeoHash = ref.hash;
+    if (ref.hash) p[kind === 'tiktok' ? 'tiktokUser' : 'vimeoHash'] = ref.hash;
   }
   if (p.videoPrimary && !sources(p)[p.videoPrimary]) delete p.videoPrimary;
 }
@@ -141,6 +153,21 @@ async function fetchStatus(ref) {
   if (ref.kind === 'file') return fileStatus(ref);
   if (ref.kind === 'instagram') {
     return { ok: null, message: "Instagram links can't be checked automatically. Open it to make sure the post is public." };
+  }
+  if (ref.kind === 'tiktok') {
+    let res;
+    try {
+      res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(pageUrl(ref))}`);
+    } catch {
+      return { ok: null, message: "TikTok can't be checked from here. Open it to make sure the post is public." };
+    }
+    // TikTok answers OK even for videos that don't exist, so only a reply with real details counts
+    const j = res.ok ? await res.json().catch(() => ({})) : {};
+    if (!j.title && !j.thumbnail_url) {
+      return { ok: null, message: "TikTok links can't be checked automatically. Open it to make sure the video is public." };
+    }
+    return { ok: true, message: 'Plays', title: j.title || '', thumbnail: j.thumbnail_url || '', author: j.author_unique_id || '',
+      width: j.thumbnail_width || 0, height: j.thumbnail_height || 0 };
   }
   const api = ref.kind === 'vimeo'
     ? `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(pageUrl(ref))}`
