@@ -18,32 +18,21 @@
 
       <!-- Bio -->
       <div class="md:col-span-3">
-        <h1 class="text-3xl md:text-4xl font-light mb-6">Hi, I’m Matthew!</h1>
+        <h1 class="text-3xl md:text-4xl font-light mb-6"><%= text.aboutHeading %></h1>
 
         <div class="space-y-4 text-site-text-muted leading-relaxed">
-          <p>
-            I'm a post-production professional with over 5 years of experience based in Melbourne, Australia.
-            I specialize in editing diverse content types, from commercial campaigns to branded videos and social media content.
-          </p>
-
-          <p>
-            My portfolio includes work with major brands such as KIA, Redoctane Games, CRKD, Deakin University,
-            Ladbrokes, Oporto, and Australian government agencies. I focus on creating content that tells a story
-            with clarity, energy, and style.
-          </p>
+          <% text.aboutParagraphs.forEach(para => { %><p><%= para %></p><% }) %>
         </div>
 
         <div class="about-block">
           <h2 class="about-label">Education</h2>
           <ul class="space-y-2">
+            <% text.educationItems.forEach(e => { %>
             <li>
-              <span class="block">Bachelor of Film and Television (Honours)</span>
-              <span class="text-sm text-site-text-muted">Swinburne University · 2018–2019</span>
+              <span class="block"><%= e.title %></span>
+              <% if (e.detail) { %><span class="text-sm text-site-text-muted"><%= e.detail %></span><% } %>
             </li>
-            <li>
-              <span class="block">Advanced Diploma &amp; Diploma of Screen and Media</span>
-              <span class="text-sm text-site-text-muted">Swinburne University · 2016–2017</span>
-            </li>
+            <% }) %>
           </ul>
         </div>
 
@@ -65,7 +54,7 @@
         <%# Keep people moving: from here into the work %>
         <div class="about-block">
           <a href="/<%= (categories.find(c => c.id === 'commercial') || categories[0]).slug %>/" class="about-cta">
-            See my commercial work
+            <%= text.aboutCta %>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </a>
         </div>

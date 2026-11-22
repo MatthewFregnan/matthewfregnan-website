@@ -614,16 +614,25 @@ function logoOf(p) {
   return imageUrl('logos', file).replace('/images/logos/', '/images/logos-white/');
 }
 
-// Every client logo once (several clients can share a file), for the strip on the home page.
-function clientLogos(projects) {
+// The logo strip in the home page hero. Clients ticked "Show in the home page logo strip" in the admin
+// ("strip": true in projects.json "clients"); if none are ticked, these well-known ones.
+const STRIP_DEFAULT = ['KIA', 'RedOctane Games', 'CRKD', 'Ladbrokes', 'Oporto', 'TAB', 'Toni and Ryan',
+  'Deakin University', "Royal Children's Hospital", 'Victorian Government', 'PTV', 'Yarra Valley Water'];
+const LOGO_ASPECT = new Map();   // logo file -> width / height, filled by makeWhiteLogos
+function clientLogos(projects, clients = {}) {
+  const ticked = Object.entries(clients).filter(([, c]) => c && c.strip).map(([n]) => n);
+  const names = (ticked.length ? ticked : STRIP_DEFAULT).map(n => n.trim().toLowerCase());
   const seen = new Map();
-  for (const p of projects) {
-    const src = logoOf(p);
-    const file = CLIENT_LOGOS.get(String(p.client || '').trim().toLowerCase());
-    if (!src || seen.has(file)) continue;
-    // the strip shows the full logo (icon and name) when there is one in images/logos/full
-    const full = fs.existsSync(path.join(IMAGES_DIR, 'logos', 'full', file));
-    seen.set(file, { src: full ? imageUrl('logos', `full/${file}`).replace('/images/logos/', '/images/logos-white/') : src, name: p.client.trim() });
+  for (const name of names) {
+    const file = CLIENT_LOGOS.get(name);
+    if (!file || seen.has(file) || !fs.existsSync(path.join(IMAGES_DIR, 'logos', file))) continue;
+    // the full logo (icon and name) when there is one in images/logos/full
+    const rel = fs.existsSync(path.join(IMAGES_DIR, 'logos', 'full', file)) ? `full/${file}` : file;
+    // Size by shape so every logo has about the same presence: wide wordmarks shorter, stacked ones taller
+    const aspect = LOGO_ASPECT.get(rel) || 3;
+    const height = Math.round(Math.min(56, Math.max(26, Math.sqrt(5200 / aspect))));
+    const client = Object.keys(clients).find(n => n.trim().toLowerCase() === name) || name;
+    seen.set(file, { src: imageUrl('logos', rel).replace('/images/logos/', '/images/logos-white/'), name: client, height });
   }
   return [...seen.values()];
 }
@@ -641,6 +650,7 @@ async function makeWhiteLogos() {
     const out = path.join(DIST_DIR, 'images', 'logos-white', file);
     await fs.ensureDir(path.dirname(out));
     await sharp(data, { raw: info }).webp({ quality: 92, alphaQuality: 100 }).toFile(out);
+    LOGO_ASPECT.set(file, info.width / info.height);
     made += 1;
   }
   if (made) console.log(`  White client logos: ${made}`);
@@ -725,6 +735,31 @@ function orderForSection(list, layout) {
   const placed = list.filter(p => rank.has(p.id)).sort((a, b) => rank.get(a.id) - rank.get(b.id));
   console.log(`  ${list[0]?.category || ''} page: "${preset.name}" layout`);
   return [...placed, ...list.filter(p => !rank.has(p.id))];
+}
+
+// Words on the site you can change in the admin (Site Text screen), saved in home.json under "text".
+// Anything left empty uses these.
+const SITE_TEXT = {
+  heroButton: 'View My Work',
+  aboutHeading: 'Hi, I’m Matthew!',
+  aboutBody: 'I\'m a post-production professional with over 5 years of experience based in Melbourne, Australia. I specialize in editing diverse content types, from commercial campaigns to branded videos and social media content.\n\nMy portfolio includes work with major brands such as KIA, Redoctane Games, CRKD, Deakin University, Ladbrokes, Oporto, and Australian government agencies. I focus on creating content that tells a story with clarity, energy, and style.',
+  education: 'Bachelor of Film and Television (Honours) | Swinburne University · 2018–2019\nAdvanced Diploma & Diploma of Screen and Media | Swinburne University · 2016–2017',
+  aboutCta: 'See my commercial work',
+  homeAboutTitle: 'Hi, I’m Matthew!',
+  homeAboutText: 'A Melbourne-based video editor & colourist. More about me, and how to get in touch.',
+  homeAboutButton: 'More about me',
+};
+function readSiteText() {
+  const file = path.join(DATA_DIR, 'home.json');
+  let saved = {};
+  try { saved = JSON.parse(fs.readFileSync(file, 'utf8')).text || {}; } catch { /* defaults */ }
+  const text = { ...SITE_TEXT };
+  for (const [k, v] of Object.entries(saved)) if (k in text && String(v || '').trim()) text[k] = String(v).trim();
+  // paragraphs (blank-line separated) and "Course | Where · When" lines, ready for the templates
+  text.aboutParagraphs = text.aboutBody.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+  text.educationItems = text.education.split('\n').map(l => l.trim()).filter(Boolean)
+    .map(l => { const [title, ...rest] = l.split('|'); return { title: title.trim(), detail: rest.join('|').trim() }; });
+  return text;
 }
 
 function resolveHome(projects) {
@@ -814,6 +849,7 @@ async function buildPages() {
   // Common data for all templates
   const commonData = {
     site: siteConfig,
+    text: readSiteText(),
     categories: projects.categories,
     currentYear: new Date().getFullYear(),
     // Fingerprints so browsers and Cloudflare fetch the new file whenever it changes
@@ -835,7 +871,7 @@ async function buildPages() {
     buildLocalBusinessSchema(siteConfig)
   ];
   const homeHtml = await renderTemplate('home', {
-    clientStrip: clientLogos(projects.projects),
+    clientStrip: clientLogos(projects.projects, projects.clients),
     ...commonData,
     home,
     title: `${siteConfig.title} | Melbourne Video Editor & Colourist`,

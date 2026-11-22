@@ -746,3 +746,7 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .head-tools { display: flex; align-items: center; gap: 10px; }
 .list-divider { margin: 10px 8px 4px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,.18); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .sp-divider { margin: 24px 0 10px; }
+.text-card { margin-bottom: 16px; display: grid; gap: 12px; }
+.text-card textarea { width: 100%; resize: vertical; font: inherit; line-height: 1.5; }
+.text-card .btn.link { justify-self: start; padding-left: 0; }
+.strip-check { flex-basis: 100%; margin-top: 4px; }

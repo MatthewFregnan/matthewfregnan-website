@@ -31,19 +31,19 @@
     </p>
     <div class="mt-12">
       <a href="<%= home.landscape.length || home.vertical.length ? '#selected-work' : '/my-work/' %>" class="inline-block rounded-full border border-white/50 px-8 py-3 text-sm uppercase tracking-wider hover:bg-white hover:text-site-bg transition-all duration-300">
-        View My Work
+        <%= text.heroButton %>
       </a>
     </div>
   </div>
 
-  <% if (clientStrip.length > 3) { %>
+  <% if (clientStrip.length > 2) { %>
     <%# Clients worked with: rises and fades in soon after the page opens, then drifts slowly sideways.
-        Every logo that has a file in images/logos (see "clients" in data/projects.json). %>
+        The clients ticked for it in the admin (see clientLogos in build.js), each sized to its shape. %>
     <div class="hero-clients" aria-label="Clients include">
       <div class="hero-clients-rise"><div class="hero-clients-track">
         <% [0, 1].forEach(copy => { %>
           <div class="hero-clients-set"<% if (copy) { %> aria-hidden="true"<% } %>>
-            <% clientStrip.forEach(c => { %><img src="<%= c.src %>" alt="<%= copy ? '' : c.name %>" decoding="async"><% }) %>
+            <% clientStrip.forEach(c => { %><img src="<%= c.src %>" alt="<%= copy ? '' : c.name %>" decoding="async" style="height: <%= c.height %>px"><% }) %>
           </div>
         <% }) %>
       </div></div>
@@ -156,10 +156,10 @@
     <a href="/about/" class="home-about">
       <img src="<%= imageUrl('', 'headshot.jpg').replace('/images//', '/images/') %>" alt="" loading="lazy">
       <span class="home-about-text">
-        <span class="home-about-title">Hi, I’m Matthew!</span>
-        <span class="home-about-sub">A Melbourne-based video editor &amp; colourist. More about me, and how to get in touch.</span>
+        <span class="home-about-title"><%= text.homeAboutTitle %></span>
+        <span class="home-about-sub"><%= text.homeAboutText %></span>
       </span>
-      <span class="home-about-go">About me
+      <span class="home-about-go"><%= text.homeAboutButton %>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </span>
     </a>

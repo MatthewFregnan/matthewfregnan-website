@@ -38,7 +38,7 @@ const S = {
   trafficDays: 30,
 };
 
-const PAGES = ['overview', 'home', 'projects', 'sections', 'traffic', 'storage'];
+const PAGES = ['overview', 'home', 'projects', 'sections', 'text', 'traffic', 'storage'];
 
 /** Switch the main area to one of the pages in the left menu. */
 function go(page, { push = true } = {}) {
@@ -54,6 +54,7 @@ function go(page, { push = true } = {}) {
   if (page === 'storage' && changedPage) renderStoragePage();
   if (page === 'traffic' && changedPage) renderTrafficPage();
   if (page === 'sections') renderSectionsPage();
+  if (page === 'text' && changedPage) renderTextPage();
   if (page === 'projects' && changedPage) { renderList({ scroll: true }); renderEditor(); }
   renderToolbar();
 }
@@ -188,6 +189,7 @@ function changed({ list = false, editor = false } = {}) {
   if (editor) renderEditor();
   if (S.page === 'overview') renderOverview();
   if (S.page === 'projects' && S.editorTab === 'preview') renderProjectPreview();
+  if (S.page === 'text' && !S.mergeKey?.startsWith('text:')) renderTextPage();   // e.g. after Undo (not while typing)
 }
 
 // ---------------------------------------------------------------- client logos (optional)
@@ -230,14 +232,32 @@ function clientLogoRow(p) {
     });
     $('#client-logo')?.replaceChildren(clientLogoRow(p));
   };
+  // Home page logo strip: ticked clients. Until any are ticked the site shows a default set (STRIP_DEFAULT,
+  // the same list as build.js); the first tick starts from that set so nothing disappears unexpectedly.
+  const entry = clientEntry(p.client);
+  const anyTicked = Object.values(S.data.clients || {}).some(c => c && c.strip);
+  const inStrip = anyTicked ? !!entry?.[1]?.strip : STRIP_DEFAULT.some(n => clientKey(n) === clientKey(p.client));
+  const toggleStrip = on => {
+    mutate(() => {
+      if (!anyTicked) for (const [n, c] of Object.entries(S.data.clients || {})) if (STRIP_DEFAULT.some(d => clientKey(d) === clientKey(n))) c.strip = true;
+      const c = clientEntry(p.client)?.[1];
+      if (c) { if (on) c.strip = true; else delete c.strip; }
+    });
+    $('#client-logo')?.replaceChildren(clientLogoRow(p));
+  };
   return h('div', { class: 'logo-row' },
     logo ? h('span', { class: 'logo-chip' }, I.withFallback(h('img', { src: I.src('logos', logo), alt: '' }), 'logos', logo)) : null,
     h('button', { class: 'btn', onclick: setLogo }, logo ? 'Change…' : 'Add Logo…'),
     logo ? h('button', { class: 'btn link danger', onclick: remove }, 'Remove') : null,
     h('span', { class: 'muted small' }, logo
       ? `Shown small on ${p.client}’s thumbnails${others ? ` (${others + 1} projects)` : ''}.`
-      : 'Optional: shown small on this client’s thumbnails. A PNG with a transparent background works best.'));
+      : 'Optional: shown small on this client’s thumbnails. A PNG with a transparent background works best.'),
+    logo ? h('label', { class: 'check strip-check' }, h('input', { type: 'checkbox', checked: inStrip, onchange: e => toggleStrip(e.target.checked) }),
+      'Show in the home page logo strip') : null);
 }
+
+const STRIP_DEFAULT = ['KIA', 'RedOctane Games', 'CRKD', 'Ladbrokes', 'Oporto', 'TAB', 'Toni and Ryan',
+  'Deakin University', "Royal Children's Hospital", 'Victorian Government', 'PTV', 'Yarra Valley Water'];
 
 function usedImagePaths() {
   const used = new Set();
@@ -2118,6 +2138,50 @@ function renderSectionsPage() {
       h('div', { class: 'list-divider sp-divider' }, `Hidden from the site (${items.filter(p => p.hidden).length})`),
       h('div', { class: `sp-grid${vertical ? ' v' : ''}` }, tiles.filter((t, i) => items[i].hidden))] : null));
   page.scrollTop = scroll;
+}
+
+// ---------------------------------------------------------------- site text
+// Words on the site that aren't about one project: saved in home.json under "text". An empty box uses
+// the default (the same defaults are in build.js SITE_TEXT; keep the two in step).
+
+const SITE_TEXT = [
+  ['Home page', [
+    ['heroButton', 'Hero button', 'View My Work'],
+    ['homeAboutTitle', 'About card: heading', 'Hi, I’m Matthew!'],
+    ['homeAboutText', 'About card: line under it', 'A Melbourne-based video editor & colourist. More about me, and how to get in touch.'],
+    ['homeAboutButton', 'About card: button', 'More about me'],
+  ]],
+  ['About page', [
+    ['aboutHeading', 'Heading', 'Hi, I’m Matthew!'],
+    ['aboutBody', 'About text', "I'm a post-production professional with over 5 years of experience based in Melbourne, Australia. I specialize in editing diverse content types, from commercial campaigns to branded videos and social media content.\n\nMy portfolio includes work with major brands such as KIA, Redoctane Games, CRKD, Deakin University, Ladbrokes, Oporto, and Australian government agencies. I focus on creating content that tells a story with clarity, energy, and style.", 'Leave a blank line between paragraphs.', 8],
+    ['education', 'Education', 'Bachelor of Film and Television (Honours) | Swinburne University · 2018–2019\nAdvanced Diploma & Diploma of Screen and Media | Swinburne University · 2016–2017', 'One per line: what you studied | where · when', 3],
+    ['aboutCta', 'Button at the end', 'See my commercial work'],
+  ]],
+];
+
+function renderTextPage() {
+  const page = $('#page-text');
+  if (!page || !S.home) return;
+  const saved = S.home.text || {};
+  const field = ([key, label, def, hint, rows]) => {
+    const value = saved[key] ?? def;
+    const set = v => mutate(() => {
+      S.home.text ||= {};
+      if (!v.trim() || v.trim() === def) delete S.home.text[key]; else S.home.text[key] = v;
+      if (!Object.keys(S.home.text).length) delete S.home.text;
+    }, { mergeKey: `text:${key}` });
+    const input = rows
+      ? h('textarea', { rows, oninput: e => set(e.target.value) }, value)
+      : h('input', { value, oninput: e => set(e.target.value) });
+    if (rows) input.value = value;
+    return h('div', { class: 'field' }, h('label', {}, label), input,
+      h('span', { class: 'muted small' }, [hint, saved[key] != null ? 'Changed from the default.' : ''].filter(Boolean).join(' ')),
+      saved[key] != null ? h('button', { class: 'btn link', onclick: () => { mutate(() => { delete S.home.text[key]; if (!Object.keys(S.home.text).length) delete S.home.text; }); renderTextPage(); } }, 'Reset to default') : null);
+  };
+  page.replaceChildren(h('div', { class: 'page-inner' },
+    h('div', { class: 'page-head' }, h('h2', {}, 'Site Text'),
+      h('p', { class: 'muted' }, 'Words on the home and About pages. Changes go live when you publish. The tagline and “Featured Work” heading are on the Home Page screen, per set.')),
+    SITE_TEXT.map(([group, fields]) => h('section', { class: 'ov-card text-card' }, h('h3', {}, group), fields.map(field)))));
 }
 
 // ---------------------------------------------------------------- traffic (anonymous visit stats)
