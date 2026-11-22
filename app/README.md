@@ -28,7 +28,11 @@ The first launch installs what the app needs (about a minute). After that it ope
 2. uploads it to videos.matthewfregnan.com;
 3. links it as the project's Video file. Press **Publish** to put it live.
 
-It needs ffmpeg (`brew install ffmpeg`) and Wrangler signed in once (`npx wrangler@3 login`). Uploading is desktop-only: the storage login can't safely live in a web page.
+It needs ffmpeg (`brew install ffmpeg`) and Wrangler signed in once (`npx wrangler@3 login`).
+
+**From the web admin:** the same **Upload Video File…** button (or drop a file on the player). The browser converts the video itself (4K, HEVC/iPhone, MOV → 1080p H.264 MP4; files that are already web-ready aren't re-encoded) and uploads it in chunks to the upload service at upload.matthewfregnan.com, which only accepts your signed-in GitHub token. Keep the tab open until it finishes (you can keep editing other projects meanwhile). Limits: up to 1 GB, and **ProRes doesn't work in browsers**: use the desktop app for ProRes masters, or export an H.264 MP4. Chrome or Edge convert fastest.
+
+Every upload gets a new address (e.g. `…/project-name-mwrf2klb.mp4`), so the live site keeps showing the old video until you **Publish**, and **Undo** brings the old one back. Replaced files stay in storage; delete them in the Cloudflare dashboard if you ever want the space back.
 
 **Exporting so no conversion is needed:** H.264 MP4, 1080p (or 1080×1920 for vertical), around 8–10 Mbps, AAC audio.
 
@@ -96,3 +100,5 @@ Open **https://matthewfregnan.com/admin/** to edit from your phone or any comput
 5. Generate it, copy it, and paste it into the admin page. The browser remembers it. Use **⋯ → Sign Out** on shared computers.
 
 **Using both.** When this app opens, it downloads any edits published from the web (unless you have unpublished changes here). Publishing from the app pulls web edits in first. If the project list was changed in both places, the web admin won't overwrite it: it asks you to reload first.
+
+**The upload service** (`upload-worker/`) is a small Cloudflare Worker with the video bucket attached, so no storage keys are ever in a web page. It checks each upload's GitHub token can write to this repo. To update it after changing its code: `cd upload-worker && npx wrangler@3 deploy`. To test it locally with simulated storage: put `TEST_TOKEN=anything` in `upload-worker/.dev.vars`, run `npx wrangler@3 dev`, and open the admin at `http://localhost:…/admin/?demo&upload=http://localhost:8787&uploadToken=anything`.

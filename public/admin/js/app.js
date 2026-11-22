@@ -4,6 +4,7 @@
 
 import * as V from './video.js';
 import * as I from './images.js';
+import * as U from './upload.js';
 import { ConflictError, DEFAULT_HOME, DemoBackend, GitHubBackend } from './github.js';
 
 const SITE = 'https://matthewfregnan.com';
@@ -23,6 +24,7 @@ const S = {
   mergeKey: null,      // typing in the same field merges into one undo step
   showBackups: false,
   showGallery: false,
+  uploads: [],         // video uploads running in the background
 };
 
 // =========================================================================== helpers
@@ -570,9 +572,21 @@ function renderVideo() {
     }, refs.map(r => h('option', { value: r.kind }, V.NAMES[r.kind])))));
   }
 
+  // Drop a video file on the player to upload it
+  player.ondragover = e => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); player.classList.add('over'); } };
+  player.ondragleave = () => player.classList.remove('over');
+  player.ondrop = e => {
+    player.classList.remove('over');
+    const file = [...(e.dataTransfer.files || [])].find(U.looksLikeVideo);
+    if (file) { e.preventDefault(); startUpload(p, file); }
+  };
+  const job = uploadJobFor(p);
+
   card.replaceChildren(
     h('h4', {}, 'Video'),
     player,
+    job ? h('div', { class: 'upload-line' }, h('span', { class: 'dot null' }), ` ${job.label}`,
+      h('div', { class: 'upload-bar' }, h('span', { style: `width:${Math.round(job.progress * 100)}%` }))) :'',
     h('div', { class: 'sources' }, rows),
     h('div', { class: 'vrow-tools' }, tools),
     h('div', { class: 'vstate', id: 'vstate' }, videoStateText(p)),
@@ -583,8 +597,107 @@ function renderVideo() {
       }), 'Show view count on the project page'),
       h('button', {
         class: 'btn', onclick: useVideoDetails, disabled: !refs.some(r => r.kind !== 'file' && V.status(r)?.ok),
-      }, 'Use Video’s Title, Year & Thumbnail')) : null,
+      }, 'Use Video’s Title, Year & Thumbnail')) :'',
+    h('div', { class: 'vrow-tools' },
+      h('button', {
+        class: 'btn', disabled: !!job || !uploadConfig(),
+        title: uploadConfig() ? 'Convert (if needed) and upload a video file, then use it as this project’s video. You can also drop a file on the player.'
+          : 'Sign in to upload videos',
+        onclick: async () => { const [f] = await pickVideoFile(); if (f) startUpload(p, f); },
+      }, 'Upload Video File…'),
+      h('span', { class: 'muted small' }, 'or drop a video on the player. MP4/MOV; ProRes needs the desktop app.')),
   );
+}
+
+// ---------------------------------------------------------------- video uploads (background)
+
+/** Where uploads go and the token that authorises them (the admin's GitHub sign-in). */
+function uploadConfig() {
+  const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+  if (local && params.get('upload')) return { endpoint: params.get('upload'), token: params.get('uploadToken') || '' };
+  if (S.backend && !S.backend.demo && S.backend.token) return { endpoint: U.UPLOAD_ENDPOINT, token: S.backend.token };
+  return null;
+}
+
+const uploadJobFor = p => S.uploads.find(j => j.key === keyOf(p) && !j.finished);
+
+function pickVideoFile() {
+  return new Promise(resolve => {
+    const input = h('input', { type: 'file', accept: 'video/*,.mov,.mp4,.m4v,.mkv,.webm' });
+    input.addEventListener('change', () => resolve([...input.files]));
+    input.click();
+  });
+}
+
+function startUpload(p, file) {
+  if (!uploadConfig()) { toast('Sign in to upload videos.'); return; }
+  if (!U.looksLikeVideo(file)) { toast('Choose a video file (MP4 or MOV).'); return; }
+  if (uploadJobFor(p)) { toast('This project already has a video uploading.'); return; }
+  S.uploads.push({ key: keyOf(p), title: p.title || p.id, file, progress: 0, label: 'Waiting to upload…', finished: false });
+  renderUploads();
+  runUploads();
+}
+
+let uploadRunning = false;
+async function runUploads() {
+  if (uploadRunning) return;
+  const job = S.uploads.find(j => !j.finished && !j.started);
+  if (!job) return;
+  uploadRunning = true;
+  job.started = true;
+  const step = (progress, label) => { job.progress = progress; job.label = label; renderUploads(); };
+  try {
+    const blob = await U.prepare(job.file, (f, label) => step(f * 0.5, `${label}… ${Math.round(f * 100)}%`));
+    // A new address for every upload, so the live video isn't replaced until you publish (and undo works)
+    const url = await U.upload(blob, `${job.key}-${Date.now().toString(36)}.mp4`, {
+      ...uploadConfig(),
+      onProgress: f => step(0.5 + f * 0.5, `Uploading ${(blob.size / 1e6).toFixed(0)} MB… ${Math.round(f * 100)}%`),
+    });
+    job.finished = true;
+    linkUploadedVideo(job, url);
+  } catch (e) {
+    job.finished = true;
+    toast(`Upload failed for “${job.title}”: ${e.message}`, 10000);
+  }
+  uploadRunning = false;
+  renderUploads();
+  runUploads();
+}
+
+/** Point the project at its new video (found by address, so switching projects meanwhile is fine). */
+function linkUploadedVideo(job, url) {
+  const p = projects().find(x => keyOf(x) === job.key);
+  if (!p) {
+    toast(`“${job.title}” uploaded, but the project was renamed or deleted. Its video is at ${url}`, 15000);
+    return;
+  }
+  const ref = { kind: 'file', id: url, hash: '' };
+  const prev = S.current;
+  S.current = p;   // so the change is recorded against that project
+  mutate(() => V.setSource(p, 'file', ref), { list: true });
+  S.current = prev;
+  V.check(ref, true).then(() => { if (S.current === p) renderVideo(); }).catch(() => {});
+  if (S.current === p) renderVideo();
+  toast(`Uploaded the video for “${job.title}”. Publish to put it live.`, 6000);
+}
+
+function renderUploads() {
+  const el = $('#upload-status');
+  const active = S.uploads.filter(j => !j.finished);
+  if (el) {
+    el.hidden = !active.length;
+    const j = active.find(x => x.started) || active[0];
+    el.textContent = j ? `⬆ ${j.title}: ${j.label}${active.length > 1 ? ` (+${active.length - 1} waiting)` : ''}` : '';
+  }
+  if (!S.current) return;
+  const line = $('#video-card .upload-line');
+  const job = uploadJobFor(S.current);
+  if (job && line) {
+    line.childNodes[1].textContent = ` ${job.label}`;
+    line.querySelector('.upload-bar span').style.width = `${Math.round(job.progress * 100)}%`;
+  } else if (!!job !== !!line) {
+    renderVideo();
+  }
 }
 
 function videoStateText(p) {
@@ -1326,6 +1439,9 @@ async function start(backend) {
 }
 
 function wire() {
+  window.addEventListener('beforeunload', e => {
+    if (S.uploads.some(j => !j.finished)) { e.preventDefault(); e.returnValue = ''; }
+  });
   $('#new-link').onclick = newFromLink;
   $('#new-blank').onclick = newBlank;
   $('#duplicate').onclick = duplicate;

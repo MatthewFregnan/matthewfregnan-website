@@ -1,0 +1,17 @@
+# Upload service for the web admin (matthewfregnan.com/admin): lets a signed-in admin upload videos
+# into the R2 video bucket in chunks. Deploy from this folder with:  npx wrangler@3 deploy
+name = "matthewfregnan-upload"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+workers_dev = false
+
+routes = [
+  { pattern = "upload.matthewfregnan.com", custom_domain = true }
+]
+
+[[r2_buckets]]
+binding = "VIDEOS"
+bucket_name = "matthewfregnan-videos"
+
+[vars]
+REPO = "MatthewFregnan/matthewfregnan-website"

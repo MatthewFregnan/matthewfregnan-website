@@ -170,12 +170,23 @@ def upload(file: Path, key: str, progress: Callable[[str], None]) -> str:
     return f"{core.VIDEO_HOST}/{key}?v={int(time.time())}"
 
 
+def _base36(n: int) -> str:
+    digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+    out = ""
+    while n:
+        n, r = divmod(n, 36)
+        out = digits[r] + out
+    return out or "0"
+
+
 def upload_video(project: dict, src: Path, progress: Callable[[str], None]) -> str:
     """Prepare and upload `src` for `project`; returns the new video address."""
     if src.suffix.lower() not in VIDEO_EXTS:
         raise UploadError("Choose a video file (MP4, MOV, M4V, MXF…).")
     with tempfile.TemporaryDirectory(prefix="portfolio-upload-") as tmp:
         ready = prepare(src, Path(tmp), progress)
-        url = upload(ready, f"{project['category']}/{project['id']}.mp4", progress)
+        # A new address for every upload, so the live video isn't replaced until you publish (and undo works)
+        stamp = _base36(int(time.time() * 1000))
+        url = upload(ready, f"{project['category']}/{project['id']}-{stamp}.mp4", progress)
     progress("Done.")
     return url

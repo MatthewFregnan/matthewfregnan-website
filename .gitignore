@@ -26,3 +26,7 @@ __pycache__/
 
 # Temporary checklist for moving videos off Vimeo
 vimeo-downloads.md
+
+# Upload worker local files
+upload-worker/.dev.vars
+upload-worker/.wrangler/
