@@ -961,7 +961,7 @@ function publish() {
 
 // ---------------------------------------------------------------- Home Page editor
 
-const HD = { current: null, adding: false, confirmDelete: false, q: '' };
+const HD = { current: null, adding: false, confirmDelete: false, q: '', displayOpen: false };
 
 // Project page layouts. Add new ones here and as templates/partials/project-<id>.ejs
 const LAYOUTS = [
@@ -1105,6 +1105,34 @@ function renderHomeDialog() {
           const v = e.target.value.trim();
           if (v !== (set.tagline || '')) editHome(() => { homeSet(set.id).tagline = v; });
         } })),
+      h('details', { class: 'display-settings', open: HD.displayOpen, ontoggle: e => { HD.displayOpen = e.target.open; } },
+        h('summary', {}, 'Selected work section'),
+        h('div', { class: 'display-grid' },
+          h('label', {}, 'Heading'),
+          h('input', { value: set.heading || '', placeholder: 'Selected Work', onchange: e => {
+            const v = e.target.value.trim();
+            editHome(() => { const s2 = homeSet(set.id); if (v) s2.heading = v; else delete s2.heading; });
+          } }),
+          h('label', {}, 'Order'),
+          h('select', { onchange: e => editHome(() => { homeSet(set.id).order = e.target.value; }) },
+            h('option', { value: 'landscape-first', selected: set.order !== 'social-first' }, 'Landscape first, then Social'),
+            h('option', { value: 'social-first', selected: set.order === 'social-first' }, 'Social first, then landscape')),
+          h('label', {}, 'Landscape row title'),
+          h('input', { value: set.landscapeTitle || '', placeholder: 'None (optional)', onchange: e => {
+            const v = e.target.value.trim();
+            editHome(() => { const s2 = homeSet(set.id); if (v) s2.landscapeTitle = v; else delete s2.landscapeTitle; });
+          } }),
+          h('label', {}, 'Social row title'),
+          h('input', { value: set.socialTitle === undefined ? 'Social' : set.socialTitle, placeholder: 'None', onchange: e => {
+            const v = e.target.value.trim();
+            editHome(() => { homeSet(set.id).socialTitle = v; });
+          } }),
+          h('label', {}, 'Show'),
+          h('div', { class: 'vrow-tools' },
+            h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: set.showLandscape !== false,
+              onchange: e => editHome(() => { const s2 = homeSet(set.id); if (e.target.checked) delete s2.showLandscape; else s2.showLandscape = false; }) }), 'Landscape work'),
+            h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: set.showSocial !== false,
+              onchange: e => editHome(() => { const s2 = homeSet(set.id); if (e.target.checked) delete s2.showSocial; else s2.showSocial = false; }) }), 'Social work')))),
       h('div', { class: 'field' }, h('label', {}, 'Project page layout'),
         h('select', { onchange: e => editHome(() => { homeSet(set.id).projectLayout = e.target.value; }) },
           LAYOUTS.map(l => h('option', { value: l.id, selected: (set.projectLayout || 'standard') === l.id }, l.name))),
@@ -1114,7 +1142,7 @@ function renderHomeDialog() {
           onclick: () => editHome(() => { S.home.active = set.id; }) }, live ? 'This set is on the site' : 'Show This on the Site'),
         h('button', { class: 'btn', onclick: () => { HD.adding = true; HD.q = ''; renderHomeDialog(); } }, 'Add Projects…')),
       h('div', { class: 'home-list' }, rows.length ? rows : h('p', { class: 'muted' }, 'No projects yet. Use “Add Projects…”.')),
-      h('p', { class: 'hint' }, 'Drag to reorder. Landscape projects show first on the site, then Social projects in their own row.'));
+      h('p', { class: 'hint' }, 'Drag to reorder. Landscape and Social projects show in separate rows, in the order set above.'));
   }
 
   d.replaceChildren(

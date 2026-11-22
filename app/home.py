@@ -6,7 +6,7 @@ import re
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget,
+    QAbstractItemView, QCheckBox, QComboBox, QDialog, QFormLayout, QGroupBox, QDialogButtonBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget,
     QListWidgetItem, QMessageBox, QPushButton, QVBoxLayout, QWidget,
 )
 
@@ -120,7 +120,7 @@ class HomeDialog(QDialog):
         b_add.clicked.connect(self._add)
         b_rm = QPushButton("Remove")
         b_rm.clicked.connect(self._remove)
-        hint = QLabel("Drag to reorder. Landscape projects show first, then Social projects in their own row.")
+        hint = QLabel("Drag to reorder. Landscape and Social projects show in separate rows, in the order set above.")
         hint.setStyleSheet("color: palette(placeholder-text);")
         right = QWidget()
         rl = QVBoxLayout(right)
@@ -133,6 +133,36 @@ class HomeDialog(QDialog):
         lrow.addStretch()
         rl.addLayout(lrow)
         rl.addWidget(self.layout_hint)
+
+        # How the selected work section looks for this set
+        box = QGroupBox("Selected work section")
+        box.setCheckable(False)
+        form = QFormLayout(box)
+        self.d_heading = QLineEdit(placeholderText="Selected Work")
+        self.d_heading.editingFinished.connect(lambda: self._set_text("heading", self.d_heading.text(), "Change Heading"))
+        self.d_order = QComboBox()
+        self.d_order.addItem("Landscape first, then Social", "landscape-first")
+        self.d_order.addItem("Social first, then landscape", "social-first")
+        self.d_order.activated.connect(self._set_order)
+        self.d_land = QLineEdit(placeholderText="None (optional)")
+        self.d_land.editingFinished.connect(lambda: self._set_text("landscapeTitle", self.d_land.text(), "Change Row Title"))
+        self.d_social = QLineEdit(placeholderText="None")
+        self.d_social.editingFinished.connect(lambda: self._set_social_title(self.d_social.text()))
+        self.d_show_land = QCheckBox("Landscape work")
+        self.d_show_land.toggled.connect(lambda on: self._set_show("showLandscape", on))
+        self.d_show_social = QCheckBox("Social work")
+        self.d_show_social.toggled.connect(lambda on: self._set_show("showSocial", on))
+        shows = QHBoxLayout()
+        shows.addWidget(self.d_show_land)
+        shows.addWidget(self.d_show_social)
+        shows.addStretch()
+        form.addRow("Heading", self.d_heading)
+        form.addRow("Order", self.d_order)
+        form.addRow("Landscape row title", self.d_land)
+        form.addRow("Social row title", self.d_social)
+        form.addRow("Show", shows)
+        rl.addWidget(box)
+        self.display_box = box
         rl.addWidget(self.items, 1)
         r2 = QHBoxLayout()
         r2.addWidget(b_add)
@@ -193,6 +223,18 @@ class HomeDialog(QDialog):
         self.layout_combo.setEnabled(bool(s))
         self.layout_combo.setCurrentIndex(max(0, self.layout_combo.findData(layout)))
         self.layout_hint.setText(next((h for lid, _n, h in LAYOUTS if lid == layout), ""))
+        st = s or {}
+        self.display_box.setEnabled(bool(s))
+        for w in (self.d_heading, self.d_order, self.d_land, self.d_social, self.d_show_land, self.d_show_social):
+            w.blockSignals(True)
+        self.d_heading.setText(st.get("heading", ""))
+        self.d_order.setCurrentIndex(1 if st.get("order") == "social-first" else 0)
+        self.d_land.setText(st.get("landscapeTitle", ""))
+        self.d_social.setText(st.get("socialTitle", "Social"))
+        self.d_show_land.setChecked(st.get("showLandscape", True) is not False)
+        self.d_show_social.setChecked(st.get("showSocial", True) is not False)
+        for w in (self.d_heading, self.d_order, self.d_land, self.d_social, self.d_show_land, self.d_show_social):
+            w.blockSignals(False)
         self.items.blockSignals(True)
         self.items.clear()
         for key in (s.get("projects", []) if s else []):
@@ -272,6 +314,30 @@ class HomeDialog(QDialog):
             text = self.tagline.text().strip()
             if text != self.store.home_set(self.current).get("tagline", ""):
                 self._edit_current("Change Tagline", lambda st, _h: st.__setitem__("tagline", text))
+
+    # ------------------------------------------------------------------ display settings
+    def _set_text(self, key: str, text: str, label: str):
+        if not self.current:
+            return
+        v = text.strip()
+        if v == self.store.home_set(self.current).get(key, ""):
+            return
+        self._edit_current(label, lambda st, _h: st.__setitem__(key, v) if v else st.pop(key, None))
+
+    def _set_social_title(self, text: str):
+        if self.current and text.strip() != self.store.home_set(self.current).get("socialTitle", "Social"):
+            self._edit_current("Change Row Title", lambda st, _h: st.__setitem__("socialTitle", text.strip()))
+
+    def _set_order(self):
+        if self.current:
+            v = self.d_order.currentData()
+            if v != self.store.home_set(self.current).get("order", "landscape-first"):
+                self._edit_current("Change Order", lambda st, _h: st.__setitem__("order", v))
+
+    def _set_show(self, key: str, on: bool):
+        if self.current:
+            self._edit_current("Show Row" if on else "Hide Row",
+                               lambda st, _h: st.pop(key, None) if on else st.__setitem__(key, False))
 
     def _set_layout(self):
         if self.current:

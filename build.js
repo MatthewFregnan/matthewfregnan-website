@@ -579,7 +579,19 @@ function resolveHome(projects) {
   const set = (home.sets || []).find(s => s.id === home.active) || (home.sets || [])[0];
   if (!set) return empty;
   const byKey = new Map(projects.projects.map(p => [`${p.category}/${p.id}`, p]));
-  const out = { tagline: set.tagline || '', projectLayout: set.projectLayout || 'standard', landscape: [], vertical: [] };
+  const out = {
+    tagline: set.tagline || '',
+    projectLayout: set.projectLayout || 'standard',
+    // How the selected work section looks for this set (all optional, see the Home Page editor)
+    heading: (set.heading || '').trim() || 'Selected Work',
+    order: set.order === 'social-first' ? 'social-first' : 'landscape-first',
+    landscapeTitle: (set.landscapeTitle || '').trim(),
+    socialTitle: set.socialTitle === undefined ? 'Social' : String(set.socialTitle).trim(),
+    showLandscape: set.showLandscape !== false,
+    showSocial: set.showSocial !== false,
+    landscape: [],
+    vertical: [],
+  };
   for (const key of set.projects || []) {
     const project = byKey.get(key);
     if (!project) {
@@ -589,7 +601,9 @@ function resolveHome(projects) {
     const category = projects.categories.find(c => c.id === project.category);
     (category.id === 'vertical' ? out.vertical : out.landscape).push({ project, category });
   }
-  console.log(`  Home page set: ${set.name} (${out.landscape.length + out.vertical.length} projects)`);
+  if (!out.showLandscape) out.landscape = [];
+  if (!out.showSocial) out.vertical = [];
+  console.log(`  Home page set: ${set.name} (${out.landscape.length + out.vertical.length} projects shown)`);
   out.categoryTiles = categoryTiles(projects, set);
   return out;
 }
