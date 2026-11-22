@@ -450,36 +450,105 @@ document.addEventListener('DOMContentLoaded', () => {
   update();
 });
 
-// Hover previews: tiles with a hosted video play it silently while the mouse is over
-// them (desktop only; on phones a tap just opens the project). The video only loads on hover.
+// Tile previews: a tile with a hosted video plays it silently and on a loop, while the mouse is over it
+// (desktop) or, on the home page, while its row is in the middle of the screen (the first visible tile
+// of the row nearest the centre; works on phones too). Only one plays at a time, and a video only
+// loads when it's first needed. Off for reduced motion and data-saver.
+const Previews = (() => {
+  let current = null;
+  const videoFor = (tile) => {
+    let v = tile.querySelector('video.vp-preview');
+    if (!v) {
+      v = document.createElement('video');
+      v.className = 'vp-preview';
+      v.muted = true;
+      v.loop = true;
+      v.playsInline = true;
+      v.setAttribute('playsinline', '');
+      v.preload = 'auto';
+      v.src = tile.dataset.preview;
+      tile.insertBefore(v, tile.querySelector('.portfolio-item-title'));
+    }
+    return v;
+  };
+  const stop = (tile) => {
+    if (!tile) return;
+    tile.classList.remove('is-previewing');
+    const v = tile.querySelector('video.vp-preview');
+    if (v) setTimeout(() => { if (!tile.classList.contains('is-previewing')) v.pause(); }, 350);
+    if (current === tile) current = null;
+  };
+  const play = (tile, restart = true) => {
+    if (current === tile) return;
+    stop(current);
+    current = tile;
+    const v = videoFor(tile);
+    if (restart) v.currentTime = 0;
+    v.play().then(() => { if (current === tile) tile.classList.add('is-previewing'); }).catch(() => {});
+  };
+  return { play, stop, get current() { return current; } };
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
-  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  document.querySelectorAll('[data-preview]').forEach((tile) => {
-    let video = null;
-    let timer = null;
-    tile.addEventListener('mouseenter', () => {
-      timer = setTimeout(() => {
-        if (!video) {
-          video = document.createElement('video');
-          video.className = 'vp-preview';
-          video.muted = true;
-          video.loop = true;
-          video.playsInline = true;
-          video.preload = 'auto';
-          video.src = tile.dataset.preview;
-          tile.insertBefore(video, tile.querySelector('.portfolio-item-title'));
+  if (navigator.connection && navigator.connection.saveData) return;
+  const tiles = [...document.querySelectorAll('[data-preview]')];
+  if (!tiles.length) return;
+  let hovered = null;
+
+  // Scroll: the row nearest the middle of the screen plays its first visible tile
+  const rows = [...document.querySelectorAll('.row-track')].filter(r => r.querySelector('[data-preview]'));
+  let scrollPick = null;
+  const pickFromScroll = () => {
+    if (hovered) return;
+    const mid = window.innerHeight / 2;
+    let best = null;
+    let bestDist = Infinity;
+    for (const row of rows) {
+      const r = row.getBoundingClientRect();
+      if (r.bottom < window.innerHeight * 0.15 || r.top > window.innerHeight * 0.85) continue;  // not really on screen
+      const dist = Math.abs((r.top + r.bottom) / 2 - mid);
+      if (dist < bestDist) { bestDist = dist; best = row; }
+    }
+    let tile = null;
+    if (best) {
+      const box = best.getBoundingClientRect();
+      tile = [...best.children].find(t => !t.hidden && t.dataset.preview
+        && t.getBoundingClientRect().left >= box.left - 4 && t.getBoundingClientRect().right <= box.right + 4) || null;
+    }
+    if (tile !== scrollPick) {
+      if (scrollPick && Previews.current === scrollPick) Previews.stop(scrollPick);
+      scrollPick = tile;
+      if (tile) Previews.play(tile);
+    }
+  };
+  if (rows.length) {
+    let ticking = false;
+    const onScroll = () => { if (!ticking) { ticking = true; setTimeout(() => { ticking = false; pickFromScroll(); }, 120); } };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    rows.forEach(r => r.addEventListener('scroll', onScroll, { passive: true }));
+    window.addEventListener('resize', onScroll);
+    pickFromScroll();
+  }
+
+  // Mouse: hovering a tile plays it instead (after a moment, so passing over doesn't flicker)
+  if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    tiles.forEach((tile) => {
+      let timer = null;
+      tile.addEventListener('mouseenter', () => {
+        timer = setTimeout(() => { hovered = tile; Previews.play(tile, tile !== scrollPick); }, 300);
+      });
+      tile.addEventListener('mouseleave', () => {
+        clearTimeout(timer);
+        if (hovered === tile) {
+          hovered = null;
+          if (tile !== scrollPick) Previews.stop(tile);
+          scrollPick = null;
+          pickFromScroll();
         }
-        video.currentTime = 0;
-        video.play().then(() => tile.classList.add('is-previewing')).catch(() => {});
-      }, 300); // ignore the mouse just passing over
+      });
     });
-    tile.addEventListener('mouseleave', () => {
-      clearTimeout(timer);
-      tile.classList.remove('is-previewing');
-      if (video) setTimeout(() => { if (!tile.classList.contains('is-previewing')) video.pause(); }, 350);
-    });
-  });
+  }
 });
 
 // Home page rows: arrows page through the row, and only show when there's more that way.
