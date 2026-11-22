@@ -616,12 +616,23 @@ function logoOf(p) {
 
 // The logo strip in the home page hero. Clients ticked "Show in the home page logo strip" in the admin
 // ("strip": true in projects.json "clients"); if none are ticked, these well-known ones.
-const STRIP_DEFAULT = ['KIA', 'RedOctane Games', 'CRKD', 'Ladbrokes', 'Oporto', 'TAB', 'Toni and Ryan',
-  'Deakin University', "Royal Children's Hospital", 'Victorian Government', 'PTV', 'Yarra Valley Water'];
+// Clients in order of importance: the strip starts with the first and the top tier is a touch larger
+// and brighter. Clients not listed go after these.
+const CLIENT_RANK = [
+  // tier 1: key clients
+  'RedOctane Games', 'CRKD', 'KIA', 'Deakin University',
+  // tier 2: strong names
+  'Ladbrokes', 'Toni and Ryan', 'Oporto', 'TAB',
+  // tier 3: the rest worth showing
+  "Royal Children's Hospital", 'Victorian Government', 'PTV', 'Yarra Valley Water',
+];
+const tierOf = name => { const i = CLIENT_RANK.findIndex(n => n.toLowerCase() === name); return i < 0 ? 3 : i < 4 ? 1 : i < 8 ? 2 : 3; };
+const STRIP_DEFAULT = CLIENT_RANK;
 const LOGO_ASPECT = new Map();   // logo file -> width / height, filled by makeWhiteLogos
 function clientLogos(projects, clients = {}) {
   const ticked = Object.entries(clients).filter(([, c]) => c && c.strip).map(([n]) => n);
-  const names = (ticked.length ? ticked : STRIP_DEFAULT).map(n => n.trim().toLowerCase());
+  const rank = n => { const i = CLIENT_RANK.findIndex(r => r.toLowerCase() === n); return i < 0 ? 999 : i; };
+  const names = (ticked.length ? ticked : STRIP_DEFAULT).map(n => n.trim().toLowerCase()).sort((a, b) => rank(a) - rank(b));
   const seen = new Map();
   for (const name of names) {
     const file = CLIENT_LOGOS.get(name);
@@ -630,9 +641,10 @@ function clientLogos(projects, clients = {}) {
     const rel = fs.existsSync(path.join(IMAGES_DIR, 'logos', 'full', file)) ? `full/${file}` : file;
     // Size by shape so every logo has about the same presence: wide wordmarks shorter, stacked ones taller
     const aspect = LOGO_ASPECT.get(rel) || 3;
-    const height = Math.round(Math.min(56, Math.max(26, Math.sqrt(5200 / aspect))));
+    const tier = tierOf(name);
+    const height = Math.round(Math.min(56, Math.max(26, Math.sqrt(5200 / aspect))) * (tier === 1 ? 1.12 : tier === 3 ? 0.9 : 1));
     const client = Object.keys(clients).find(n => n.trim().toLowerCase() === name) || name;
-    seen.set(file, { src: imageUrl('logos', rel).replace('/images/logos/', '/images/logos-white/'), name: client, height });
+    seen.set(file, { src: imageUrl('logos', rel).replace('/images/logos/', '/images/logos-white/'), name: client, height, tier });
   }
   return [...seen.values()];
 }

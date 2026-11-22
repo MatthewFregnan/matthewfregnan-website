@@ -256,8 +256,9 @@ function clientLogoRow(p) {
       'Show in the home page logo strip') : null);
 }
 
-const STRIP_DEFAULT = ['KIA', 'RedOctane Games', 'CRKD', 'Ladbrokes', 'Oporto', 'TAB', 'Toni and Ryan',
-  'Deakin University', "Royal Children's Hospital", 'Victorian Government', 'PTV', 'Yarra Valley Water'];
+// Same as CLIENT_RANK in build.js (the strip is shown in this order of importance)
+const STRIP_DEFAULT = ['RedOctane Games', 'CRKD', 'KIA', 'Deakin University', 'Ladbrokes', 'Toni and Ryan', 'Oporto', 'TAB',
+  "Royal Children's Hospital", 'Victorian Government', 'PTV', 'Yarra Valley Water'];
 
 function usedImagePaths() {
   const used = new Set();

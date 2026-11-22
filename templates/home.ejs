@@ -43,7 +43,7 @@
       <div class="hero-clients-rise"><div class="hero-clients-track">
         <% [0, 1].forEach(copy => { %>
           <div class="hero-clients-set"<% if (copy) { %> aria-hidden="true"<% } %>>
-            <% clientStrip.forEach(c => { %><img src="<%= c.src %>" alt="<%= copy ? '' : c.name %>" decoding="async" style="height: <%= c.height %>px"><% }) %>
+            <% clientStrip.forEach(c => { %><img src="<%= c.src %>" alt="<%= copy ? '' : c.name %>" decoding="async" class="tier-<%= c.tier %>" style="height: <%= c.height %>px"><% }) %>
           </div>
         <% }) %>
       </div></div>
