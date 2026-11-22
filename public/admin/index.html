@@ -8,6 +8,9 @@
   <meta name="theme-color" content="#f4f4f5" media="(prefers-color-scheme: light)">
   <title>Portfolio Manager</title>
   <link rel="icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="admin.css">
   <script type="module" src="js/app.js"></script>
 </head>
@@ -38,8 +41,8 @@
   <!-- App -->
   <div id="app" class="app" hidden>
     <header class="toolbar" role="toolbar">
-      <button class="btn icon mobile-only" id="back" aria-label="Back to list">‹ Projects</button>
-      <div class="tb-group">
+      <button class="btn icon mobile-only proj-only" id="back" aria-label="Back to list">‹ Projects</button>
+      <div class="tb-group proj-only">
         <button class="btn" id="new-link" title="New project from a video link (N)">New from Link</button>
         <button class="btn desk-only" id="new-blank">New Blank</button>
         <button class="btn desk-only" id="duplicate">Duplicate</button>
@@ -49,8 +52,7 @@
         <button class="btn" id="undo" title="Undo (⌘Z / Ctrl+Z)">Undo</button>
         <button class="btn" id="redo" title="Redo (⇧⌘Z / Ctrl+Y)">Redo</button>
       </div>
-      <div class="tb-group">
-        <button class="btn" id="home" title="Choose which projects are on the home page">Home Page</button>
+      <div class="tb-group proj-only">
         <button class="btn desk-only" id="check" title="Check every video link still plays">Check Videos</button>
         <button class="btn desk-only" id="view" title="Open this project on the live site">View on Site</button>
       </div>
@@ -60,7 +62,16 @@
       <button class="btn primary" id="publish">Publish</button>
       <button class="btn icon" id="menu" aria-label="Account">⋯</button>
     </header>
-    <div class="layout">
+    <div class="shell">
+    <nav class="rail" id="rail" aria-label="Sections">
+      <button data-page="overview"><span aria-hidden="true">◎</span>Overview</button>
+      <button data-page="projects"><span aria-hidden="true">▦</span>Projects</button>
+      <button data-page="home"><span aria-hidden="true">⌂</span>Home Page</button>
+      <button data-page="storage"><span aria-hidden="true">◫</span>Storage</button>
+      <a class="rail-site" href="https://matthewfregnan.com/" target="_blank" rel="noopener"><span aria-hidden="true">↗</span>Live site</a>
+    </nav>
+    <main id="page-overview" class="page scroll-page" hidden></main>
+    <div id="page-projects" class="page layout" hidden>
       <aside class="sidebar">
         <div class="sidebar-tools">
           <input id="search" type="search" placeholder="Search title, client, production…" autocomplete="off">
@@ -69,6 +80,9 @@
         <nav id="list" class="list" aria-label="Projects"></nav>
       </aside>
       <main id="editor" class="editor"></main>
+    </div>
+    <main id="page-home" class="page scroll-page" hidden></main>
+    <main id="page-storage" class="page scroll-page" hidden></main>
     </div>
     <div id="toast" class="toast" role="status" hidden></div>
   </div>

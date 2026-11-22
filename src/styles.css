@@ -134,7 +134,7 @@
 
   /* Vertical portfolio grid (for portrait videos) */
   .portfolio-grid-vertical {
-    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+    @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3;
   }
 
   .portfolio-item-vertical {
@@ -142,7 +142,8 @@
     aspect-ratio: 9 / 16;
   }
 
-  .portfolio-item-vertical img {
+  .portfolio-item-vertical img, .portfolio-item-vertical .card-still,
+  .portfolio-item .card-still {
     @apply w-full h-full object-cover transition-transform duration-300;
   }
 
@@ -392,3 +393,4 @@
 .scroller-btn.next { right: -8px; }
 .scroller-btn[hidden] { display: none; }
 @media (hover: none) { .scroller-btn { display: none; } }
+.card-blank { display: block; background: linear-gradient(135deg, #1f1f22, #121214); }

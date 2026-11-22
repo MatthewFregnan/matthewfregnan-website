@@ -5,6 +5,7 @@
 import * as V from './video.js';
 import * as I from './images.js';
 import * as U from './upload.js';
+import * as P from './preview.js';
 import { ConflictError, DEFAULT_HOME, DemoBackend, GitHubBackend } from './github.js';
 
 const SITE = 'https://matthewfregnan.com';
@@ -25,7 +26,35 @@ const S = {
   showBackups: false,
   showGallery: false,
   uploads: [],         // video uploads running in the background
+  site: {},            // data/site.json (name, tagline, hero picture) for the previews
+  page: 'overview',    // overview | projects | home | storage
+  editorTab: 'details',// details | preview
+  screen: 'desktop',   // preview screen size
+  previewLayout: null, // project page layout to preview (null = the live set's)
+  storage: null,       // last storage report { data, at }
 };
+
+const PAGES = ['overview', 'projects', 'home', 'storage'];
+
+/** Switch the main area to one of the pages in the left menu. */
+function go(page, { push = true } = {}) {
+  if (!PAGES.includes(page)) page = 'overview';
+  const changedPage = S.page !== page;
+  S.page = page;
+  for (const id of PAGES) $(`#page-${id}`).hidden = id !== page;
+  document.querySelectorAll('#rail [data-page]').forEach(b => b.classList.toggle('on', b.dataset.page === page));
+  document.querySelector('.app').dataset.page = page;
+  if (push && location.hash !== `#${page}`) history.replaceState(null, '', `${location.pathname}${location.search}#${page}`);
+  if (page === 'overview') renderOverview();
+  if (page === 'home') renderHomeDialog();
+  if (page === 'storage' && changedPage) renderStoragePage();
+  if (page === 'projects' && changedPage) { renderList({ scroll: true }); renderEditor(); }
+  renderToolbar();
+}
+
+const liveSet = () => homeSet(S.home.active) || S.home.sets[0];
+const liveLayout = () => liveSet()?.projectLayout || 'standard';
+const thumbSrc = p => (p?.thumbnail ? I.src('thumbnails', p.thumbnail) : '');
 
 // =========================================================================== helpers
 
@@ -148,6 +177,8 @@ function changed({ list = false, editor = false } = {}) {
   if (list) renderList();
   else if (S.current) updateRow(S.current);
   if (editor) renderEditor();
+  if (S.page === 'overview') renderOverview();
+  if (S.page === 'projects' && S.editorTab === 'preview') renderProjectPreview();
 }
 
 function usedImagePaths() {
@@ -207,6 +238,7 @@ function renameRefs(oldKey, newKey) {
 // =========================================================================== project actions
 
 function select(p, { scroll = true } = {}) {
+  if (S.page !== 'projects') go('projects');
   S.current = p;
   S.showBackups = false;
   S.showGallery = false;
@@ -390,8 +422,19 @@ function renderEditor() {
     return;
   }
   const scrollTop = ed.scrollTop;
-  ed.replaceChildren(h('div', { class: 'editor-inner' },
+  const tab = (id, label) => h('button', { class: `tab${S.editorTab === id ? ' on' : ''}`, role: 'tab', 'aria-selected': String(S.editorTab === id),
+    onclick: () => { S.editorTab = id; renderEditor(); } }, label);
+  const head = h('div', { class: 'editor-head' },
     h('h2', { id: 'heading' }, p.title || '(untitled)'),
+    h('div', { class: 'tabs', role: 'tablist' }, tab('details', 'Details'), tab('preview', 'Page Preview')));
+  if (S.editorTab === 'preview') {
+    ed.replaceChildren(h('div', { class: 'editor-inner' }, head, h('div', { id: 'project-preview' })));
+    renderProjectPreview();
+    ed._for = p;
+    return;
+  }
+  ed.replaceChildren(h('div', { class: 'editor-inner' },
+    head,
     h('div', { class: 'cols' },
       h('div', {}, detailsForm(p)),
       h('div', {},
@@ -1161,7 +1204,7 @@ function publish() {
 
 // ---------------------------------------------------------------- Home Page editor
 
-const HD = { current: null, adding: false, confirmDelete: false, q: '', displayOpen: false };
+const HD = { current: null, adding: false, confirmDelete: false, q: '', displayOpen: false, seed: 1 };
 
 // Project page layouts. Add new ones here and as templates/partials/project-<id>.ejs
 const LAYOUTS = [
@@ -1170,15 +1213,9 @@ const LAYOUTS = [
 ];
 
 function openHomeDialog() {
-  HD.current = S.home.active;
   HD.adding = false;
   HD.confirmDelete = false;
-  const d = $('#dialog');
-  d.classList.add('wide');
-  d._home = true;
-  d.addEventListener('close', () => { d._home = false; d.classList.remove('wide'); }, { once: true });
-  renderHomeDialog();
-  if (!d.open) d.showModal();
+  go('home');
 }
 
 function editHome(fn) {
@@ -1204,13 +1241,13 @@ function thumbFor(p) {
 }
 
 function renderHomeDialog() {
-  const d = $('#dialog');
-  if (!d._home) return;
+  const d = $('#page-home');
+  if (S.page !== 'home' || !S.home) return;
+  const keepScroll = [...d.querySelectorAll('.home-list')].map(el => el.scrollTop);
+  const pageScroll = d.scrollTop;
   if (!homeSet(HD.current)) HD.current = S.home.active || S.home.sets[0]?.id;
   const set = homeSet(HD.current);
   const byKey = new Map(projects().map(p => [keyOf(p), p]));
-  const close = () => d.close();
-
   const setRows = S.home.sets.map(s => h('button', {
     class: `row set-row${s.id === HD.current ? ' selected' : ''}`,
     onclick: () => { HD.current = s.id; HD.adding = false; HD.confirmDelete = false; renderHomeDialog(); },
@@ -1364,15 +1401,161 @@ function renderHomeDialog() {
       h('p', { class: 'hint' }, 'Drag to reorder. Landscape and Social projects show in separate rows, in the order set above.'));
   }
 
-  d.replaceChildren(
-    h('h3', {}, 'Home Page'),
-    h('div', { class: 'home-dialog' },
-      h('div', { class: 'home-left' }, h('p', { class: 'muted small' }, 'The set with the green dot is on the site.'),
+  const screenBtn = (id, label) => h('button', { class: `seg${S.screen === id ? ' on' : ''}`, onclick: () => { S.screen = id; renderHomeDialog(); } }, label);
+  const preview = set ? h('div', { class: 'home-preview' },
+    h('div', { class: 'preview-bar' },
+      h('h4', {}, set.id === S.home.active ? 'Preview · on the site now' : 'Preview'),
+      h('div', { class: 'segs' }, screenBtn('desktop', 'Laptop'), screenBtn('phone', 'Phone')),
+      set.shuffle && set.featuredCount ? h('button', { class: 'btn', title: 'Show another random mix, like a new visitor would see',
+        onclick: () => { HD.seed += 1; renderHomeDialog(); } }, '⤮ Shuffle Again') : null),
+    h('div', { class: `preview-frame ${S.screen}` }, P.homePreview(h, {
+      set, projects: projects(), categories: S.data.categories, site: S.site, thumb: thumbSrc, screen: S.screen, seed: HD.seed,
+      onPick: p => { clearSearchFor(p); select(p); },
+    })),
+    h('p', { class: 'hint' }, 'Click a project in the preview to edit it. Changes show here straight away; they go live when you Publish.')) : null;
+
+  d.replaceChildren(h('div', { class: 'page-inner wide' },
+    h('div', { class: 'page-head' }, h('h2', {}, 'Home Page'),
+      h('p', { class: 'muted' }, 'Sets are different versions of the home page. Pick one to put on the site, e.g. one per kind of job you apply for.')),
+    h('div', { class: 'home-page' },
+      h('div', { class: 'home-left' }, h('h4', {}, 'Sets'), h('p', { class: 'muted small' }, 'The set with the green dot is on the site.'),
         h('div', { class: 'home-list' }, setRows), setTools),
-      right),
-    h('div', { class: 'actions' },
-      h('span', { class: 'muted small', style: 'margin-right:auto' }, 'Changes go live when you Publish.'),
-      h('button', { class: 'btn primary', onclick: close }, 'Done')));
+      right,
+      preview)));
+  d.querySelectorAll('.home-list').forEach((el, i) => { el.scrollTop = keepScroll[i] || 0; });
+  d.scrollTop = pageScroll;
+}
+
+// ---------------------------------------------------------------- project page preview
+
+function renderProjectPreview() {
+  const box = $('#project-preview');
+  const p = S.current;
+  if (!box || !p) return;
+  const layout = S.previewLayout || liveLayout();
+  const seg = (id, label, on, fn) => h('button', { class: `seg${on ? ' on' : ''}`, onclick: fn }, label);
+  const inSets = S.home.sets.filter(s => (s.projects || []).includes(keyOf(p)));
+  box.replaceChildren(
+    h('div', { class: 'preview-bar' },
+      h('div', { class: 'segs' },
+        seg('desktop', 'Laptop', S.screen === 'desktop', () => { S.screen = 'desktop'; renderProjectPreview(); }),
+        seg('phone', 'Phone', S.screen === 'phone', () => { S.screen = 'phone'; renderProjectPreview(); })),
+      h('div', { class: 'segs', title: 'Project pages use the layout chosen by the home page set on the site' },
+        LAYOUTS.map(l => seg(l.id, `${l.name}${l.id === liveLayout() ? ' (live)' : ''}`, layout === l.id,
+          () => { S.previewLayout = l.id === liveLayout() ? null : l.id; renderProjectPreview(); }))),
+      h('a', { class: 'btn', href: SITE + pagePath(p), target: '_blank', rel: 'noopener' }, 'Open Live Page')),
+    h('div', { class: 'preview-cols' },
+      h('div', { class: `preview-frame ${S.screen}` }, P.projectPreview(h, {
+        project: p, category: category(p.category), layout, site: S.site, thumb: thumbSrc,
+        still: path => I.src('gallery', path), screen: S.screen,
+      })),
+      h('div', { class: 'preview-side' },
+        h('h4', {}, 'In lists'),
+        h('div', { class: p.category === 'vertical' ? 'side-card v' : 'side-card' }, P.cardPreview(h, p, thumbSrc)),
+        h('p', { class: 'muted small' }, `How it looks on the ${category(p.category).name} page${inSets.length ? ' and the home page' : ''}.`),
+        h('h4', {}, 'Home page'),
+        h('p', { class: 'small' }, inSets.length
+          ? `In ${inSets.map(s => `“${s.name}”${s.id === S.home.active ? ' (live)' : ''}`).join(', ')}.`
+          : 'Not in any home page set.'),
+        !p.thumbnail ? h('p', { class: 'small warn' }, 'No thumbnail yet: lists show a frame from the video (or a blank tile).') : null,
+        layout === 'detailed' && !p.description ? h('p', { class: 'small warn' }, 'No description: the Detailed layout looks best with a sentence or two.') : null)));
+}
+
+// ---------------------------------------------------------------- overview (opens first)
+
+function attentionItems() {
+  const items = [];
+  const add = (p, kind, text) => items.push({ p, kind, text });
+  for (const p of projects()) {
+    const st = V.state(p);
+    if (st === 'bad') add(p, 'bad', 'Video isn’t playing');
+    else if (st === 'backup') add(p, 'backup', 'Playing its backup link');
+    if (!V.ordered(p).length && !(p.gallery || []).length) add(p, 'bad', 'No video or stills');
+    if (!p.thumbnail) add(p, 'backup', 'No thumbnail');
+    if (liveLayout() === 'detailed' && !p.description && (liveSet()?.projects || []).includes(keyOf(p))) add(p, 'unknown', 'No description (live layout is Detailed)');
+  }
+  return items;
+}
+
+function renderOverview() {
+  const el = $('#page-overview');
+  if (S.page !== 'overview' || !S.data) return;
+  const n = changes();
+  const set = liveSet();
+  const open = p => { clearSearchFor(p); S.editorTab = 'details'; select(p); };
+  const card = (title, ...body) => h('section', { class: 'ov-card' }, h('h3', {}, title), ...body);
+  const issues = attentionItems();
+  const recent = [...projects()].filter(p => p.updated).sort((a, b) => b.updated.localeCompare(a.updated)).slice(0, 5);
+  const ago = iso => {
+    const d = (Date.now() - new Date(`${iso}Z`).getTime()) / 1000;
+    if (d < 3600) return `${Math.max(1, Math.round(d / 60))} min ago`;
+    if (d < 86400) return `${Math.round(d / 3600)} h ago`;
+    return new Date(`${iso}Z`).toLocaleDateString();
+  };
+  const projectLink = (p, sub) => h('button', { class: 'ov-row', onclick: () => open(p) },
+    thumbFor(p), h('span', { class: 'row-text' }, h('span', { class: 'row-title' }, p.title || '(untitled)'), h('span', { class: 'row-sub' }, sub)));
+  const active = S.uploads.filter(j => !j.finished);
+
+  const homeKeys = new Set(set?.projects || []);
+  const live = projects().filter(p => homeKeys.has(keyOf(p)));
+  const land = live.filter(p => p.category !== 'vertical').length;
+  const soc = live.length - land;
+  const fc = parseInt(set?.featuredCount, 10) || 0;
+
+  const storageBox = h('div', {}, h('p', { class: 'muted small' }, uploadConfig() ? 'Checking…' : 'Sign in to see storage.'));
+  const storageCard = card('Video storage', storageBox,
+    h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: () => go('storage'), disabled: !uploadConfig() }, 'View Storage')));
+  const checking = projects().some(p => V.state(p) === 'unknown');
+  el.replaceChildren(h('div', { class: 'page-inner' },
+    h('div', { class: 'page-head' }, h('h2', {}, 'Overview'),
+      h('p', { class: 'muted' }, `${projects().length} projects on matthewfregnan.com`)),
+    h('div', { class: 'ov-grid' }, h('div', { class: 'ov-col' },
+      card(n.length ? `${n.length} unpublished change${n.length === 1 ? '' : 's'}` : 'Everything is live',
+        n.length ? h('ul', { class: 'ov-changes' }, n.slice(0, 6).map(c => h('li', {}, c)), n.length > 6 ? h('li', { class: 'muted' }, `…and ${n.length - 6} more`) : null)
+          : h('p', { class: 'muted' }, 'The site matches what you see here.'),
+        active.length ? h('p', { class: 'small' }, `⬆ Uploading: ${active.map(j => j.title).join(', ')}`) : null,
+        h('div', { class: 'vrow-tools' },
+          n.length ? h('button', { class: 'btn primary', onclick: publish }, 'Publish') : null,
+          h('button', { class: 'btn', onclick: () => go('projects') }, 'Edit Projects'))),
+      card('Needs attention',
+        issues.length ? h('div', { class: 'ov-list' }, issues.slice(0, 8).map(i => projectLink(i.p, h('span', {}, h('span', { class: `dot ${i.kind}` }), ` ${i.text}`))),
+          issues.length > 8 ? h('p', { class: 'muted small' }, `…and ${issues.length - 8} more`) : null)
+          : h('p', { class: 'muted' }, checking ? 'Checking videos…' : [h('span', { class: 'dot ok' }), ' Nothing to fix. Every video plays.']),
+        h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: checkVideos }, 'Check Videos Now'))),
+      storageCard), h('div', { class: 'ov-col' },
+      card('Home page',
+        h('p', {}, h('strong', {}, set?.name || '—'), h('span', { class: 'muted' }, ' is on the site')),
+        h('p', { class: 'muted small' }, `${fc && fc < land ? `${fc} of ${land} landscape${set.shuffle ? ', shuffled' : ''}` : `${land} landscape`} · ${soc} social · ${LAYOUTS.find(l => l.id === liveLayout())?.name} project pages`),
+        set ? h('div', { class: 'ov-mini', onclick: () => go('home'), title: 'Edit the home page' },
+          P.homePreview(h, { set, projects: projects(), categories: S.data.categories, site: S.site, thumb: thumbSrc, screen: 'desktop', seed: HD.seed, heroHeight: 300 })) : null,
+        h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: () => go('home') }, 'Edit Home Page'))),
+      card('Projects',
+        h('div', { class: 'ov-cats' }, S.data.categories.map(c => h('button', { class: 'ov-cat', onclick: () => { $('#filter').value = c.id; $('#search').value = ''; go('projects'); renderList(); } },
+          h('strong', {}, String(projects().filter(p => p.category === c.id).length)), h('span', {}, c.name)))),
+        recent.length ? [h('h4', {}, 'Recently edited'), h('div', { class: 'ov-list' }, recent.map(p => projectLink(p, `${category(p.category).name} · ${ago(p.updated)}`)))] : null,
+        h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: newFromLink }, 'New from Link')))))));
+  fillStorageSummary(storageBox);
+}
+
+async function loadStorage(force = false) {
+  if (!force && S.storage && Date.now() - S.storage.at < 5 * 60 * 1000) return S.storage.data;
+  const data = await U.usage(uploadConfig());
+  S.storage = { data, at: Date.now() };
+  return data;
+}
+
+async function fillStorageSummary(box) {
+  if (!uploadConfig()) return;
+  try {
+    const data = await loadStorage();
+    const pct = Math.min(100, (data.total / STORAGE_LIMIT) * 100);
+    const level = pct >= 90 ? 'bad' : pct >= 70 ? 'backup' : 'ok';
+    box.replaceChildren(h('p', {}, h('strong', {}, fmtBytes(data.total)), ` of 10 GB used (${pct.toFixed(0)}%)`),
+      h('div', { class: `st-bar ${level}` }, h('span', { style: `width:${Math.max(pct, 0.5)}%` })),
+      h('p', { class: 'muted small' }, `${data.objects.length} files · about ${fmtBytes(Math.max(0, STORAGE_LIMIT - data.total))} left`));
+  } catch (e) {
+    box.replaceChildren(h('p', { class: 'muted small' }, e.message));
+  }
 }
 
 /** Which landscape projects the home page shows for a set, and a status line for each. */
@@ -1439,17 +1622,23 @@ function storageKeyOf(url) {
   } catch { return null; }
 }
 
-async function openStorage() {
-  const cfg = uploadConfig();
-  if (!cfg) { toast('Sign in to see video storage.'); return; }
+function openStorage() { go('storage'); }
+
+async function renderStoragePage(force = false) {
+  const page = $('#page-storage');
   const body = h('div', { class: 'storage' }, h('p', { class: 'muted' }, 'Looking at your video storage…'));
-  dialog(close => [h('h3', {}, 'Video Storage'), body,
-    h('div', { class: 'actions' },
-      h('a', { class: 'btn', href: 'https://dash.cloudflare.com/?to=/:account/r2/default/buckets/matthewfregnan-videos', target: '_blank', rel: 'noopener' }, 'Open in Cloudflare'),
-      h('button', { class: 'btn primary', onclick: close }, 'Done'))]);
+  page.replaceChildren(h('div', { class: 'page-inner' },
+    h('div', { class: 'page-head' }, h('h2', {}, 'Video Storage'),
+      h('p', { class: 'muted' }, 'Your videos are stored on Cloudflare (videos.matthewfregnan.com). The free plan includes 10 GB.')),
+    h('div', { class: 'vrow-tools' },
+      h('button', { class: 'btn', onclick: () => renderStoragePage(true) }, 'Refresh'),
+      h('a', { class: 'btn', href: 'https://dash.cloudflare.com/?to=/:account/r2/default/buckets/matthewfregnan-videos', target: '_blank', rel: 'noopener' }, 'Open in Cloudflare')),
+    body));
+  const cfg = uploadConfig();
+  if (!cfg) { body.replaceChildren(h('p', { class: 'muted' }, 'Sign in to see video storage.')); return; }
   let data;
   try {
-    data = await U.usage(cfg);
+    data = await loadStorage(force);
   } catch (e) {
     body.replaceChildren(h('p', { class: 'error' }, e.message));
     return;
@@ -1484,7 +1673,7 @@ async function openStorage() {
   };
   const fileRow = f => h('div', { class: 'st-row' },
     h('span', { class: 'st-name', title: f.key }, f.project
-      ? h('a', { href: '#', onclick: e => { e.preventDefault(); $('#dialog').close(); clearSearchFor(f.project); select(f.project); } }, name(f))
+      ? h('a', { href: '#', onclick: e => { e.preventDefault(); clearSearchFor(f.project); select(f.project); } }, name(f))
       : name(f)),
     h('span', { class: 'muted small' }, new Date(f.uploaded).toLocaleDateString()),
     h('span', { class: 'st-size' }, fmtBytes(f.size)));
@@ -1527,7 +1716,6 @@ function accountMenu() {
           }
         },
       }, 'Discard Changes') : null,
-      h('button', { class: 'btn', disabled: !uploadConfig(), onclick: () => { close(); openStorage(); } }, 'Video Storage…'),
       h('button', {
         class: 'btn',
         onclick: () => {
@@ -1544,7 +1732,8 @@ function accountMenu() {
 async function start(backend) {
   S.backend = backend;
   $('#loading').hidden = false;
-  const { text, homeText, sha } = await backend.load();
+  const { text, homeText, siteText, sha } = await backend.load();
+  try { S.site = JSON.parse(siteText || '{}'); } catch { S.site = {}; }
   S.baseText = text;
   S.baseHomeText = homeText || DEFAULT_HOME;
   S.baseSha = sha;
@@ -1574,6 +1763,7 @@ async function start(backend) {
   renderList();
   renderEditor();
   renderToolbar();
+  go((location.hash || '').slice(1) || 'overview', { push: false });
 
   // Link checks finish in the background: refresh dots in one batch per frame, and never
   // rebuild the video panel while you're typing in it.
@@ -1587,6 +1777,7 @@ async function start(backend) {
         document.querySelectorAll('.row').forEach(r => {
           r.querySelector('.dot').className = `dot ${V.state(r._project) || 'none'}`;
         });
+        if (S.page === 'overview' && !document.querySelector('#page-overview')?.contains(document.activeElement)) renderOverview();
       });
     }
     if (mine) {
@@ -1609,7 +1800,8 @@ function wire() {
   $('#undo').onclick = undo;
   $('#redo').onclick = redo;
   $('#check').onclick = checkVideos;
-  $('#home').onclick = openHomeDialog;
+  document.querySelectorAll('#rail [data-page]').forEach(b => { b.onclick = () => go(b.dataset.page); });
+  window.addEventListener('hashchange', () => { if (S.data) go(location.hash.slice(1), { push: false }); });
   $('#view').onclick = () => S.current && window.open(SITE + pagePath(S.current), '_blank', 'noopener');
   $('#publish').onclick = publish;
   $('#menu').onclick = accountMenu;
@@ -1629,6 +1821,7 @@ function wire() {
       redo();
     } else if (mod && e.key.toLowerCase() === 'f') {
       e.preventDefault();
+      go('projects');
       $('#search').focus();
     } else if (!mod && !typing && e.key.toLowerCase() === 'n') {
       e.preventDefault();

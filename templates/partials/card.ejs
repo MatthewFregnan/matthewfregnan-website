@@ -3,12 +3,19 @@
 <a href="/<%= category.slug %>/<%= project.id %>/"
    class="<%= vertical ? 'portfolio-item-vertical' : 'portfolio-item' %> group"
    <% if (vertical && project.videoFile) { %>data-preview="<%= project.videoFile %>"<% } %><%- typeof extra !== 'undefined' ? ' ' + extra : '' %>>
+  <% if (project.thumbnail) { %>
   <img
     src="/images/thumbnails/<%= project.thumbnail %>"
     alt="<%= project.title %>"
     loading="lazy"
     <% if (focusOf(project)) { %>style="object-position: <%= focusOf(project) %>"<% } %>
   >
+  <% } else if (project.videoFile) { %>
+  <%# No thumbnail chosen yet: show a frame from the video instead of a broken image %>
+  <video class="card-still" src="<%= project.videoFile.split('#')[0] %>#t=1" muted playsinline preload="metadata" aria-label="<%= project.title %>"></video>
+  <% } else { %>
+  <span class="card-still card-blank" aria-hidden="true"></span>
+  <% } %>
   <div class="portfolio-item-title">
     <h2 class="text-lg font-medium"><%= project.title %></h2>
     <% if (project.client) { %>

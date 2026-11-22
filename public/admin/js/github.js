@@ -7,6 +7,7 @@ export const BRANCH = 'main';
 export const RAW = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/`;
 const DATA_PATH = 'data/projects.json';
 const HOME_PATH = 'data/home.json';
+const SITE_PATH = 'data/site.json';   // read only: name, tagline and hero picture for the previews
 export const DEFAULT_HOME = JSON.stringify({ active: 'balanced', sets: [{ id: 'balanced', name: 'Balanced (default)', tagline: '', projects: [] }] }, null, 2) + '\n';
 const TOKEN_KEY = 'pm-github-token';
 
@@ -84,7 +85,9 @@ export class GitHubBackend {
   async load() {
     const sha = await this.head();
     const file = await this.api(`/contents/${DATA_PATH}?ref=${sha}`);
-    return { text: b64ToText(file.content), homeText: await this.readHome(sha), sha };
+    let siteText = '{}';
+    try { siteText = b64ToText((await this.api(`/contents/${SITE_PATH}?ref=${sha}`)).content); } catch { /* previews use defaults */ }
+    return { text: b64ToText(file.content), homeText: await this.readHome(sha), siteText, sha };
   }
 
   async readHome(ref) {
@@ -141,7 +144,9 @@ export class DemoBackend {
     const res = await fetch(this.dataUrl, { cache: 'no-store' });
     if (!res.ok) throw new Error(`Couldn't load the project list (${res.status})`);
     const home = await fetch(this.dataUrl.replace('projects.json', 'home.json'), { cache: 'no-store' });
-    return { text: await res.text(), homeText: home.ok ? await home.text() : DEFAULT_HOME, sha: 'demo' };
+    const site = await fetch(this.dataUrl.replace('projects.json', 'site.json'), { cache: 'no-store' }).catch(() => null);
+    return { text: await res.text(), homeText: home.ok ? await home.text() : DEFAULT_HOME,
+      siteText: site?.ok ? await site.text() : '{}', sha: 'demo' };
   }
 
   async save({ images }) {
