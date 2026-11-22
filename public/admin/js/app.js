@@ -1461,10 +1461,10 @@ function renderHomeDialog() {
           if (v !== (set.tagline || '')) editHome(() => { homeSet(set.id).tagline = v; });
         } })),
       h('details', { class: 'display-settings', open: HD.displayOpen, ontoggle: e => { HD.displayOpen = e.target.open; } },
-        h('summary', {}, 'Selected work section'),
+        h('summary', {}, 'Featured work section'),
         h('div', { class: 'display-grid' },
           h('label', {}, 'Heading'),
-          h('input', { value: set.heading || '', placeholder: 'Selected Work', onchange: e => {
+          h('input', { value: set.heading || '', placeholder: 'Featured Work', onchange: e => {
             const v = e.target.value.trim();
             editHome(() => { const s2 = homeSet(set.id); if (v) s2.heading = v; else delete s2.heading; });
           } }),
@@ -1478,7 +1478,7 @@ function renderHomeDialog() {
             editHome(() => { const s2 = homeSet(set.id); if (v) s2.landscapeTitle = v; else delete s2.landscapeTitle; });
           } }),
           h('label', {}, 'Social row title'),
-          h('input', { value: set.socialTitle === undefined ? 'Social' : set.socialTitle, placeholder: 'None', onchange: e => {
+          h('input', { value: set.socialTitle || '', placeholder: 'None (optional)', onchange: e => {
             const v = e.target.value.trim();
             editHome(() => { homeSet(set.id).socialTitle = v; });
           } }),

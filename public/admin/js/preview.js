@@ -112,7 +112,7 @@ export function homePreview(h, opts) {
     const fitAt = phone ? 2 : 5;               // what fits on this screen (see .shortform-scroller)
     const per = n <= fitAt ? (phone ? 2 : Math.max(n, 4)) : (phone ? 2.25 : 5.35);
     const tileW = `calc((100% - ${12 * (per - 1)}px) / ${per})`;
-    rows.push({ kind: 'social', title: set.socialTitle === undefined ? 'Social' : String(set.socialTitle).trim(),
+    rows.push({ kind: 'social', title: String(set.socialTitle || '').trim(),
       el: h('div', { class: 'pv-social' },
         h('div', { class: 'pv-track' }, social.map(p => {
           const t = tile(h, p, { vertical: true, thumb, onPick });
@@ -135,8 +135,7 @@ export function homePreview(h, opts) {
     hero,
     h('div', { class: 'pv-container' },
       h('div', { class: 'pv-work-head' },
-        h('span', { class: 'pv-h2' }, (set.heading || '').trim() || 'Selected Work'),
-        h('span', { class: 'pv-browse' }, 'Browse: ', categories.map(c => c.name).join('  ·  '))),
+        h('span', { class: 'pv-h2' }, (set.heading || '').trim() || 'Featured Work')),
       rows.flatMap((r, i) => [
         r.title ? h('div', { class: `pv-h3${i ? ' gap' : ''}` }, r.title) : (i ? h('div', { class: 'pv-gap' }) : null),
         r.el,

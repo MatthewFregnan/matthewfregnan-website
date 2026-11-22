@@ -181,10 +181,10 @@ class HomeDialog(QDialog):
         rl.addWidget(self.layout_hint)
 
         # How the selected work section looks for this set
-        box = QGroupBox("Selected work section")
+        box = QGroupBox("Featured work section")
         box.setCheckable(False)
         form = QFormLayout(box)
-        self.d_heading = QLineEdit(placeholderText="Selected Work")
+        self.d_heading = QLineEdit(placeholderText="Featured Work")
         self.d_heading.editingFinished.connect(lambda: self._set_text("heading", self.d_heading.text(), "Change Heading"))
         self.d_order = QComboBox()
         self.d_order.addItem("Landscape first, then Social", "landscape-first")
@@ -294,7 +294,7 @@ class HomeDialog(QDialog):
         self.d_heading.setText(st.get("heading", ""))
         self.d_order.setCurrentIndex(1 if st.get("order") == "social-first" else 0)
         self.d_land.setText(st.get("landscapeTitle", ""))
-        self.d_social.setText(st.get("socialTitle", "Social"))
+        self.d_social.setText(st.get("socialTitle", ""))
         self.d_show_land.setChecked(st.get("showLandscape", True) is not False)
         self.d_show_social.setChecked(st.get("showSocial", True) is not False)
         for w in (self.d_heading, self.d_order, self.d_land, self.d_social, self.d_show_land, self.d_show_social):
@@ -418,7 +418,7 @@ class HomeDialog(QDialog):
         self._edit_current(label, lambda st, _h: st.__setitem__(key, v) if v else st.pop(key, None))
 
     def _set_social_title(self, text: str):
-        if self.current and text.strip() != self.store.home_set(self.current).get("socialTitle", "Social"):
+        if self.current and text.strip() != self.store.home_set(self.current).get("socialTitle", ""):
             self._edit_current("Change Row Title", lambda st, _h: st.__setitem__("socialTitle", text.strip()))
 
     def _set_order(self):

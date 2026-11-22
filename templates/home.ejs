@@ -36,7 +36,7 @@
 
   <% if (home.landscape.length || home.vertical.length) { %>
     <!-- Nudge to scroll: bounces gently, fades out once you scroll -->
-    <a href="#selected-work" class="scroll-cue" aria-label="Scroll to selected work">
+    <a href="#selected-work" class="scroll-cue" aria-label="Scroll to featured work">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M6 9l6 6 6-6"/>
       </svg>
@@ -50,10 +50,6 @@
   <div class="container mx-auto px-4">
     <div class="work-head">
       <h2 class="text-xl md:text-2xl font-light"><%= home.heading %></h2>
-      <nav class="work-browse" aria-label="Browse all work by category">
-        <span>Browse:</span>
-        <% categories.forEach((c, i) => { %><a href="/<%= c.slug %>/"><%= c.name %></a><% if (i < categories.length - 1) { %><span aria-hidden="true">·</span><% } %><% }) %>
-      </nav>
     </div>
     <%
       // The two rows, in the order chosen for this set. The first row's title sits just under the

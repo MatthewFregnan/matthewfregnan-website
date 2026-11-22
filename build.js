@@ -631,10 +631,10 @@ function resolveHome(projects) {
     tagline: set.tagline || '',
     projectLayout: set.projectLayout || 'standard',
     // How the selected work section looks for this set (all optional, see the Home Page editor)
-    heading: (set.heading || '').trim() || 'Selected Work',
+    heading: (set.heading || '').trim() || 'Featured Work',
     order: set.order === 'social-first' ? 'social-first' : 'landscape-first',
     landscapeTitle: (set.landscapeTitle || '').trim(),
-    socialTitle: set.socialTitle === undefined ? 'Social' : String(set.socialTitle).trim(),
+    socialTitle: String(set.socialTitle || '').trim(),
     showLandscape: set.showLandscape !== false,
     showSocial: set.showSocial !== false,
     landscape: [],
