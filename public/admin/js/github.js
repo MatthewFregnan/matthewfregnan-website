@@ -13,6 +13,11 @@ const TOKEN_KEY = 'pm-github-token';
 
 export class ConflictError extends Error {}
 
+// Who publishes are credited to on GitHub, whichever account's token is signed in: MatthewFregnan's
+// private GitHub address (it can only ever count towards that account, and keeps a real email out of
+// the history). The same identity is set in this repo's git config for commits made locally.
+const COMMIT_AUTHOR = { name: 'MatthewFregnan', email: '259493985+MatthewFregnan@users.noreply.github.com' };
+
 const b64ToText = b64 => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\n/g, '')), c => c.charCodeAt(0)));
 const textToB64 = text => bytesToB64(new TextEncoder().encode(text));
 function bytesToB64(bytes) {
@@ -127,7 +132,7 @@ export class GitHubBackend {
     if (homeText) entries.push({ path: HOME_PATH, mode: '100644', type: 'blob', sha: await blob(textToB64(homeText)) });
     const tree = await this.api('/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: baseTree, tree: entries }) });
     const commit = await this.api('/git/commits', {
-      method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [head] }),
+      method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [head], author: COMMIT_AUTHOR }),
     });
     await this.api(`/git/refs/heads/${BRANCH}`, { method: 'PATCH', body: JSON.stringify({ sha: commit.sha }) });
     return { sha: commit.sha, text, homeText };
