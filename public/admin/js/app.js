@@ -710,7 +710,7 @@ function renderThumb() {
       onkeydown: async e => { if (e.key === 'Enter' || e.key === ' ') setThumbnail(await pickFiles(false)); },
     }, h('span', {}, 'Drop a thumbnail here', h('br'), 'or click to choose'));
     dropTarget(zone, setThumbnail);
-    card.replaceChildren(h('h4', {}, 'Thumbnail'), zone);
+    card.replaceChildren(h('h4', {}, 'Thumbnail'), zone, pickFromVideoButton(p));
     return;
   }
 
@@ -744,11 +744,91 @@ function renderThumb() {
     h('p', { class: 'hint' }, 'Click the picture to choose what stays in view when it’s cropped (e.g. a face).'),
     h('div', { class: 'crop-label muted small' }, 'Widest crop on the site'),
     preview,
+    pickFromVideoButton(p),
     h('div', { class: 'thumb-tools' },
       h('button', { class: 'btn link', onclick: async () => setThumbnail(await pickFiles(false)) }, 'Replace'),
       p.thumbFocus ? h('button', { class: 'btn link', onclick: () => setFocus(50, 50) }, 'Reset focus') : null,
       h('button', { class: 'btn link', onclick: () => { mutate(() => { p.thumbnail = ''; delete p.thumbFocus; }, { list: true }); renderThumb(); } }, 'Remove')),
   );
+}
+
+// ---------------------------------------------------------------- pick frames from the video
+
+/** "Pick from video" is offered when the project has its own hosted video file. */
+function pickFromVideoButton(p) {
+  const ref = V.sources(p).file;
+  if (!ref) {
+    return h('p', { class: 'hint' }, 'Add a hosted video file to pick a thumbnail or stills straight from the video.');
+  }
+  return h('button', { class: 'btn', style: 'margin-top:8px', onclick: () => openFramePicker(p, ref.id) }, 'Pick from Video…');
+}
+
+function openFramePicker(p, url) {
+  const d = $('#dialog');
+  d.classList.add('wide');
+  d.addEventListener('close', () => d.classList.remove('wide'), { once: true });
+  // The extra query keeps Cloudflare from serving a copy cached before frame reading was allowed
+  const src = `${url}${url.includes('?') ? '&' : '?'}frame=pick`;
+  const video = h('video', { src, crossOrigin: 'anonymous', controls: true, preload: 'auto', playsInline: true, muted: true, class: 'frame-video' });
+  const time = h('span', { class: 'muted small frame-time' }, '0:00.00');
+  const status = h('p', { class: 'muted small' }, ' ');
+  const added = h('div', { class: 'frame-strip' });
+  const fmtT = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')}`;
+  video.addEventListener('timeupdate', () => { time.textContent = fmtT(video.currentTime); });
+  video.addEventListener('seeked', () => { time.textContent = fmtT(video.currentTime); });
+  video.addEventListener('error', () => { status.textContent = "Couldn't load the video for frame picking."; });
+  const step = dt => { video.pause(); video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + dt)); };
+  const FRAME = 1 / 25;
+
+  const grab = () => new Promise((resolve, reject) => {
+    if (!video.videoWidth) { reject(new Error('The video hasn’t loaded yet.')); return; }
+    const c = document.createElement('canvas');
+    c.width = video.videoWidth;
+    c.height = video.videoHeight;
+    c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+    try {
+      c.toBlob(b => (b ? resolve(b) : reject(new Error('Couldn’t capture that frame.'))), 'image/png');
+    } catch {
+      reject(new Error('The browser blocked reading this video’s frames.'));
+    }
+  });
+
+  const useAsThumb = async () => {
+    try {
+      status.textContent = 'Saving thumbnail…';
+      video.pause();
+      await setThumbnail([await grab()]);
+      status.textContent = `Thumbnail set from ${fmtT(video.currentTime)}.`;
+    } catch (e) { status.textContent = e.message; }
+  };
+  const addStill = async () => {
+    try {
+      status.textContent = 'Adding still…';
+      video.pause();
+      const blob = await grab();
+      await addGallery([blob]);
+      added.append(h('img', { src: URL.createObjectURL(blob), alt: '', title: fmtT(video.currentTime) }));
+      status.textContent = `Added a still from ${fmtT(video.currentTime)}. Keep going, or press Done.`;
+    } catch (e) { status.textContent = e.message; }
+  };
+
+  d.replaceChildren(
+    h('h3', {}, `Pick from video · ${p.title}`),
+    video,
+    h('div', { class: 'vrow-tools frame-controls' },
+      h('button', { class: 'btn', title: 'Back 1 second', onclick: () => step(-1) }, '−1s'),
+      h('button', { class: 'btn', title: 'Back 1 frame', onclick: () => step(-FRAME) }, '‹ frame'),
+      h('button', { class: 'btn', title: 'Forward 1 frame', onclick: () => step(FRAME) }, 'frame ›'),
+      h('button', { class: 'btn', title: 'Forward 1 second', onclick: () => step(1) }, '+1s'),
+      time),
+    status,
+    added,
+    h('div', { class: 'actions' },
+      h('button', { class: 'btn', onclick: addStill }, 'Add to Stills'),
+      h('button', { class: 'btn primary', onclick: useAsThumb }, 'Use as Thumbnail'),
+      h('button', { class: 'btn', onclick: () => d.close() }, 'Done')),
+  );
+  if (!d.open) d.showModal();
 }
 
 function parseFocus(v) {
