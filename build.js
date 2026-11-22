@@ -493,11 +493,22 @@ async function fingerprintAdmin() {
     .replace('src="js/app.js"', `src="js/app.js?v=${v}"`));
 }
 
+// "All work" tiles on the home page: one per category, with a project count and a picture.
+// The picture comes from that category's first project in the live set, else its first project.
+function categoryTiles(projects, set) {
+  const inSet = new Set((set && set.projects) || []);
+  return projects.categories.map(category => {
+    const items = projects.projects.filter(p => p.category === category.id);
+    const pick = items.find(p => p.thumbnail && inSet.has(`${p.category}/${p.id}`)) || items.find(p => p.thumbnail);
+    return { category, count: items.length, thumb: pick ? pick.thumbnail : '' };
+  });
+}
+
 // The home page shows whichever set of projects is marked "active" in data/home.json.
 // Sets are chosen and edited in the desktop app or the web admin.
 function resolveHome(projects) {
   const file = path.join(DATA_DIR, 'home.json');
-  const empty = { tagline: '', projectLayout: 'standard', landscape: [], vertical: [] };
+  const empty = { tagline: '', projectLayout: 'standard', landscape: [], vertical: [], categoryTiles: categoryTiles(projects, null) };
   if (!fs.existsSync(file)) return empty;
   const home = JSON.parse(fs.readFileSync(file, 'utf8'));
   const set = (home.sets || []).find(s => s.id === home.active) || (home.sets || [])[0];
@@ -514,6 +525,7 @@ function resolveHome(projects) {
     (category.slug === 'vertical' ? out.vertical : out.landscape).push({ project, category });
   }
   console.log(`  Home page set: ${set.name} (${out.landscape.length + out.vertical.length} projects)`);
+  out.categoryTiles = categoryTiles(projects, set);
   return out;
 }
 

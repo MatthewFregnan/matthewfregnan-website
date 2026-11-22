@@ -28,8 +28,12 @@
     @apply text-sm tracking-wider text-site-text hover:text-site-text-muted transition-colors duration-200;
   }
 
+  /* The page you're on: full white with a thin underline (other links stay as they are) */
   .nav-link.active {
-    @apply text-site-text-muted;
+    @apply text-site-text;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 8px;
   }
 
   /* Portfolio grid */
@@ -79,6 +83,23 @@
     50% { transform: translateY(8px); }
   }
   @media (prefers-reduced-motion: reduce) { .scroll-cue { animation: none; } }
+
+  /* "Selected Work" heading with a quiet Browse line beside it (under it on phones) */
+  .work-head { @apply flex flex-col gap-2 mb-5 md:flex-row md:items-baseline md:justify-between; }
+  .work-browse { @apply flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-site-text-muted; }
+  .work-browse a { @apply text-site-text-muted transition-colors; }
+  .work-browse a:hover { @apply text-site-text; opacity: 1; }
+  .work-browse > span[aria-hidden] { opacity: 0.5; }
+
+  /* "All work" category picture tiles */
+  .category-tiles { @apply grid grid-cols-2 md:grid-cols-4 gap-3; }
+  .category-tile { @apply relative block overflow-hidden aspect-video bg-site-bg-secondary; }
+  .category-tile img { @apply absolute inset-0 w-full h-full object-cover opacity-50 transition duration-500; }
+  .category-tile:hover img { @apply opacity-80 scale-105; }
+  .category-tile:hover { opacity: 1; }
+  .category-tile-text { @apply absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black/80 via-black/20 to-transparent; }
+  .category-tile-name { @apply text-lg md:text-xl font-light; }
+  .category-tile-count { @apply text-sm text-site-text-muted; }
 
   /* Home page selected work: 3 across, or 4 when that fills the rows evenly */
   .portfolio-grid-home {
