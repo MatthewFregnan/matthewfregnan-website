@@ -20,7 +20,7 @@ from widgets import (
     COLORS, IMAGE_FILTER, GalleryList, ImageDrop, PlainEdit, SuggestEdit, dot, run_async, set_text_quietly,
 )
 
-TEXT_KEYS = ["title", "client", "role", "production", "year", "description"]
+TEXT_KEYS = ["title", "client", "role", "production", "agency", "year", "platform", "deliverables", "description"]
 GENERIC = "Paste a video file, Vimeo, YouTube or Instagram link"
 PLACEHOLDERS = {
     "file": "https://videos.matthewfregnan.com/…/name.mp4",
@@ -77,6 +77,9 @@ class ProjectEditor(QScrollArea):
             "client": SuggestEdit("e.g. Deakin University"),
             "role": SuggestEdit("e.g. Editor"),
             "production": SuggestEdit("e.g. ThinkHQ"),
+            "agency": SuggestEdit("If you worked through an agency"),
+            "platform": SuggestEdit("e.g. TV, YouTube, Social"),
+            "deliverables": QLineEdit(placeholderText="e.g. 30s TVC, 15s and 6s cutdowns, 9:16 versions"),
             "year": QLineEdit(placeholderText="YYYY"),
             "description": PlainEdit(placeholderText="A sentence or two about the project (helps Google too)"),
         }
@@ -106,8 +109,16 @@ class ProjectEditor(QScrollArea):
         form.addRow("Client", self.f["client"])
         form.addRow("Role", self.f["role"])
         form.addRow("Production", self.f["production"])
+        form.addRow("Agency", self.f["agency"])
         form.addRow("Year", self.f["year"])
+        form.addRow("Made for", self.f["platform"])
+        form.addRow("Deliverables", self.f["deliverables"])
         form.addRow("Description", self.f["description"])
+        detailed_note = QLabel("Agency, Made for, Deliverables and Description show on project pages "
+                               "when the live home page set uses the Detailed layout.")
+        detailed_note.setWordWrap(True)
+        detailed_note.setStyleSheet("color: palette(placeholder-text); font-size: 11px;")
+        form.addRow("", detailed_note)
         form.addRow("Page address", self.slug)
         form.addRow("", self.url_label)
         self.home_box = QWidget()
@@ -219,7 +230,7 @@ class ProjectEditor(QScrollArea):
         self._gallery_shown = None
         if p is None:
             return
-        for k in ("client", "role", "production"):
+        for k in ("client", "role", "production", "agency", "platform"):
             self.f[k].set_suggestions(self.store.suggestions(k))
         self.load()
         for ref in core.ordered_sources(p):

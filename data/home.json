@@ -5,6 +5,7 @@
       "id": "balanced",
       "name": "Balanced (default)",
       "tagline": "",
+      "projectLayout": "standard",
       "projects": [
         "commercial/redoctane-games-studio-launch-trailer",
         "branded/mud-to-marle",
@@ -22,6 +23,7 @@
       "id": "gaming-social",
       "name": "Gaming & social",
       "tagline": "",
+      "projectLayout": "standard",
       "projects": [
         "commercial/redoctane-games-studio-launch-trailer",
         "branded/neon-streets-chau-cash-only",

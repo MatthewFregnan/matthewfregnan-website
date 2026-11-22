@@ -1,0 +1,41 @@
+<%# Project page details: Detailed layout (description, what I did, made for, credits). %>
+    <!-- Project context: what it was, what I did, who for. Empty fields are simply left out. -->
+    <%
+      const roles = String(project.role || '').split(/\s*(?:,|&|\+|·|\/)\s*/).filter(Boolean);
+      const platforms = String(project.platform || '').split(/\s*(?:,|·|\/)\s*/).filter(Boolean);
+      const facts = [
+        ['Client', project.client],
+        ['Agency', project.agency],
+        ['Production', project.production],
+        ['Deliverables', project.deliverables],
+        ['Year', project.year],
+      ].filter(([, v]) => v);
+    %>
+    <% if (project.description || roles.length || platforms.length || facts.length) { %>
+      <div class="project-context">
+        <div class="ctx-main">
+          <% if (project.description) { %>
+            <p class="ctx-description"><%= project.description %></p>
+          <% } %>
+          <% if (roles.length) { %>
+            <div class="ctx-group">
+              <h2 class="ctx-label">What I did</h2>
+              <ul class="ctx-chips"><% roles.forEach(r => { %><li><%= r %></li><% }) %></ul>
+            </div>
+          <% } %>
+          <% if (platforms.length) { %>
+            <div class="ctx-group">
+              <h2 class="ctx-label">Made for</h2>
+              <ul class="ctx-chips is-quiet"><% platforms.forEach(r => { %><li><%= r %></li><% }) %></ul>
+            </div>
+          <% } %>
+        </div>
+        <% if (facts.length) { %>
+          <dl class="ctx-facts">
+            <% facts.forEach(([label, value]) => { %>
+              <div><dt><%= label %></dt><dd><%= value %></dd></div>
+            <% }) %>
+          </dl>
+        <% } %>
+      </div>
+    <% } %>

@@ -1,0 +1,39 @@
+<%# Project page details: the original (stock) layout. %>
+    <!-- Project Description -->
+    <% if (project.description) { %>
+      <div class="prose prose-invert max-w-none">
+        <p class="text-site-text-muted"><%= project.description %></p>
+      </div>
+    <% } %>
+
+    <!-- Project Details -->
+    <% if (project.client || project.production || project.role || project.year) { %>
+      <div class="mt-8 pt-8 border-t border-white/10">
+        <dl class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <% if (project.client) { %>
+            <div>
+              <dt class="text-site-text-muted">Client</dt>
+              <dd><%= project.client %></dd>
+            </div>
+          <% } %>
+          <% if (project.production) { %>
+            <div>
+              <dt class="text-site-text-muted">Production</dt>
+              <dd><%= project.production %></dd>
+            </div>
+          <% } %>
+          <% if (project.role) { %>
+            <div>
+              <dt class="text-site-text-muted">Role</dt>
+              <dd><%= project.role %></dd>
+            </div>
+          <% } %>
+          <% if (project.year) { %>
+            <div>
+              <dt class="text-site-text-muted">Year</dt>
+              <dd><%= project.year %></dd>
+            </div>
+          <% } %>
+        </dl>
+      </div>
+    <% } %>

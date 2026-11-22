@@ -6,7 +6,7 @@ import re
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QAbstractItemView, QDialog, QDialogButtonBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget,
+    QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget,
     QListWidgetItem, QMessageBox, QPushButton, QVBoxLayout, QWidget,
 )
 
@@ -14,6 +14,12 @@ import core
 from store import Store
 
 KEY = Qt.UserRole
+
+# Project page layouts. Add new ones here and as templates/partials/project-<id>.ejs
+LAYOUTS = [
+    ("standard", "Standard", "Client, production, role and year under the video."),
+    ("detailed", "Detailed", "Adds the description, “What I did”, “Made for” and credits (agency, deliverables)."),
+]
 
 
 class AddProjectsDialog(QDialog):
@@ -98,6 +104,13 @@ class HomeDialog(QDialog):
         self.title.setStyleSheet("font-size: 16px; font-weight: 600;")
         self.tagline = QLineEdit(placeholderText="Line under your name (leave empty for your usual tagline)")
         self.tagline.editingFinished.connect(self._set_tagline)
+        self.layout_combo = QComboBox()
+        for lid, name, _hint in LAYOUTS:
+            self.layout_combo.addItem(name, lid)
+        self.layout_combo.activated.connect(self._set_layout)
+        self.layout_hint = QLabel()
+        self.layout_hint.setWordWrap(True)
+        self.layout_hint.setStyleSheet("color: palette(placeholder-text);")
         self.items = QListWidget()
         self.items.setIconSize(QSize(96, 54))
         self.items.setDragDropMode(QAbstractItemView.InternalMove)
@@ -114,6 +127,12 @@ class HomeDialog(QDialog):
         rl.setContentsMargins(0, 0, 0, 0)
         rl.addWidget(self.title)
         rl.addWidget(self.tagline)
+        lrow = QHBoxLayout()
+        lrow.addWidget(QLabel("Project page layout:"))
+        lrow.addWidget(self.layout_combo)
+        lrow.addStretch()
+        rl.addLayout(lrow)
+        rl.addWidget(self.layout_hint)
         rl.addWidget(self.items, 1)
         r2 = QHBoxLayout()
         r2.addWidget(b_add)
@@ -170,6 +189,10 @@ class HomeDialog(QDialog):
         self.title.setText(s["name"] if s else "")
         self.tagline.setEnabled(bool(s))
         self.tagline.setText(s.get("tagline", "") if s else "")
+        layout = (s or {}).get("projectLayout", "standard")
+        self.layout_combo.setEnabled(bool(s))
+        self.layout_combo.setCurrentIndex(max(0, self.layout_combo.findData(layout)))
+        self.layout_hint.setText(next((h for lid, _n, h in LAYOUTS if lid == layout), ""))
         self.items.blockSignals(True)
         self.items.clear()
         for key in (s.get("projects", []) if s else []):
@@ -211,6 +234,7 @@ class HomeDialog(QDialog):
             return
         new = {"id": self._unique_id(name), "name": name.strip(),
                "tagline": copy_from.get("tagline", "") if copy_from else "",
+               "projectLayout": copy_from.get("projectLayout", "standard") if copy_from else "standard",
                "projects": list(copy_from.get("projects", [])) if copy_from else []}
         self.current = new["id"]
         self.store.edit_home(f"New Set “{new['name']}”", lambda h: h.setdefault("sets", []).append(new))
@@ -248,6 +272,12 @@ class HomeDialog(QDialog):
             text = self.tagline.text().strip()
             if text != self.store.home_set(self.current).get("tagline", ""):
                 self._edit_current("Change Tagline", lambda st, _h: st.__setitem__("tagline", text))
+
+    def _set_layout(self):
+        if self.current:
+            lid = self.layout_combo.currentData()
+            if lid != self.store.home_set(self.current).get("projectLayout", "standard"):
+                self._edit_current("Change Project Layout", lambda st, _h: st.__setitem__("projectLayout", lid))
 
     def _add(self):
         s = self.store.home_set(self.current) if self.current else None

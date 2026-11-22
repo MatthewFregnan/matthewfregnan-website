@@ -182,7 +182,8 @@ def _restore(p: dict, state: dict):
 
 class _SetField(QUndoCommand):
     NAMES = {"title": "Title", "client": "Client", "role": "Role", "production": "Production",
-             "year": "Year", "description": "Description"}
+             "agency": "Agency", "year": "Year", "platform": "Made For", "deliverables": "Deliverables",
+             "description": "Description"}
 
     def __init__(self, store: Store, p: dict, key: str, value):
         super().__init__(f"Edit {self.NAMES.get(key, key)}")

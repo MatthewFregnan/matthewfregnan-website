@@ -497,13 +497,13 @@ async function fingerprintAdmin() {
 // Sets are chosen and edited in the desktop app or the web admin.
 function resolveHome(projects) {
   const file = path.join(DATA_DIR, 'home.json');
-  const empty = { tagline: '', landscape: [], vertical: [] };
+  const empty = { tagline: '', projectLayout: 'standard', landscape: [], vertical: [] };
   if (!fs.existsSync(file)) return empty;
   const home = JSON.parse(fs.readFileSync(file, 'utf8'));
   const set = (home.sets || []).find(s => s.id === home.active) || (home.sets || [])[0];
   if (!set) return empty;
   const byKey = new Map(projects.projects.map(p => [`${p.category}/${p.id}`, p]));
-  const out = { tagline: set.tagline || '', landscape: [], vertical: [] };
+  const out = { tagline: set.tagline || '', projectLayout: set.projectLayout || 'standard', landscape: [], vertical: [] };
   for (const key of set.projects || []) {
     const project = byKey.get(key);
     if (!project) {
@@ -537,6 +537,8 @@ async function buildPages() {
     }
   };
 
+  const home = resolveHome(projects);
+
   // Build home page with Person + LocalBusiness schema
   console.log('Building home page...');
   const homeStructuredData = [
@@ -545,7 +547,7 @@ async function buildPages() {
   ];
   const homeHtml = await renderTemplate('home', {
     ...commonData,
-    home: resolveHome(projects),
+    home,
     title: `${siteConfig.title} | Melbourne Video Editor & Colourist`,
     activePage: 'home',
     pageDescription: `${siteConfig.title} - Melbourne video editor and colourist. View my portfolio of commercial, branded, and colour grading work for clients like KIA, Deakin University, and Australian government agencies.`,
@@ -611,6 +613,7 @@ async function buildPages() {
         activePage: category.slug,
         category,
         project,
+        projectLayout: home.projectLayout,
         pageDescription: projectDescription,
         pageUrl: `/${category.slug}/${project.id}/`,
         pageImage: project.thumbnail ? ogImagePath(project) : undefined,

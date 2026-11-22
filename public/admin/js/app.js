@@ -429,7 +429,7 @@ function textField(p, key, opts = {}) {
 }
 
 function detailsForm(p) {
-  const lists = ['client', 'role', 'production'].map(k => h('datalist', { id: `dl-${k}` },
+  const lists = ['client', 'role', 'production', 'agency', 'platform'].map(k => h('datalist', { id: `dl-${k}` },
     suggestions(k).map(v => h('option', { value: v }))));
   const cat = h('select', {
     id: 'f-category',
@@ -465,7 +465,11 @@ function detailsForm(p) {
     h('label', { for: 'f-client' }, 'Client'), textField(p, 'client', { list: true, placeholder: 'e.g. Deakin University' }),
     h('label', { for: 'f-role' }, 'Role'), textField(p, 'role', { list: true, placeholder: 'e.g. Editor' }),
     h('label', { for: 'f-production' }, 'Production'), textField(p, 'production', { list: true, placeholder: 'e.g. ThinkHQ' }),
+    h('label', { for: 'f-agency' }, 'Agency'), textField(p, 'agency', { list: true, placeholder: 'If you worked through an agency' }),
     h('label', { for: 'f-year' }, 'Year'), textField(p, 'year', { class: 'year', placeholder: 'YYYY', inputmode: 'numeric', digits: true }),
+    h('label', { for: 'f-platform' }, 'Made for'), textField(p, 'platform', { list: true, placeholder: 'e.g. TV, YouTube, Social' }),
+    h('label', { for: 'f-deliverables' }, 'Deliverables'), textField(p, 'deliverables', { placeholder: 'e.g. 30s TVC, 15s and 6s cutdowns, 9:16 versions' }),
+    h('span'), h('div', { class: 'muted small' }, 'Agency, Made for, Deliverables and Description show on project pages when the live home page set uses the Detailed layout.'),
     h('label', { for: 'f-description', class: 'top' }, 'Description'),
     textField(p, 'description', { multiline: true, placeholder: 'A sentence or two about the project (helps Google too)' }),
     h('label', { for: 'f-id' }, 'Page address'), slug,
@@ -923,6 +927,12 @@ function publish() {
 
 const HD = { current: null, adding: false, confirmDelete: false, q: '' };
 
+// Project page layouts. Add new ones here and as templates/partials/project-<id>.ejs
+const LAYOUTS = [
+  { id: 'standard', name: 'Standard', hint: 'Client, production, role and year under the video.' },
+  { id: 'detailed', name: 'Detailed', hint: 'Adds the description, “What I did”, “Made for” and credits (agency, deliverables).' },
+];
+
 function openHomeDialog() {
   HD.current = S.home.active;
   HD.adding = false;
@@ -975,7 +985,7 @@ function renderHomeDialog() {
   const setTools = h('div', { class: 'vrow-tools' },
     h('button', { class: 'btn', onclick: () => {
       const id = newSetId('new-set');
-      editHome(() => S.home.sets.push({ id, name: 'New set', tagline: '', projects: [] }));
+      editHome(() => S.home.sets.push({ id, name: 'New set', tagline: '', projectLayout: 'standard', projects: [] }));
       HD.current = id; renderHomeDialog(); $('#hd-name')?.select();
     } }, 'New Set'),
     h('button', { class: 'btn', disabled: !set, onclick: () => {
@@ -1059,6 +1069,10 @@ function renderHomeDialog() {
           const v = e.target.value.trim();
           if (v !== (set.tagline || '')) editHome(() => { homeSet(set.id).tagline = v; });
         } })),
+      h('div', { class: 'field' }, h('label', {}, 'Project page layout'),
+        h('select', { onchange: e => editHome(() => { homeSet(set.id).projectLayout = e.target.value; }) },
+          LAYOUTS.map(l => h('option', { value: l.id, selected: (set.projectLayout || 'standard') === l.id }, l.name))),
+        h('span', { class: 'muted small' }, (LAYOUTS.find(l => l.id === (set.projectLayout || 'standard')) || LAYOUTS[0]).hint)),
       h('div', { class: 'vrow-tools' },
         h('button', { class: 'btn primary', disabled: live,
           onclick: () => editHome(() => { S.home.active = set.id; }) }, live ? 'This set is on the site' : 'Show This on the Site'),
