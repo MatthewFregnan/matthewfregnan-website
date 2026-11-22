@@ -361,10 +361,12 @@
       "year": "2026",
       "description": "",
       "thumbnail": "branded/toni-tries-linkedin-comedy-and-gets-banned.jpg",
-      "updated": "2026-11-22T13:50:02",
+      "updated": "2026-11-22T15:48:05",
       "youtubeId": "KL42T_bME-4",
       "showStats": true,
-      "thumbFocus": "50% 2%"
+      "thumbFocus": "50% 2%",
+      "videoPrimary": "youtube",
+      "videoFile": "https://videos.matthewfregnan.com/branded/toni-tries-linkedin-comedy-and-gets-banned-mws0gukm.mp4?v=1795362485195"
     },
     {
       "id": "try-not-to-laugh-ads-that-should-be-banned",
@@ -376,10 +378,12 @@
       "year": "2026",
       "description": "",
       "thumbnail": "branded/try-not-to-laugh-ads-that-should-be-banned.jpg",
-      "updated": "2026-11-22T14:36:08",
+      "updated": "2026-11-22T15:47:49",
       "youtubeId": "RkmBhhOY_cQ",
       "showStats": true,
-      "thumbFocus": "46% 56%"
+      "thumbFocus": "46% 56%",
+      "videoFile": "https://videos.matthewfregnan.com/branded/try-not-to-laugh-ads-that-should-be-banned-mws0ggb7.mp4?v=1795362467263",
+      "videoPrimary": "youtube"
     },
     {
       "id": "toni-and-ryan-we-are-rebranding",
