@@ -725,7 +725,7 @@ footer { animation: page-fade 0.35s ease-out 0.1s backwards; }
   .duo-about, .duo-contact { flex-wrap: wrap; row-gap: 14px; }
   .duo-about .duo-text { flex: 1 1 calc(100% - 80px); }
   .duo-contact .duo-text { flex: 1 1 100%; }
-  .duo-about .duo-btn { margin-left: 74px; }
+  .duo-about .duo-btn, .duo-contact .closing-cta-btn { margin: 0 auto; }   /* both buttons centred */
 }
 
 /* Back to top (partials/footer.ejs): a round button on the footer's top line */
