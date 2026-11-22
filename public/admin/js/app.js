@@ -2287,7 +2287,7 @@ function titleOfPath(path) {
   }
   const [slug, id] = path.split('/').filter(Boolean);
   const cat = S.data.categories.find(c => c.slug === slug);
-  if (!cat) return slug === 'about' ? 'About' : slug === 'contact' ? 'Contact panel opened' : slug === 'my-work' ? 'All work' : path;
+  if (!cat) return slug === 'about' ? 'About' : slug === 'contact' ? 'Contact panel opened' : slug === 'about-sheet' ? 'About sheet opened' : slug === 'my-work' ? 'All work' : path;
   if (!id) return `${cat.name} (section)`;
   const p = projects().find(x => x.category === cat.id && x.id === id);
   return p ? p.title : `${id} (removed)`;

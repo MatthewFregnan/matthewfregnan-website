@@ -1029,3 +1029,51 @@ document.addEventListener('DOMContentLoaded', () => {
   strip.addEventListener('scroll', () => { if (held || performance.now() < resumeAt) pos = strip.scrollLeft; }, { passive: true });
   requestAnimationFrame(tick);
 });
+
+// Phones, home page: swipe up (or tap) the "Hi, I'm Matthew" bar at the end of the page to open a sheet
+// with a photo, a line about you, About me and Get in touch. Drag it down, tap outside or press Esc to close.
+document.addEventListener('DOMContentLoaded', () => {
+  const sheet = document.getElementById('about-sheet');
+  const peek = document.querySelector('.about-peek');
+  if (!sheet || !peek) return;
+  document.documentElement.classList.add('has-about-sheet');
+  const panel = sheet.querySelector('.about-sheet-panel');
+  const open = () => {
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
+    sheet.hidden = false;
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(() => requestAnimationFrame(() => sheet.classList.add('is-open')));
+    window.mfTrack?.('/about-sheet/');   // counted on Traffic
+  };
+  const close = () => {
+    sheet.classList.remove('is-open', 'is-dragging');
+    sheet.style.removeProperty('--drag');
+    document.body.style.overflow = '';
+    setTimeout(() => { if (!sheet.classList.contains('is-open')) sheet.hidden = true; }, 400);
+  };
+  // the bar: tap, or swipe up on it
+  let startY = null;
+  peek.addEventListener('click', open);
+  peek.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+  peek.addEventListener('touchmove', (e) => {
+    if (startY != null && startY - e.touches[0].clientY > 24) { startY = null; open(); }
+  }, { passive: true });
+  // the sheet: drag down to close (or back up if not far enough)
+  let dragFrom = null;
+  panel.addEventListener('touchstart', (e) => { dragFrom = e.touches[0].clientY; sheet.classList.add('is-dragging'); }, { passive: true });
+  panel.addEventListener('touchmove', (e) => {
+    if (dragFrom == null) return;
+    sheet.style.setProperty('--drag', `${Math.max(0, e.touches[0].clientY - dragFrom)}px`);
+  }, { passive: true });
+  panel.addEventListener('touchend', (e) => {
+    if (dragFrom == null) return;
+    const moved = e.changedTouches[0].clientY - dragFrom;
+    dragFrom = null;
+    sheet.classList.remove('is-dragging');
+    if (moved > 80) close(); else sheet.style.removeProperty('--drag');
+  });
+  sheet.querySelector('[data-sheet-close]').addEventListener('click', close);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sheet.hidden) close(); });
+  // Get in touch: close this so the contact panel opens on its own
+  sheet.querySelector('[data-contact]')?.addEventListener('click', close);
+});

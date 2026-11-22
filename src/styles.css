@@ -820,3 +820,38 @@ html:active-view-transition footer { animation: none !important; }
 @media (min-width: 1024px) {
   .client-group-title.is-v { max-width: min(1000px, calc((100vh - 160px) * 27 / 16 + 24px)); margin-left: auto; margin-right: auto; }
 }
+
+/* Phones, home page: swipe-up "about me" sheet in place of the two closing cards (src/main.js adds
+   .has-about-sheet; without JavaScript the cards stay) */
+.about-peek, .about-sheet { display: none; }
+@media (max-width: 767px) {
+  .has-about-sheet .closing-duo { display: none; }
+  .has-about-sheet .about-peek {
+    position: relative; display: flex; align-items: center; gap: 14px; width: 100%; padding: 22px 18px 18px; text-align: left;
+    border-radius: 18px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff;
+    touch-action: pan-x;   /* vertical swipes on the bar are ours */
+  }
+  .about-peek img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex: none; }
+  .about-peek-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  .about-peek-hint { font-size: 0.85rem; color: #a0a0a0; }
+  .about-peek-handle { position: absolute; top: 8px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 4px; background: rgba(255, 255, 255, 0.3); }
+  .about-peek-arrow { width: 22px; height: 22px; flex: none; color: rgba(255, 255, 255, 0.8); animation: peek-bob 1.8s ease-in-out infinite; }
+  @keyframes peek-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+  .has-about-sheet .about-sheet:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 70; }
+  .about-sheet-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); opacity: 0; transition: opacity 0.3s ease; }
+  .about-sheet-panel {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 24px calc(110px + env(safe-area-inset-bottom)); /* room for Safari's bottom bar */
+    border-radius: 22px 22px 0 0; background: #151517; border-top: 1px solid rgba(255, 255, 255, 0.12); text-align: center;
+    transform: translateY(100%); transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1); touch-action: none;
+  }
+  .about-sheet.is-open .about-sheet-backdrop { opacity: 1; }
+  .about-sheet.is-open .about-sheet-panel { transform: translateY(var(--drag, 0px)); }
+  .about-sheet.is-dragging .about-sheet-panel { transition: none; }
+  .about-sheet-handle { display: block; width: 40px; height: 5px; margin: 0 auto 22px; border-radius: 5px; background: rgba(255, 255, 255, 0.3); }
+  .about-sheet-photo { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; margin: 0 auto 16px; border: 2px solid rgba(255, 255, 255, 0.15); }
+  .about-sheet-title { font-size: 1.6rem; font-weight: 300; margin: 0 0 8px; }
+  .about-sheet-text { color: #a0a0a0; line-height: 1.55; margin: 0 auto 22px; max-width: 26em; }
+  .about-sheet-actions { display: flex; gap: 10px; }
+  @media (prefers-reduced-motion: reduce) { .about-peek-arrow { animation: none; } .about-sheet-panel, .about-sheet-backdrop { transition: none; } }
+}

@@ -4,6 +4,14 @@
   <section class="closing-cta<%= activePage === 'home' ? ' is-duo' : '' %>">
     <div class="container mx-auto px-4">
       <% if (activePage === 'home') { %>
+      <%# Phones (src/main.js turns this on): instead of the two cards, a "peek" bar you swipe up (or tap)
+          to open a sheet with your photo, a line about you, About me and Get in touch. %>
+      <button type="button" class="about-peek" aria-haspopup="dialog" aria-controls="about-sheet">
+        <span class="about-peek-handle" aria-hidden="true"></span>
+        <img src="<%= imageUrl('', 'headshot.jpg').replace('/images//', '/images/') %>" alt="" loading="lazy">
+        <span class="about-peek-text"><span class="duo-title"><%= text.homeAboutTitle %></span><span class="about-peek-hint">Swipe up to say hi</span></span>
+        <svg class="about-peek-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
+      </button>
       <div class="closing-duo">
         <a href="/about/" class="duo-about">
           <img src="<%= imageUrl('', 'headshot.jpg').replace('/images//', '/images/') %>" alt="" loading="lazy">
@@ -56,6 +64,22 @@
       </div>
     </div>
   </footer>
+
+  <% if (activePage === 'home') { %>
+  <div class="about-sheet" id="about-sheet" hidden>
+    <div class="about-sheet-backdrop" data-sheet-close></div>
+    <div class="about-sheet-panel" role="dialog" aria-modal="true" aria-label="<%= text.homeAboutTitle %>">
+      <span class="about-sheet-handle" aria-hidden="true"></span>
+      <img class="about-sheet-photo" src="<%= imageUrl('', 'headshot.jpg').replace('/images//', '/images/') %>" alt="<%= site.title %>" loading="lazy">
+      <h2 class="about-sheet-title"><%= text.homeAboutTitle %></h2>
+      <p class="about-sheet-text"><%= text.homeAboutText %></p>
+      <div class="about-sheet-actions">
+        <a href="/about/" class="contact-btn"><%= text.homeAboutButton %></a>
+        <a href="mailto:<%= site.email %>" class="contact-btn primary" data-contact><%= text.ctaButton %></a>
+      </div>
+    </div>
+  </div>
+  <% } %>
 
   <%# Contact panel: opened by any link marked data-contact (the links still work as plain email links
       without JavaScript). Copy the address, open your mail app, or go to LinkedIn. %>
