@@ -39,11 +39,12 @@
   <% if (clientStrip.length > 2) { %>
     <%# Clients worked with: rises and fades in soon after the page opens, then drifts slowly sideways.
         The clients ticked for it in the admin (see clientLogos in build.js), each sized to its shape. %>
-    <div class="hero-clients" aria-label="Clients include">
+    <% if (text.clientsLabel) { %><p class="hero-clients-label"><%= text.clientsLabel %></p><% } %>
+    <div class="hero-clients" aria-label="<%= text.clientsLabel || 'Clients' %>">
       <div class="hero-clients-rise"><div class="hero-clients-track">
         <% [0, 1].forEach(copy => { %>
           <div class="hero-clients-set"<% if (copy) { %> aria-hidden="true"<% } %>>
-            <% clientStrip.forEach(c => { %><img src="<%= c.src %>" alt="<%= copy ? '' : c.name %>" decoding="async" class="tier-<%= c.tier %>" style="height: <%= c.height %>px"><% }) %>
+            <% clientStrip.forEach(c => { %><img src="<%= c.src %>" alt="<%= copy ? '' : c.name %>" decoding="async" style="height: <%= c.height %>px"><% }) %>
           </div>
         <% }) %>
       </div></div>

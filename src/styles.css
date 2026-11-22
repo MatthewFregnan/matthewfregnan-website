@@ -573,18 +573,25 @@
 /* Home hero: client logos. They rise and fade in soon after the page opens, then drift slowly sideways
    in a narrow band with soft edges, quiet enough not to compete with the name and video. */
 .hero-clients {
-  position: absolute; left: 50%; bottom: 132px; z-index: 10; width: min(980px, 90vw); transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: 132px; z-index: 10; width: min(1320px, 94vw); transform: translateX(-50%);
   overflow: hidden; pointer-events: none;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
 }
 /* starts just inside the soft left edge, so the first (most important) client is seen straight away */
-.hero-clients-rise { padding-left: 20%; opacity: 0; transform: translateY(16px); animation: clients-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; }
+.hero-clients-rise { padding-left: 11%; opacity: 0; transform: translateY(16px); animation: clients-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; }
 .hero-clients-track { display: flex; width: max-content; animation: clients-drift 70s linear infinite; }
-.hero-clients-set { display: flex; align-items: center; gap: 72px; padding-right: 72px; }
-.hero-clients img { width: auto; max-width: 210px; object-fit: contain; opacity: 0.55; }
-.hero-clients img.tier-1 { opacity: 0.8; }
-.hero-clients img.tier-3 { opacity: 0.42; }
+.hero-clients-set { display: flex; align-items: center; gap: 64px; padding-right: 64px; }
+.hero-clients img { width: auto; max-width: 210px; object-fit: contain; opacity: 0.65; }
+/* A small quiet label so it's clear these are clients, fading in with the logos */
+.hero-clients-label {
+  position: absolute; left: 0; right: 0; bottom: 200px; z-index: 10; margin: 0; text-align: center;
+  font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5);
+  opacity: 0; animation: clients-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; transform: translateY(16px);
+}
+@media (max-width: 639px) { .hero-clients-label { bottom: 172px; font-size: 10px; } }
+@media (max-height: 640px) { .hero-clients-label { display: none; } }
+@media (prefers-reduced-motion: reduce) { .hero-clients-label { opacity: 1; transform: none; animation: none; } }
 @keyframes clients-in { to { opacity: 1; transform: none; } }
 @keyframes clients-drift { to { transform: translateX(-50%); } }
 @media (max-width: 639px) { .hero-clients { bottom: 112px; } .hero-clients img { zoom: 0.78; } .hero-clients-set { gap: 44px; padding-right: 44px; } }

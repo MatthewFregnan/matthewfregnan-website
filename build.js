@@ -616,17 +616,13 @@ function logoOf(p) {
 
 // The logo strip in the home page hero. Clients ticked "Show in the home page logo strip" in the admin
 // ("strip": true in projects.json "clients"); if none are ticked, these well-known ones.
-// Clients in order of importance: the strip starts with the first and the top tier is a touch larger
-// and brighter. Clients not listed go after these.
+// Clients in order of importance: the strip starts with the first. Every logo is shown the same way
+// (same brightness, sized by shape for equal weight); only the order changes. Clients not listed go after these.
 const CLIENT_RANK = [
-  // tier 1: key clients
   'RedOctane Games', 'CRKD', 'KIA', 'Deakin University',
-  // tier 2: strong names
   'Ladbrokes', 'Toni and Ryan', 'Oporto', 'TAB',
-  // tier 3: the rest worth showing
   "Royal Children's Hospital", 'Victorian Government', 'PTV', 'Yarra Valley Water',
 ];
-const tierOf = name => { const i = CLIENT_RANK.findIndex(n => n.toLowerCase() === name); return i < 0 ? 3 : i < 4 ? 1 : i < 8 ? 2 : 3; };
 const STRIP_DEFAULT = CLIENT_RANK;
 const LOGO_ASPECT = new Map();   // logo file -> width / height, filled by makeWhiteLogos
 function clientLogos(projects, clients = {}) {
@@ -641,10 +637,9 @@ function clientLogos(projects, clients = {}) {
     const rel = fs.existsSync(path.join(IMAGES_DIR, 'logos', 'full', file)) ? `full/${file}` : file;
     // Size by shape so every logo has about the same presence: wide wordmarks shorter, stacked ones taller
     const aspect = LOGO_ASPECT.get(rel) || 3;
-    const tier = tierOf(name);
-    const height = Math.round(Math.min(56, Math.max(26, Math.sqrt(5200 / aspect))) * (tier === 1 ? 1.12 : tier === 3 ? 0.9 : 1));
+    const height = Math.round(Math.min(56, Math.max(26, Math.sqrt(5200 / aspect))) * 0.9);
     const client = Object.keys(clients).find(n => n.trim().toLowerCase() === name) || name;
-    seen.set(file, { src: imageUrl('logos', rel).replace('/images/logos/', '/images/logos-white/'), name: client, height, tier });
+    seen.set(file, { src: imageUrl('logos', rel).replace('/images/logos/', '/images/logos-white/'), name: client, height });
   }
   return [...seen.values()];
 }
@@ -760,6 +755,7 @@ const SITE_TEXT = {
   homeAboutTitle: 'Hi, I’m Matthew!',
   homeAboutText: 'A Melbourne-based video editor & colourist. More about me, and how to get in touch.',
   homeAboutButton: 'More about me',
+  clientsLabel: 'Selected clients',
 };
 function readSiteText() {
   const file = path.join(DATA_DIR, 'home.json');
@@ -767,6 +763,7 @@ function readSiteText() {
   try { saved = JSON.parse(fs.readFileSync(file, 'utf8')).text || {}; } catch { /* defaults */ }
   const text = { ...SITE_TEXT };
   for (const [k, v] of Object.entries(saved)) if (k in text && String(v || '').trim()) text[k] = String(v).trim();
+  if (text.clientsLabel === '-') text.clientsLabel = '';   // "-" hides the label over the logo strip
   // paragraphs (blank-line separated) and "Course | Where · When" lines, ready for the templates
   text.aboutParagraphs = text.aboutBody.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
   text.educationItems = text.education.split('\n').map(l => l.trim()).filter(Boolean)
