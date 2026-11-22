@@ -515,14 +515,50 @@ async function fingerprintAdmin() {
     .replace('src="js/app.js"', `src="js/app.js?v=${v}"`));
 }
 
-// "All work" tiles on the home page: one per category, with a project count and a picture.
-// The picture comes from that category's first project in the live set, else its first project.
+// "All work" tiles on the home page: one per category, with a project count and up to four
+// pictures that slowly cycle. Pictures favour projects in the live set, then the rest of the
+// category in order, one per client so the cycle shows range.
+// Thumbnails with black bars baked in (pillarbox/letterbox) look broken when cropped into the
+// wide section tiles, so those are skipped there. Filled in by findBarredThumbnails() at build.
+const barredThumbs = new Set();
+
+async function findBarredThumbnails(projects) {
+  for (const p of projects.projects) {
+    if (!p.thumbnail) continue;
+    const file = path.join(IMAGES_DIR, 'thumbnails', p.thumbnail);
+    try {
+      // Small greyscale copy; a band is "black" if every pixel in it is near black
+      const { data, info } = await sharp(file).resize(160, 160, { fit: 'fill' }).greyscale().raw()
+        .toBuffer({ resolveWithObject: true });
+      const W = info.width, H = info.height, band = 4;
+      const dark = (x0, x1, y0, y1) => {
+        for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) if (data[y * W + x] > 24) return false;
+        return true;
+      };
+      const sides = dark(0, band, 0, H) && dark(W - band, W, 0, H);
+      const topBottom = dark(0, W, 0, band) && dark(0, W, H - band, H);
+      if (sides || topBottom) barredThumbs.add(p.thumbnail);
+    } catch { /* unreadable thumbnail: leave it to the normal pages */ }
+  }
+  if (barredThumbs.size) console.log(`  Skipping ${barredThumbs.size} thumbnails with black bars in the section tiles`);
+}
+
 function categoryTiles(projects, set) {
   const inSet = new Set((set && set.projects) || []);
   return projects.categories.map(category => {
-    const items = projects.projects.filter(p => p.category === category.id);
-    const pick = items.find(p => p.thumbnail && inSet.has(`${p.category}/${p.id}`)) || items.find(p => p.thumbnail);
-    return { category, count: items.length, thumb: pick ? pick.thumbnail : '' };
+    const items = projects.projects.filter(p => p.category === category.id && p.thumbnail && !barredThumbs.has(p.thumbnail));
+    const ordered = items.filter(p => inSet.has(`${p.category}/${p.id}`)).concat(items.filter(p => !inSet.has(`${p.category}/${p.id}`)));
+    const thumbs = [];
+    const clients = new Set();
+    for (const p of ordered) {
+      const client = (p.client || p.id).toLowerCase();
+      if (clients.has(client)) continue;
+      clients.add(client);
+      thumbs.push(p.thumbnail);
+      if (thumbs.length === 4) break;
+    }
+    const count = projects.projects.filter(p => p.category === category.id).length;
+    return { category, count, thumbs };
   });
 }
 
@@ -571,6 +607,7 @@ async function buildPages() {
     }
   };
 
+  await findBarredThumbnails(projects);
   const home = resolveHome(projects);
 
   // Build home page with Person + LocalBusiness schema

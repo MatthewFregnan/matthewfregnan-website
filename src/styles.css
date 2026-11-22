@@ -91,15 +91,28 @@
   .work-browse a:hover { @apply text-site-text; opacity: 1; }
   .work-browse > span[aria-hidden] { opacity: 0.5; }
 
-  /* "All work" category picture tiles */
-  .category-tiles { @apply grid grid-cols-2 md:grid-cols-4 gap-3; }
-  .category-tile { @apply relative block overflow-hidden aspect-video bg-site-bg-secondary; }
-  .category-tile img { @apply absolute inset-0 w-full h-full object-cover opacity-50 transition duration-500; }
-  .category-tile:hover img { @apply opacity-80 scale-105; }
+  /* "All work" section tiles: wide banners with a slow crossfade of a few thumbnails behind a
+     centred label, so they read as sections rather than individual projects */
+  .category-tiles { @apply grid grid-cols-1 sm:grid-cols-2 gap-3; }
+  .category-tile { @apply relative block overflow-hidden bg-site-bg-secondary; aspect-ratio: 16 / 5; }
   .category-tile:hover { opacity: 1; }
-  .category-tile-text { @apply absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black/80 via-black/20 to-transparent; }
-  .category-tile-name { @apply text-lg md:text-xl font-light; }
-  .category-tile-count { @apply text-sm text-site-text-muted; }
+  .category-tile-images img {
+    position: absolute; left: -4%; top: -4%; width: 108%; height: 108%; max-width: none; object-fit: cover;
+    opacity: 0; filter: blur(3px) brightness(0.45) saturate(0.85);
+    transform: scale(1); transition: opacity 1.6s ease, transform 7s linear, filter 0.5s ease;
+  }
+  .category-tile-images img.is-on { opacity: 1; transform: scale(1.06); }
+  .category-tile:hover .category-tile-images img.is-on { filter: blur(0.5px) brightness(0.6) saturate(1); }
+  .category-tile-text {
+    @apply absolute inset-0 flex flex-col items-center justify-center text-center;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.15) 70%);
+  }
+  .category-tile-name { @apply text-xl md:text-2xl font-light uppercase; letter-spacing: 0.22em; padding-left: 0.22em; }
+  .category-tile-count { @apply mt-2 text-xs uppercase text-white/70 transition-colors; letter-spacing: 0.18em; }
+  .category-tile:hover .category-tile-count { @apply text-white; }
+  @media (prefers-reduced-motion: reduce) {
+    .category-tile-images img { transition: opacity 0.3s ease; transform: none !important; }
+  }
 
   /* Home page selected work: 3 across, or 4 when that fills the rows evenly */
   .portfolio-grid-home {

@@ -451,3 +451,29 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('scroll', update, { passive: true });
   update();
 });
+
+// "All work" section tiles: slowly crossfade through each tile's pictures, staggered so the
+// tiles don't all change at once. Pauses while off screen; still for reduced-motion users.
+document.addEventListener('DOMContentLoaded', () => {
+  const tiles = [...document.querySelectorAll('.category-tile')];
+  if (!tiles.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const visible = new Set();
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => (e.isIntersecting ? visible.add(e.target) : visible.delete(e.target)));
+  });
+  tiles.forEach((t) => io.observe(t));
+  const STEP = 4200;
+  tiles.forEach((tile, i) => {
+    const imgs = [...tile.querySelectorAll('.category-tile-images img')];
+    if (imgs.length < 2) return;
+    let n = 0;
+    setTimeout(() => {
+      setInterval(() => {
+        if (!visible.has(tile) || document.hidden) return;
+        imgs[n].classList.remove('is-on');
+        n = (n + 1) % imgs.length;
+        imgs[n].classList.add('is-on');
+      }, STEP);
+    }, (STEP / tiles.length) * (Number(tile.dataset.cycleOffset) || i));
+  });
+});

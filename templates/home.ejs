@@ -75,12 +75,14 @@
     <!-- Everything else: one picture tile per category -->
     <h3 class="text-base font-light text-site-text-muted mt-12 mb-4">All work</h3>
     <div class="category-tiles">
-      <% home.categoryTiles.forEach(({ category: c, count, thumb }) => { %>
-        <a href="/<%= c.slug %>/" class="category-tile group">
-          <% if (thumb) { %><img src="/images/thumbnails/<%= thumb %>" alt="" loading="lazy"><% } %>
+      <% home.categoryTiles.forEach(({ category: c, count, thumbs }, i) => { %>
+        <a href="/<%= c.slug %>/" class="category-tile" data-cycle-offset="<%= i %>">
+          <span class="category-tile-images" aria-hidden="true">
+            <% thumbs.forEach((t, n) => { %><img src="/images/thumbnails/<%= t %>" alt="" loading="lazy" class="<%= n === 0 ? 'is-on' : '' %>"><% }) %>
+          </span>
           <span class="category-tile-text">
             <span class="category-tile-name"><%= c.name %></span>
-            <span class="category-tile-count"><%= count %> projects &rarr;</span>
+            <span class="category-tile-count"><%= count %> projects</span>
           </span>
         </a>
       <% }) %>
