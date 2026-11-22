@@ -1151,3 +1151,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (history.length > 1) { e.preventDefault(); history.back(); }
   });
 });
+
+// Home rows: titles stay on one line. Each row gets one title size (so the row looks even), small enough
+// for nearly all its titles to fit whole, but never below about 80% of normal. The odd long one ends in "…".
+document.addEventListener('DOMContentLoaded', () => {
+  const rows = [...document.querySelectorAll('.row-track')];
+  if (!rows.length) return;
+  const fit = () => {
+    for (const row of rows) {
+      const titles = [...row.querySelectorAll('.portfolio-item-title h2')].filter(h => !h.closest('[hidden]'));
+      if (!titles.length) continue;
+      titles.forEach(h => { h.style.fontSize = ''; });
+      const base = parseFloat(getComputedStyle(titles[0]).fontSize);
+      const min = base * 0.8;
+      // the size each title needs to fit, from its natural width
+      const need = titles.map(h => (h.scrollWidth > h.clientWidth + 1 ? base * (h.clientWidth / h.scrollWidth) : base));
+      // fit nearly every title (about 85%): one unusually long title gets "…" rather than shrinking the row
+      const sorted = need.slice().sort((x, y) => x - y);
+      const size = Math.max(min, sorted[Math.floor(sorted.length * 0.15)]);
+      if (size < base) titles.forEach(h => { h.style.fontSize = `${Math.floor(size * 2) / 2}px`; });
+    }
+  };
+  fit();
+  document.fonts?.ready.then(fit);   // re-measure once Poppins has loaded
+  let t;
+  window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(fit, 150); });
+});

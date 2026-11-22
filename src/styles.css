@@ -874,8 +874,22 @@ html:active-view-transition footer { animation: none !important; }
   .row-track > .row-first { scroll-snap-align: start; }
   .row-track > .row-last { scroll-snap-align: end; }
   .row-scroller.is-landscape { --per: 1.18; }
+  .row-scroller.is-portrait, .row-scroller.is-portrait.fit-base { --per: 1.55; }   /* one reel in focus, neighbours peeking */
   /* the neighbours are shaded, the tile in the middle stays clear */
   .row-scroller.more-before.more-after .row-track { mask-image: linear-gradient(to right, rgba(0,0,0,0.35), #000 9%, #000 91%, rgba(0,0,0,0.35)); }
   .row-scroller.more-after .row-track { mask-image: linear-gradient(to right, #000 91%, rgba(0,0,0,0.35)); }
   .row-scroller.more-before .row-track { mask-image: linear-gradient(to left, #000 91%, rgba(0,0,0,0.35)); }
+}
+
+/* Home page rows: titles and client names stay on one line (a long one ends in "…"; the full title is
+   on the project page). Keeps every tile the same tidy shape. */
+.row-track .portfolio-item-title h2, .row-track .portfolio-item-title p {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.row-track .portfolio-item-title.has-logo .title-text { overflow: hidden; }
+@media (max-width: 639px) {
+  /* a touch smaller on phones, so most titles fit on their one line in full */
+  .row-track .portfolio-item .portfolio-item-title h2 { font-size: 1rem; }
+  .row-track .portfolio-item-vertical .portfolio-item-title h2 { font-size: 0.875rem; }
+  .row-track .portfolio-item-title p { font-size: 0.75rem; }
 }
