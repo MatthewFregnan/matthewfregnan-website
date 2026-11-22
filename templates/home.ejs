@@ -1,7 +1,7 @@
 <%- include('partials/header') %>
 
 <!-- Hero Section with Video Background -->
-<section class="relative min-h-screen flex items-center justify-center overflow-hidden -mt-16">
+<section class="hero relative flex items-center justify-center overflow-hidden -mt-16">
   <!-- Background video: a silent self-hosted loop (no player controls). Set in data/site.json. -->
   <div class="absolute inset-0 w-full h-full">
     <div class="absolute inset-0 w-full h-full pointer-events-none overflow-hidden" aria-hidden="true">
@@ -21,13 +21,13 @@
 
   <!-- Hero Content -->
   <div class="relative z-10 container mx-auto px-4 text-center">
-    <h1 class="text-4xl md:text-6xl lg:text-7xl font-light mb-6">
+    <h1 class="text-4xl md:text-6xl font-light mb-4">
       <%= site.title %>
     </h1>
-    <p class="text-xl md:text-2xl text-white/80 max-w-2xl mx-auto">
+    <p class="text-lg md:text-xl text-white/80 max-w-2xl mx-auto">
       <%= (home.tagline || site.tagline) %>
     </p>
-    <div class="mt-12">
+    <div class="mt-8">
       <a href="<%= home.landscape.length || home.vertical.length ? '#selected-work' : '/my-work/' %>" class="inline-block border border-white/50 px-8 py-3 text-sm uppercase tracking-wider hover:bg-white hover:text-site-bg transition-all duration-300">
         View My Work
       </a>
@@ -37,18 +37,19 @@
 
 <% if (home.landscape.length || home.vertical.length) { %>
 <!-- Selected work: chosen in the desktop app or web admin (data/home.json) -->
-<section id="selected-work" class="py-16 scroll-mt-16">
+<section id="selected-work" class="pt-8 pb-16 scroll-mt-20">
   <div class="container mx-auto px-4">
-    <h2 class="text-2xl md:text-3xl font-light mb-8">Selected Work</h2>
+    <h2 class="text-xl md:text-2xl font-light mb-5">Selected Work</h2>
     <% if (home.landscape.length) { %>
-      <div class="portfolio-grid">
+      <%# 4 across when that fills the rows evenly (4 or 8 projects), otherwise 3 %>
+      <div class="portfolio-grid-home <%= home.landscape.length % 4 === 0 ? 'is-four' : '' %>">
         <% home.landscape.forEach(({ project, category }) => { %>
           <%- include('partials/card', { project, category, vertical: false }) %>
         <% }) %>
       </div>
     <% } %>
     <% if (home.vertical.length) { %>
-      <h3 class="text-lg font-light text-site-text-muted mt-12 mb-6">Short-form</h3>
+      <h3 class="text-base font-light text-site-text-muted mt-10 mb-4">Short-form</h3>
       <div class="portfolio-grid-shortform">
         <% home.vertical.forEach(({ project, category }) => { %>
           <%- include('partials/card', { project, category, vertical: true }) %>
@@ -57,7 +58,7 @@
     <% } %>
 
     <!-- Everything else -->
-    <div class="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
       <% categories.forEach(c => { %>
         <a href="/<%= c.slug %>/" class="group block p-6 border border-white/10 hover:border-white/30 transition-colors">
           <span class="block text-lg font-light group-hover:text-site-text-muted transition-colors"><%= c.name %></span>

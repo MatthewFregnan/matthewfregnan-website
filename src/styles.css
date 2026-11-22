@@ -53,9 +53,21 @@
     @apply absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent;
   }
 
-  /* Home page short-form row: smaller portrait tiles, more per row */
+  /* Home page: shorter hero so the selected work shows without scrolling */
+  .hero { min-height: 78vh; }
+  @media (min-width: 768px) { .hero { min-height: max(440px, 62vh); } }
+
+  /* Home page selected work: 3 across, or 4 when that fills the rows evenly */
+  .portfolio-grid-home {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3;
+  }
+  .portfolio-grid-home.is-four {
+    @apply xl:grid-cols-4;
+  }
+
+  /* Home page short-form row: small portrait tiles, up to 6 per row */
   .portfolio-grid-shortform {
-    @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4;
+    @apply grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3;
   }
 
   /* Vertical portfolio grid (for portrait videos) */
