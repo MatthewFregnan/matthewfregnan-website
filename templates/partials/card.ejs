@@ -1,7 +1,7 @@
 <%# One project tile. Expects: project, category, vertical (bool), optional extra (raw attributes). Tiles with a hosted
     video (or a short preview clip, previewFile, for long YouTube videos) play a silent preview on hover (see "Hover previews" in src/main.js). %>
 <a href="/<%= category.slug %>/<%= project.id %>/"
-   class="<%= vertical ? 'portfolio-item-vertical' : 'portfolio-item' %> group"
+   class="<%= vertical ? 'portfolio-item-vertical' : 'portfolio-item' %> group<%= logoOf(project) && logoPosition() === 'corner' ? ' has-corner-logo' : '' %>"
    <% const previewSrc = project.previewFile || project.videoFile; %><% if (previewSrc) { %>data-preview="<%= previewSrc %>"<% } %><%- typeof extra !== 'undefined' ? ' ' + extra : '' %>>
   <% if (project.thumbnail) { %>
   <img
