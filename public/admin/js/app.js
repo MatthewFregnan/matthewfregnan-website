@@ -717,6 +717,16 @@ function previewClipRow(p) {
       p.previewFile ? h('button', { class: 'btn link danger', onclick: () => { mutate(() => { delete p.previewFile; }); renderVideo(); } }, 'Remove') : null));
 }
 
+// While a file is dragged over the page, embedded players (TikTok, YouTube…) stop catching the mouse,
+// so a video dropped on the player lands with us instead of disappearing into the embed.
+(() => {
+  let depth = 0;
+  const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+  window.addEventListener('dragenter', e => { if (hasFiles(e)) { depth += 1; document.body.classList.add('dragging-file'); } });
+  window.addEventListener('dragleave', e => { if (hasFiles(e) && --depth <= 0) { depth = 0; document.body.classList.remove('dragging-file'); } });
+  for (const ev of ['drop', 'dragend']) window.addEventListener(ev, () => { depth = 0; document.body.classList.remove('dragging-file'); });
+})();
+
 function renderVideo() {
   const card = $('#video-card');
   const p = S.current;
@@ -787,6 +797,17 @@ function renderVideo() {
   };
   const job = uploadJobFor(p);
 
+  const hasFile = refs.some(r => r.kind === 'file');
+  const uploadRow = h('div', { class: 'vrow-tools upload-row' },
+    h('button', {
+      class: `btn${hasFile ? '' : ' primary'}`, disabled: !!job || !uploadConfig(),
+      title: uploadConfig() ? 'Convert (if needed) and upload a video file, then use it as this project’s video. You can also drop a file on the player.'
+        : 'Sign in to upload videos',
+      onclick: async () => { const [f] = await pickVideoFile(); if (f) startUpload(p, f); },
+    }, hasFile ? 'Replace Video File…' : 'Upload Video File…'),
+    h('span', { class: 'muted small' }, hasFile ? 'or drop a video on the player.'
+      : refs.length ? 'Plays on the site itself, with hover previews and watch stats; the link stays as a backup. Or drop a video on the player.'
+        : 'or drop a video on the player. MP4/MOV; ProRes needs the desktop app.'));
   card.replaceChildren(
     h('h4', {}, 'Video'),
     player,
@@ -805,15 +826,9 @@ function renderVideo() {
       }, 'Use Video’s Title, Year & Thumbnail')) :'',
     refs.length && p.showStats ? statsFields(p) : '',
     previewClipRow(p),
-    h('div', { class: 'vrow-tools' },
-      h('button', {
-        class: 'btn', disabled: !!job || !uploadConfig(),
-        title: uploadConfig() ? 'Convert (if needed) and upload a video file, then use it as this project’s video. You can also drop a file on the player.'
-          : 'Sign in to upload videos',
-        onclick: async () => { const [f] = await pickVideoFile(); if (f) startUpload(p, f); },
-      }, 'Upload Video File…'),
-      h('span', { class: 'muted small' }, 'or drop a video on the player. MP4/MOV; ProRes needs the desktop app.')),
   );
+  // Upload sits right under the links, where it's easy to find (also when a TikTok/YouTube link is set)
+  card.querySelector('.sources').after(uploadRow);
 }
 
 // ---------------------------------------------------------------- video uploads (background)
