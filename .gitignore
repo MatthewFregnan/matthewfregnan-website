@@ -23,3 +23,6 @@ npx serve dist
 # Portfolio Manager app
 app/.venv/
 __pycache__/
+
+# Temporary checklist for moving videos off Vimeo
+vimeo-downloads.md

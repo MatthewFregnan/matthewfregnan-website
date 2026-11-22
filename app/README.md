@@ -22,7 +22,21 @@ The first launch installs what the app needs (about a minute). After that it ope
 
 ## Videos
 
-Each project can have a **Vimeo**, **YouTube** and **Instagram** link. Choose which one to **show first**; the others are backups.
+**Your own video files come first.** Videos are stored in Cloudflare R2 (free up to 10 GB, no charge for views) at `https://videos.matthewfregnan.com/<category>/<project>.mp4` and play in the site's own player: no ads, no logos. To add one:
+
+1. Export a 1080p H.264 MP4 (around 8–10 Mbps is plenty).
+2. Upload it in the Cloudflare dashboard: **R2 Object Storage → matthewfregnan-videos**, into the right category folder (`commercial`, `branded` or `vertical`).
+3. Paste its address (`https://videos.matthewfregnan.com/branded/my-project.mp4`) into the project's video box.
+
+Or from Terminal (Wrangler 3, since this Mac has Node 20):
+
+```
+npx wrangler@3 r2 object put matthewfregnan-videos/branded/my-project.mp4 --file my-project.mp4 --content-type video/mp4 --cache-control "public, max-age=86400"
+```
+
+Vimeo, YouTube and Instagram links still work, as backups or on their own:
+
+Each project can have a **Video file**, **Vimeo**, **YouTube** and **Instagram** link. Choose which one to **show first**; the others are backups.
 
 - The app checks each link and puts a dot next to each project in the list: green = plays, orange = the first choice is broken but a backup plays, red = nothing plays, grey = not checked yet, or an Instagram link (those can't be checked).
 - The website does the same check: every build starts on the first link that works, and the page re-checks in the visitor's browser, switching to a backup if a video broke after the last build.

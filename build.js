@@ -117,13 +117,18 @@ function buildLocalBusinessSchema(siteConfig) {
 }
 
 // ---------------------------------------------------------------- Video sources
-// A project can have Vimeo, YouTube and Instagram links. `videoPrimary` picks which shows first;
-// the others are backups. The build checks which actually play and starts on the first working
-// one; src/main.js re-checks in the visitor's browser and swaps to a backup if one has broken since.
-const SOURCE_ORDER = ['vimeo', 'youtube', 'instagram'];
+// A project can have its own hosted video file (videos.matthewfregnan.com, played in the site's
+// custom player: no ads or branding) plus Vimeo, YouTube and Instagram links as backups.
+// `videoPrimary` picks which shows first. The build checks which actually play and starts on the
+// first working one; src/main.js swaps to a backup in the visitor's browser if one breaks later.
+const SOURCE_ORDER = ['file', 'vimeo', 'youtube', 'instagram'];
 
 function videoSources(project) {
   const all = {};
+  if (project.videoFile) {
+    const url = String(project.videoFile).trim();
+    all.file = { kind: 'file', id: url, page: url, embed: url, check: null, head: url };
+  }
   if (project.vimeoId) {
     const h = project.vimeoHash ? `h=${project.vimeoHash}&` : '';
     const page = `https://vimeo.com/${project.vimeoId}${project.vimeoHash ? `/${project.vimeoHash}` : ''}`;
@@ -137,7 +142,7 @@ function videoSources(project) {
     const page = `https://www.youtube.com/watch?v=${project.youtubeId}`;
     all.youtube = {
       kind: 'youtube', id: project.youtubeId, page,
-      embed: `https://www.youtube.com/embed/${project.youtubeId}?rel=0&modestbranding=1`,
+      embed: `https://www.youtube-nocookie.com/embed/${project.youtubeId}?rel=0&playsinline=1`,
       check: `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(page)}`
     };
   }
@@ -158,9 +163,10 @@ function videoSources(project) {
 
 // true = plays, false = definitely broken, null = couldn't tell (offline etc.; treat as fine)
 async function sourcePlays(source) {
-  if (!source.check || process.env.SKIP_VIDEO_CHECK) return null;
+  const url = source.head || source.check;
+  if (!url || process.env.SKIP_VIDEO_CHECK) return null;
   try {
-    const res = await fetch(source.check, { signal: AbortSignal.timeout(8000) });
+    const res = await fetch(url, { method: source.head ? 'HEAD' : 'GET', signal: AbortSignal.timeout(8000) });
     if (res.ok) return true;
     return [401, 403, 404].includes(res.status) ? false : null;
   } catch {

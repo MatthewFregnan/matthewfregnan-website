@@ -142,18 +142,24 @@ def import_gallery(repo: Repo, project: dict, files: list[Path]) -> int:
 
 # --------------------------------------------------------------------------- video
 
-SOURCES = ["vimeo", "youtube", "instagram"]          # default fallback order
-SOURCE_NAMES = {"vimeo": "Vimeo", "youtube": "YouTube", "instagram": "Instagram"}
+# Default order: your own hosted file first (no ads, no branding), then the platforms as backups.
+SOURCES = ["file", "vimeo", "youtube", "instagram"]
+SOURCE_NAMES = {"file": "Video file", "vimeo": "Vimeo", "youtube": "YouTube", "instagram": "Instagram"}
+SOURCE_KEYS = {"file": "videoFile", "vimeo": "vimeoId", "youtube": "youtubeId", "instagram": "instagramId"}
+VIDEO_HOST = "https://videos.matthewfregnan.com"
+VIDEO_EXTS = (".mp4", ".m4v", ".mov", ".webm")
 
 
 @dataclass
 class VideoRef:
-    kind: str          # "vimeo" | "youtube" | "instagram"
-    id: str
+    kind: str          # "file" | "vimeo" | "youtube" | "instagram"
+    id: str            # for "file": the full https:// address of the video file
     hash: str = ""     # Vimeo unlisted-link hash
 
     @property
     def page_url(self) -> str:
+        if self.kind == "file":
+            return self.id
         if self.kind == "vimeo":
             return f"https://vimeo.com/{self.id}" + (f"/{self.hash}" if self.hash else "")
         if self.kind == "instagram":
@@ -181,6 +187,9 @@ def parse_video(text: str, hint: str | None = None) -> VideoRef | None:
     host = u.netloc.lower()
     q = urllib.parse.parse_qs(u.query)
     parts = [p for p in u.path.split("/") if p]
+    if u.path.lower().endswith(VIDEO_EXTS) or host == urllib.parse.urlparse(VIDEO_HOST).netloc:
+        local = u.hostname in ("localhost", "127.0.0.1")
+        return VideoRef("file", urllib.parse.urlunparse(u if local and "://" in t else u._replace(scheme="https")))
     if "vimeo.com" in host:
         for i, p in enumerate(parts):
             if p.isdigit():
@@ -205,7 +214,7 @@ def parse_video(text: str, hint: str | None = None) -> VideoRef | None:
 
 def project_sources(project: dict) -> dict[str, VideoRef]:
     out = {}
-    for kind, key in (("vimeo", "vimeoId"), ("youtube", "youtubeId"), ("instagram", "instagramId")):
+    for kind, key in SOURCE_KEYS.items():
         value = str(project.get(key) or "").strip()
         if not value:
             continue
@@ -231,11 +240,12 @@ def project_video(project: dict) -> VideoRef | None:
 
 
 def set_source(project: dict, kind: str, ref: VideoRef | None) -> None:
-    keys = {"vimeo": ("vimeoId", "vimeoHash"), "youtube": ("youtubeId",), "instagram": ("instagramId",)}[kind]
-    for k in keys:
-        project.pop(k, None)
+    key = SOURCE_KEYS[kind]
+    project.pop(key, None)
+    if kind == "vimeo":
+        project.pop("vimeoHash", None)
     if ref:
-        project[keys[0]] = ref.id
+        project[key] = ref.id
         if ref.hash:
             project["vimeoHash"] = ref.hash
     if project.get("videoPrimary") not in project_sources(project):
@@ -260,6 +270,17 @@ def check_video(ref: VideoRef, timeout: float = 12) -> VideoStatus:
         # Instagram's public embed page answers "OK" even for posts that don't exist,
         # and its oEmbed API needs a Meta developer token, so it can't be verified here.
         return VideoStatus(None, "Instagram links can't be checked automatically. Open it to make sure the post is public.")
+    if ref.kind == "file":
+        req = urllib.request.Request(ref.id, method="HEAD", headers={"User-Agent": "PortfolioManager/2.0"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                size = int(r.headers.get("Content-Length") or 0)
+            return VideoStatus(True, f"Plays ({size / 1e6:.0f} MB)" if size else "Plays",
+                               urllib.parse.unquote(ref.id.rsplit("/", 1)[-1]))
+        except urllib.error.HTTPError as e:
+            return VideoStatus(False, "File not found" if e.code in (403, 404) else f"Server returned an error ({e.code})")
+        except Exception as e:
+            return VideoStatus(False, f"Couldn't reach the video host: {e}")
     if ref.kind == "vimeo":
         api = "https://vimeo.com/api/oembed.json?url=" + urllib.parse.quote(ref.page_url, safe="")
     else:

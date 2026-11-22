@@ -1,17 +1,21 @@
 // Video links: parsing, ordering (first choice + backups), embed URLs and "does it play?" checks.
 // Mirrors app/core.py so the web admin and desktop app behave the same.
 
-export const SOURCES = ['vimeo', 'youtube', 'instagram'];
-export const NAMES = { vimeo: 'Vimeo', youtube: 'YouTube', instagram: 'Instagram' };
-const KEYS = { vimeo: 'vimeoId', youtube: 'youtubeId', instagram: 'instagramId' };
+// Default order: your own hosted file first (no ads, no branding), then the platforms as backups.
+export const SOURCES = ['file', 'vimeo', 'youtube', 'instagram'];
+export const NAMES = { file: 'Video file', vimeo: 'Vimeo', youtube: 'YouTube', instagram: 'Instagram' };
+const KEYS = { file: 'videoFile', vimeo: 'vimeoId', youtube: 'youtubeId', instagram: 'instagramId' };
+export const VIDEO_HOST = 'videos.matthewfregnan.com';
 
 export function pageUrl(ref) {
+  if (ref.kind === 'file') return ref.id;
   if (ref.kind === 'vimeo') return `https://vimeo.com/${ref.id}${ref.hash ? `/${ref.hash}` : ''}`;
   if (ref.kind === 'instagram') return `https://www.instagram.com/p/${ref.id}/`;
   return `https://www.youtube.com/watch?v=${ref.id}`;
 }
 
 export function embedUrl(ref) {
+  if (ref.kind === 'file') return ref.id;
   if (ref.kind === 'vimeo') {
     return `https://player.vimeo.com/video/${ref.id}?${ref.hash ? `h=${ref.hash}&` : ''}title=0&byline=0&portrait=0`;
   }
@@ -37,6 +41,10 @@ export function parseVideo(text, hint) {
   }
   const host = u.hostname.toLowerCase();
   const parts = u.pathname.split('/').filter(Boolean);
+  if (/\.(mp4|m4v|mov|webm)$/i.test(u.pathname) || host === VIDEO_HOST) {
+    if (!['localhost', '127.0.0.1'].includes(u.hostname)) u.protocol = 'https:';
+    return { kind: 'file', id: u.toString(), hash: '' };
+  }
   if (host.endsWith('vimeo.com')) {
     const i = parts.findIndex(p => /^\d+$/.test(p));
     if (i >= 0) {
@@ -111,7 +119,26 @@ function saveCache() {
   } catch { /* storage full or blocked: checks just won't be remembered */ }
 }
 
+/** A hosted file is checked by asking the browser to load just its details (no CORS needed). */
+function fileStatus(ref) {
+  return new Promise(resolve => {
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.muted = true;
+    const done = st => { v.removeAttribute('src'); v.load(); resolve(st); };
+    const timer = setTimeout(() => done({ ok: false, message: "Couldn't reach the video host", offline: true }), 15000);
+    v.onloadedmetadata = () => {
+      clearTimeout(timer);
+      done({ ok: true, message: 'Plays', title: decodeURIComponent(ref.id.split('/').pop()),
+        width: v.videoWidth, height: v.videoHeight });
+    };
+    v.onerror = () => { clearTimeout(timer); done({ ok: false, message: 'File not found or not a playable video' }); };
+    v.src = ref.id;
+  });
+}
+
 async function fetchStatus(ref) {
+  if (ref.kind === 'file') return fileStatus(ref);
   if (ref.kind === 'instagram') {
     return { ok: null, message: "Instagram links can't be checked automatically. Open it to make sure the post is public." };
   }

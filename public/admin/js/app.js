@@ -445,8 +445,10 @@ function detailsForm(p) {
 
 // ---------------------------------------------------------------- video
 
+const GENERIC = 'Paste a video file, Vimeo, YouTube or Instagram link';
 const PLACEHOLDER = {
-  vimeo: 'Paste a Vimeo, YouTube or Instagram link',
+  file: 'https://videos.matthewfregnan.com/…/name.mp4',
+  vimeo: 'Vimeo link (unlisted share links work too)',
   youtube: 'YouTube link (video, Short or live)',
   instagram: 'Instagram post or reel link',
 };
@@ -474,7 +476,9 @@ function renderVideo() {
     player.dataset.src = want;
     player.dataset.shape = shape;
     player.append(want
-      ? h('iframe', { src: want, allow: 'autoplay; fullscreen; picture-in-picture; encrypted-media', allowFullscreen: true, title: 'Video preview' })
+      ? (active.kind === 'file'
+        ? h('video', { src: want, controls: true, preload: 'metadata', playsInline: true, poster: p.thumbnail ? I.src('thumbnails', p.thumbnail) : undefined })
+        : h('iframe', { src: want, allow: 'autoplay; fullscreen; picture-in-picture; encrypted-media', allowFullscreen: true, title: 'Video preview' }))
       : h('div', { class: 'player-empty' }, broken
         ? "This video can't play on the site. Fix it in Vimeo, or add a YouTube or Instagram backup below."
         : p.gallery?.length ? 'No video. The page shows the stills gallery.' : 'Paste a video link below to see it here.'));
@@ -483,7 +487,7 @@ function renderVideo() {
   const rows = [];
   for (const kind of V.SOURCES) {
     const ref = src[kind];
-    const visible = ref || S.showBackups || (!refs.length && kind === 'vimeo');
+    const visible = ref || S.showBackups || (!refs.length && kind === V.SOURCES[0]);
     if (!visible) continue;
     const st = V.status(ref);
     rows.push(
@@ -492,7 +496,7 @@ function renderVideo() {
       h('input', {
         id: `v-${kind}`,
         value: ref ? V.pageUrl(ref) : '',
-        placeholder: refs.length || kind !== 'vimeo' ? PLACEHOLDER[kind].replace('Paste a Vimeo, YouTube or Instagram link', 'Vimeo link') : PLACEHOLDER[kind],
+        placeholder: !refs.length && kind === V.SOURCES[0] ? GENERIC : PLACEHOLDER[kind],
         onchange: e => setSourceFromInput(kind, e.target.value),
         onkeydown: e => { if (e.key === 'Enter') e.target.blur(); },
       }),
@@ -501,8 +505,8 @@ function renderVideo() {
   }
 
   const tools = [];
-  if (refs.length && !S.showBackups && refs.length < 3) {
-    tools.push(h('button', { class: 'btn link', onclick: () => { S.showBackups = true; renderVideo(); } }, '+ Add a backup link (YouTube or Instagram)'));
+  if (refs.length && !S.showBackups && refs.length < V.SOURCES.length) {
+    tools.push(h('button', { class: 'btn link', onclick: () => { S.showBackups = true; renderVideo(); } }, '+ Add a backup link (Vimeo, YouTube or Instagram)'));
   }
   if (refs.length > 1) {
     tools.push(h('label', {}, 'Show first: ', h('select', {
@@ -526,7 +530,7 @@ function renderVideo() {
         onchange: e => mutate(() => { if (e.target.checked) p.showStats = true; else delete p.showStats; }),
       }), 'Show view count on the project page'),
       h('button', {
-        class: 'btn', onclick: useVideoDetails, disabled: !refs.some(r => V.status(r)?.ok),
+        class: 'btn', onclick: useVideoDetails, disabled: !refs.some(r => r.kind !== 'file' && V.status(r)?.ok),
       }, 'Use Video’s Title, Year & Thumbnail')) : null,
   );
 }
@@ -542,7 +546,7 @@ function videoStateText(p) {
     case 'ok': return h('span', {}, dot('ok'), ` ${names[0]} plays · ${first.ok ? first.title : first.message}`,
       names.length > 1 ? h('span', { class: 'muted' }, ` · Backup: ${names.slice(1).join(' → ')}`) : '');
     case 'backup': return h('span', {}, dot('backup'), ` ${names[0]} isn't playing (${first.message.toLowerCase()}). The site shows the backup instead.`);
-    default: return h('span', {}, dot('bad'), ` Nothing plays: ${first.message.toLowerCase()}. In Vimeo, set the video to Unlisted or Public and allow embedding (for unlisted, paste the full share link), or add a YouTube or Instagram backup.`);
+    default: return h('span', {}, dot('bad'), ` Nothing plays: ${first.message.toLowerCase()}. Check the link opens in your browser, or add a backup link.`);
   }
 }
 
@@ -566,7 +570,7 @@ function setSourceFromInput(kind, text) {
 
 async function useVideoDetails() {
   const p = S.current;
-  const ref = V.ordered(p).find(r => V.status(r)?.ok);
+  const ref = V.ordered(p).find(r => r.kind !== 'file' && V.status(r)?.ok);
   if (!ref) return;
   const st = V.status(ref);
   const replace = !p.thumbnail || await confirmDialog('Replace thumbnail?', "Replace the current thumbnail with the video's poster frame?", 'Replace');
@@ -737,7 +741,7 @@ function newFromLink() {
   let st = null;
   let touched = false;
   let timer;
-  const link = h('input', { placeholder: 'Paste a Vimeo, YouTube or Instagram link', autofocus: true });
+  const link = h('input', { placeholder: GENERIC, autofocus: true });
   const cat = h('select', { onchange: () => { touched = true; } },
     S.data.categories.map(c => h('option', { value: c.id, selected: c.id === currentCategory() }, c.name)));
   const info = h('div', { class: 'lookup' }, h('span'), h('span', { class: 'muted' }, ' '));
@@ -748,7 +752,7 @@ function newFromLink() {
     st = null;
     create.disabled = !ref;
     if (!ref) {
-      info.replaceChildren(h('span'), h('span', { class: 'muted' }, link.value.trim() ? 'Not a Vimeo, YouTube or Instagram link.' : ' '));
+      info.replaceChildren(h('span'), h('span', { class: 'muted' }, link.value.trim() ? 'Not a video file, Vimeo, YouTube or Instagram link.' : ' '));
       return;
     }
     info.replaceChildren(h('span'), h('span', { class: 'muted' }, 'Looking up the video…'));
@@ -758,9 +762,9 @@ function newFromLink() {
     st = res;
     if (res.ok) {
       info.replaceChildren(
-        h('img', { src: res.thumbnail, alt: '' }),
+        res.thumbnail ? h('img', { src: res.thumbnail, alt: '' }) : h('span'),
         h('div', {}, h('b', {}, V.tidyTitle(res.title)), res.uploadDate ? ` · ${res.uploadDate.slice(0, 4)}` : '',
-          h('div', { class: 'muted small' }, 'Title, year and thumbnail will be filled in for you.')));
+          h('div', { class: 'muted small' }, res.thumbnail ? 'Title, year and thumbnail will be filled in for you.' : 'Add a thumbnail after creating it.')));
       if (res.height > res.width && !touched) cat.value = 'vertical';
     } else {
       info.replaceChildren(h('span'), h('span', {}, res.ok === null ? res.message : `${res.message}. You can still create it and fix the link later.`));
@@ -780,7 +784,7 @@ function newFromLink() {
       }
       p.id = uniqueId(slugify(p.title), p.category);
       V.setSource(p, ref.kind, ref);
-      if (st?.ok) {
+      if (st?.ok && st.thumbnail) {
         try { p.thumbnail = await thumbnailFromVideo(ref, st, p); } catch { /* add one later */ }
       }
       close();

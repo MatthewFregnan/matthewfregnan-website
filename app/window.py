@@ -32,7 +32,7 @@ class NewFromLinkDialog(QDialog):
         self.ref: core.VideoRef | None = None
         self.status: core.VideoStatus | None = None
         self._category_touched = False
-        self.link = QLineEdit(placeholderText="Paste a Vimeo, YouTube or Instagram link")
+        self.link = QLineEdit(placeholderText="Paste a video file, Vimeo, YouTube or Instagram link")
         self.link.textChanged.connect(lambda: self._timer.start())
         self.category = QComboBox()
         for c in store.categories:
@@ -61,7 +61,7 @@ class NewFromLinkDialog(QDialog):
         self.status = None
         self.create.setEnabled(self.ref is not None)
         if not self.ref:
-            self.info.setText(f"{dot('bad')} Not a Vimeo, YouTube or Instagram link." if self.link.text().strip() else " ")
+            self.info.setText(f"{dot('bad')} Not a video file, Vimeo, YouTube or Instagram link." if self.link.text().strip() else " ")
             return
         self.info.setText("Looking up the video…")
         ref = self.ref

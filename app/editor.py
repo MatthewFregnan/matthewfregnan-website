@@ -21,8 +21,10 @@ from widgets import (
 )
 
 TEXT_KEYS = ["title", "client", "role", "production", "year", "description"]
+GENERIC = "Paste a video file, Vimeo, YouTube or Instagram link"
 PLACEHOLDERS = {
-    "vimeo": "Paste a Vimeo, YouTube or Instagram link",
+    "file": "https://videos.matthewfregnan.com/…/name.mp4",
+    "vimeo": "Vimeo link (unlisted share links work too)",
     "youtube": "YouTube link (video, Short or live)",
     "instagram": "Instagram post or reel link",
 }
@@ -136,7 +138,7 @@ class ProjectEditor(QScrollArea):
             self.vfield[kind], self.vdot[kind] = e, d
         grid.setColumnStretch(2, 1)
         right.addLayout(grid)
-        self.add_backup = link_button("+ Add a backup link (YouTube or Instagram)")
+        self.add_backup = link_button("+ Add a backup link (Vimeo, YouTube or Instagram)")
         self.add_backup.clicked.connect(lambda: self._toggle("_show_backups"))
         right.addWidget(self.add_backup)
 
@@ -335,7 +337,7 @@ class ProjectEditor(QScrollArea):
         sources = core.project_sources(p)
         ordered = core.ordered_sources(p)
         for kind in core.SOURCES:
-            visible = kind in sources or self._show_backups or (not sources and kind == "vimeo")
+            visible = kind in sources or self._show_backups or (not sources and kind == core.SOURCES[0])
             for w in self.vrow[kind]:
                 w.setVisible(visible)
             ref = sources.get(kind)
@@ -343,8 +345,9 @@ class ProjectEditor(QScrollArea):
             self.vrow[kind][3].setEnabled(ref is not None)
             self.vdot[kind].setText(dot(st.ok if st else None) if ref else "")
             self.vdot[kind].setToolTip((st.title or st.message if st else "Checking…") if ref else "")
-        self.vfield["vimeo"].setPlaceholderText(PLACEHOLDERS["vimeo"] if not sources else "Vimeo link")
-        self.add_backup.setVisible(bool(sources) and not self._show_backups and len(sources) < 3)
+        first = core.SOURCES[0]
+        self.vfield[first].setPlaceholderText(GENERIC if not sources else PLACEHOLDERS[first])
+        self.add_backup.setVisible(bool(sources) and not self._show_backups and len(sources) < len(core.SOURCES))
 
         self.primary.blockSignals(True)
         self.primary.clear()
@@ -354,7 +357,7 @@ class ProjectEditor(QScrollArea):
         self.primary_row.setVisible(len(ordered) > 1)
         self.show_stats.setVisible(bool(ordered))
         self.btn_fetch.setVisible(bool(ordered))
-        self.btn_fetch.setEnabled(any((s := self.checker.get(r)) and s.ok for r in ordered))
+        self.btn_fetch.setEnabled(any((s := self.checker.get(r)) and s.ok and r.kind != "file" for r in ordered))
 
         if not ordered:
             self.video_state.setText("No video. The page will show the gallery only." if p.get("gallery") else "")
@@ -374,13 +377,13 @@ class ProjectEditor(QScrollArea):
                    "The site will show the backup instead.")
         else:
             msg = (f"{dot('bad')} Nothing plays: {first.message.lower()}.<br>"
-                   "In Vimeo, set the video to Unlisted or Public and allow embedding; for an unlisted video "
-                   "paste its full share link. Or add a YouTube or Instagram link as a backup.")
+                   "Check the link opens in your browser, or add a backup link.")
         self.video_state.setText(msg)
 
     def use_video_details(self):
         p = self.p
-        ref = next((r for r in core.ordered_sources(p) if (s := self.checker.get(r)) and s.ok), None)
+        ref = next((r for r in core.ordered_sources(p)
+                    if r.kind != "file" and (s := self.checker.get(r)) and s.ok), None)
         if not ref:
             return
         st = self.checker.get(ref)

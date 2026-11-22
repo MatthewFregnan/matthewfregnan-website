@@ -19,20 +19,36 @@
       <p class="text-site-text-muted mb-8"><%= project.client %></p>
     <% } %>
 
-    <!-- Video Embed: starts on the first working source; js/main.js swaps to a backup if it breaks -->
+    <!-- Video: starts on the first working source. Hosted video files play in the site's own player
+         (js/main.js); Vimeo / YouTube / Instagram use their embeds. main.js swaps to a backup if one breaks. -->
     <% const video = project._video; %>
     <% if (video && video.sources.length) { %>
-      <% const src = video.sources[video.active]; const isVertical = category.slug === 'vertical'; %>
-      <div class="video-player mb-8" data-video-sources="<%= JSON.stringify(video.sources.map(s => ({ kind: s.kind, embed: s.embed, check: s.check }))) %>" data-active="<%= video.active %>">
-        <div class="video-container <%= src.kind === 'instagram' ? 'is-instagram' : (isVertical ? 'is-vertical' : '') %>" data-vertical="<%= isVertical %>">
-          <iframe
-            src="<%= src.embed %>"
-            title="<%= project.title %>"
-            frameborder="0"
-            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write"
-            allowfullscreen
-            loading="lazy"
-          ></iframe>
+      <% const src = video.sources[video.active];
+         const isVertical = category.slug === 'vertical';
+         const shape = src.kind === 'instagram' ? 'is-instagram' : (isVertical ? 'is-vertical' : '');
+         const poster = project.thumbnail ? `/images/thumbnails/${project.thumbnail}` : ''; %>
+      <div class="video-player mb-8"
+           data-video-sources="<%= JSON.stringify(video.sources.map(s => ({ kind: s.kind, embed: s.embed, check: s.check }))) %>"
+           data-active="<%= video.active %>"
+           data-vertical="<%= isVertical %>"
+           data-poster="<%= poster %>"
+           data-title="<%= project.title %>">
+        <div class="player-shell <%= shape %>">
+          <div class="video-container <%= shape %>">
+            <% if (src.kind === 'file') { %>
+              <video src="<%= src.embed %>" poster="<%= poster %>" preload="metadata" playsinline controls
+                     aria-label="<%= project.title %>"></video>
+            <% } else { %>
+              <iframe
+                src="<%= src.embed %>"
+                title="<%= project.title %>"
+                frameborder="0"
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write"
+                allowfullscreen
+                loading="lazy"
+              ></iframe>
+            <% } %>
+          </div>
         </div>
         <% if (project._stats) { %>
           <p class="video-stats" data-kind="<%= project._stats.kind %>">
