@@ -557,6 +557,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const track = box.querySelector('.row-track');
     const prev = box.querySelector('.scroller-btn.prev');
     const next = box.querySelector('.scroller-btn.next');
+    // At the end of the row the arrow becomes "More <section>", for the section of the last video shown
+    const more = document.createElement('a');
+    more.className = 'scroller-more';
+    more.hidden = true;
+    box.append(more);
+    const sectionOfLast = () => {
+      const last = [...track.children].filter(t => !t.hidden && t.getAttribute('href')).pop();
+      const slug = last && last.getAttribute('href').split('/').filter(Boolean)[0];
+      if (!slug) return null;
+      const navLink = document.querySelector(`header a[href="/${slug}/"]`);
+      return { href: `/${slug}/`, name: navLink ? navLink.textContent.trim() : slug };
+    };
     const update = () => {
       const before = track.scrollLeft > 4;
       const after = track.scrollLeft + track.clientWidth < track.scrollWidth - 4;
@@ -564,6 +576,13 @@ document.addEventListener('DOMContentLoaded', () => {
       next.hidden = !after;
       box.classList.toggle('more-before', before);
       box.classList.toggle('more-after', after);
+      const section = !after && sectionOfLast();
+      more.hidden = !section;
+      if (section) {
+        more.href = section.href;
+        more.setAttribute('aria-label', `See more ${section.name} work`);
+        more.innerHTML = `<span>More ${section.name}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`;
+      }
     };
     const page = (dir) => {
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
