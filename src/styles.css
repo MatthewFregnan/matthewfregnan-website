@@ -58,6 +58,10 @@
   .hero { min-height: 82vh; }
   @media (min-width: 768px) { .hero { min-height: max(520px, calc(100vh - 110px)); } }
 
+  /* Background video: anchored towards the top so faces aren't cropped (or hidden under the
+     menu bar) when the screen is wider than 16:9; any trimming comes off the bottom instead */
+  #hero-video { object-position: 50% 25%; }
+
   /* Scroll nudge at the bottom of the hero */
   .scroll-cue {
     position: absolute; left: 50%; bottom: 22px; z-index: 10;
