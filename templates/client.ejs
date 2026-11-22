@@ -1,0 +1,23 @@
+<%- include('partials/header') %>
+
+<%# A client's page: all their work, grouped by section (build.js "Client pages"). %>
+<section class="py-12">
+  <div class="container mx-auto px-4">
+    <div class="client-head">
+      <% if (clientLogo) { %><img class="client-head-logo" src="<%= clientLogo %>" alt="<%= client.name %>"><% } %>
+      <h1 class="<%= clientLogo ? 'sr-only' : 'text-3xl md:text-4xl font-light' %>"><%= client.name %></h1>
+      <p class="client-head-sub"><%= client.items.length %> projects · <%= groups.map(g => g.category.name).join(', ') %><% if (client.also.length) { %> · with <%= client.also.join(', ') %><% } %></p>
+    </div>
+
+    <% groups.forEach(g => { const vertical = g.category.id === 'vertical'; %>
+      <% if (groups.length > 1) { %><h2 class="client-group-title<%= vertical ? ' is-v' : '' %>"><%= g.category.name %></h2><% } %>
+      <div class="<%= vertical ? 'portfolio-grid-vertical' : 'portfolio-grid' %> client-group">
+        <% g.items.forEach(project => { %>
+          <%- include('partials/card', { project, category: g.category, vertical }) %>
+        <% }) %>
+      </div>
+    <% }) %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

@@ -460,6 +460,10 @@ async function generateSitemap(projects, siteConfig) {
     { loc: '/my-work/', priority: '0.9', changefreq: 'weekly' }
   ];
 
+  for (const c of CLIENT_INDEX.values()) {
+    if (c.items.length >= 2) urls.push({ loc: `/clients/${c.slug}/`, priority: '0.6', changefreq: 'monthly' });
+  }
+
   // Add category pages
   for (const category of projects.categories) {
     urls.push({
@@ -614,6 +618,47 @@ function logoOf(p) {
   return imageUrl('logos', file).replace('/images/logos/', '/images/logos-white/');
 }
 
+// Client pages (/clients/<name>/): every client with two or more projects gets a page of all their work,
+// in each section's order. Logos in the hero strip link there (or straight to the project, if just one).
+const clientSlug = name => String(name).toLowerCase().normalize('NFKD').replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+const NOT_CLIENTS = new Set(['short film']);   // "client" values that aren't a client, so get no page
+const CLIENT_INDEX = new Map();   // lowercased client name -> { name, slug, items: [{ project, category }] }
+function buildClientIndex(projects, sectionLayouts) {
+  CLIENT_INDEX.clear();
+  for (const category of projects.categories) {
+    const ordered = orderForSection(projects.projects.filter(p => p.category === category.id), sectionLayouts[category.id]);
+    for (const project of ordered) {
+      const name = String(project.client || '').trim();
+      if (!name || NOT_CLIENTS.has(name.toLowerCase())) continue;
+      const key = name.toLowerCase();
+      if (!CLIENT_INDEX.has(key)) CLIENT_INDEX.set(key, { name, slug: clientSlug(name), items: [], also: [] });
+      CLIENT_INDEX.get(key).items.push({ project, category });
+    }
+  }
+  // Clients that share a logo (e.g. PTV and the Department of Transport) share their work too, so a
+  // client with one project of its own can still have a page worth visiting.
+  const own = new Map([...CLIENT_INDEX].map(([k, c]) => [k, c.items.slice()]));
+  for (const [key, c] of CLIENT_INDEX) {
+    const logo = CLIENT_LOGOS.get(key);
+    if (!logo) continue;
+    for (const [other, items] of own) {
+      if (other === key || CLIENT_LOGOS.get(other) !== logo) continue;
+      c.items.push(...items);
+      c.also.push(CLIENT_INDEX.get(other).name);
+    }
+    const order = new Map(projects.categories.map((cat, i) => [cat.id, i]));
+    c.items.sort((a, b) => order.get(a.category.id) - order.get(b.category.id));
+  }
+}
+/** Where a client's logo goes: their page (2+ projects), their one project, or nowhere. */
+function clientHref(name) {
+  const c = CLIENT_INDEX.get(String(name).trim().toLowerCase());
+  if (!c) return '';
+  if (c.items.length >= 2) return `/clients/${c.slug}/`;
+  const { project, category } = c.items[0];
+  return `/${category.slug}/${project.id}/`;
+}
+
 // The logo strip in the home page hero. Clients ticked "Show in the home page logo strip" in the admin
 // ("strip": true in projects.json "clients"); if none are ticked, these well-known ones.
 // Clients in order of importance: the strip starts with the first. Every logo is shown the same way
@@ -645,7 +690,7 @@ function clientLogos(projects, clients = {}, stripOrder = null) {
     const aspect = LOGO_ASPECT.get(rel) || 3;
     const height = Math.round(Math.min(56, Math.max(26, Math.sqrt(5200 / aspect))) * 0.9);
     const client = Object.keys(clients).find(n => n.trim().toLowerCase() === name) || name;
-    seen.set(file, { src: imageUrl('logos', rel).replace('/images/logos/', '/images/logos-white/'), name: client, height });
+    seen.set(file, { src: imageUrl('logos', rel).replace('/images/logos/', '/images/logos-white/'), name: client, height, href: clientHref(client) });
   }
   return [...seen.values()];
 }
@@ -911,6 +956,7 @@ async function buildPages() {
   };
 
   await findBarredThumbnails(projects);
+  buildClientIndex(projects, readSectionLayouts());
   const home = resolveHome(projects);
   LOGO_POSITION = home.logoPosition || 'corner';
   if (LOGO_POSITION !== 'corner') console.log(`  Client logos: ${LOGO_POSITION}`);
@@ -1031,6 +1077,31 @@ async function buildPages() {
       );
     }
   }
+
+  // Client pages
+  let clientPages = 0;
+  for (const c of CLIENT_INDEX.values()) {
+    if (c.items.length < 2) continue;
+    const logoFile = CLIENT_LOGOS.get(c.name.toLowerCase());
+    const fullLogo = logoFile && fs.existsSync(path.join(IMAGES_DIR, 'logos', 'full', logoFile)) ? `full/${logoFile}` : logoFile;
+    const groups = projects.categories.map(category => ({ category, items: c.items.filter(i => i.category.id === category.id).map(i => i.project) }))
+      .filter(g => g.items.length);
+    const html = await renderTemplate('client', {
+      ...commonData,
+      title: `${c.name} | ${siteConfig.title}`,
+      activePage: 'client',
+      client: c,
+      clientLogo: fullLogo && fs.existsSync(path.join(IMAGES_DIR, 'logos', fullLogo))
+        ? imageUrl('logos', fullLogo).replace('/images/logos/', '/images/logos-white/') : '',
+      groups,
+      pageDescription: `${c.name}: ${c.items.length} projects edited by ${siteConfig.title}, Melbourne video editor and colourist.`,
+      pageUrl: `/clients/${c.slug}/`,
+      pageType: 'website'
+    });
+    await fs.outputFile(path.join(DIST_DIR, 'clients', c.slug, 'index.html'), html);
+    clientPages += 1;
+  }
+  console.log(`  Client pages: ${clientPages}`);
 
   await generateOgImages(projects);
   await generateRedirects(projects, siteConfig);

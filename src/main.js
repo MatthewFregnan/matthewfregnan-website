@@ -996,3 +996,36 @@ document.addEventListener('DOMContentLoaded', () => {
   const start = (new URLSearchParams(location.search).get('client') || '').toLowerCase();
   if (start && box.querySelector(`[data-chip="${CSS.escape(start)}"]`)) apply(start);
 });
+
+// Home hero logos on phones: swipe them to see more clients faster. They keep drifting on their own
+// (by scrolling, so a swipe just carries on from wherever it is), pause while touched, and loop.
+document.addEventListener('DOMContentLoaded', () => {
+  const strip = document.querySelector('.hero-clients');
+  const track = strip?.querySelector('.hero-clients-track');
+  if (!strip || !track || !window.matchMedia('(hover: none)').matches) return;
+  strip.classList.add('is-swipe');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let held = false;
+  let resumeAt = 0;
+  let last = performance.now();
+  let pos = strip.scrollLeft;
+  const SPEED = 22;   // pixels per second, about the same pace as the desktop drift
+  const half = () => track.scrollWidth / 2;   // the logos are in there twice, so looping is seamless
+  const tick = (now) => {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (!held && now > resumeAt && !reduce) {
+      pos += SPEED * dt;
+      if (pos >= half()) pos -= half();
+      strip.scrollLeft = pos;
+    } else {
+      pos = strip.scrollLeft;
+      if (pos >= half()) { pos -= half(); strip.scrollLeft = pos; }
+    }
+    requestAnimationFrame(tick);
+  };
+  strip.addEventListener('touchstart', () => { held = true; }, { passive: true });
+  strip.addEventListener('touchend', () => { held = false; resumeAt = performance.now() + 1500; }, { passive: true });
+  strip.addEventListener('scroll', () => { if (held || performance.now() < resumeAt) pos = strip.scrollLeft; }, { passive: true });
+  requestAnimationFrame(tick);
+});

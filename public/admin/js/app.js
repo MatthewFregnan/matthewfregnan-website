@@ -2274,6 +2274,12 @@ function tailoredLinkField(set) {
 
 function titleOfPath(path) {
   if (path === '/') return 'Home';
+  const clientPage = path.match(/^\/clients\/([a-z0-9-]+)\/$/)?.[1];
+  if (clientPage) {   // build.js clientSlug
+    const slug = n => String(n).toLowerCase().normalize('NFKD').replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const name = projects().map(p => String(p.client || '').trim()).find(n => n && slug(n) === clientPage);
+    return `${name || clientPage} (client page)`;
+  }
   const forName = path.match(/^\/for\/([a-z0-9-]+)\/$/)?.[1];
   if (forName) {
     const set = S.home.sets.find(x => setLinkName(x) === forName);
