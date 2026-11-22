@@ -866,3 +866,16 @@ html:active-view-transition footer { animation: none !important; }
 .client-home-link svg { width: 16px; height: 16px; }
 .client-home-link:hover { color: #fff; opacity: 1; }
 @media (max-width: 639px) { .client-more-logos { gap: 22px 30px; } .client-more-logos img { zoom: 0.8; } }
+
+/* Phones: a swiped tile settles in the middle of the row, with a shaded slice of its neighbours
+   showing either side (the first and last tiles still line up with the edges) */
+@media (max-width: 639px) {
+  .row-track > * { scroll-snap-align: center; }
+  .row-track > .row-first { scroll-snap-align: start; }
+  .row-track > .row-last { scroll-snap-align: end; }
+  .row-scroller.is-landscape { --per: 1.18; }
+  /* the neighbours are shaded, the tile in the middle stays clear */
+  .row-scroller.more-before.more-after .row-track { mask-image: linear-gradient(to right, rgba(0,0,0,0.35), #000 9%, #000 91%, rgba(0,0,0,0.35)); }
+  .row-scroller.more-after .row-track { mask-image: linear-gradient(to right, #000 91%, rgba(0,0,0,0.35)); }
+  .row-scroller.more-before .row-track { mask-image: linear-gradient(to left, #000 91%, rgba(0,0,0,0.35)); }
+}

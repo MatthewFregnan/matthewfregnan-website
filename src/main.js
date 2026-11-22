@@ -595,8 +595,26 @@ document.addEventListener('DOMContentLoaded', () => {
       const dist = Math.abs((r.top + r.bottom) / 2 - mid);
       if (dist < bestDist) { bestDist = dist; best = row; }
     }
+    // Phones: a row you've just swiped stays the one that plays, while it's still on screen
+    if (touch && swipedRow && performance.now() - swipedAt < 8000) {
+      const r = swipedRow.getBoundingClientRect();
+      if (r.bottom > window.innerHeight * 0.1 && r.top < window.innerHeight * 0.9) best = swipedRow;
+    }
     let tile = null;
-    if (best) {
+    if (best && touch) {
+      // the tile settled in the middle of the row (rows snap to the centre on phones)
+      const box = best.getBoundingClientRect();
+      const centre = (box.left + box.right) / 2;
+      let d = Infinity;
+      for (const t of best.children) {
+        if (t.hidden || !t.dataset.preview) continue;
+        const r = t.getBoundingClientRect();
+        const seen = Math.min(r.right, box.right) - Math.max(r.left, box.left);
+        if (seen < r.width * 0.6) continue;
+        const dist = Math.abs((r.left + r.right) / 2 - centre);
+        if (dist < d) { d = dist; tile = t; }
+      }
+    } else if (best) {
       tile = [...best.children].find(t => !t.hidden && t.dataset.preview && fullyIn(t, best)) || null;
     } else if (!rows.length && touch) {
       // Section and project pages on phones (no hover): the tile nearest where the eye rests, a little
@@ -616,6 +634,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (tile !== scrollPick) pickTile(tile);
   };
   const touch = !window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  // the row last swiped on a phone (so its tile plays even if another row is nearer the middle)
+  let swipedRow = null;
+  let swipedAt = 0;
+  rows.forEach(r => r.addEventListener('touchstart', () => { swipedRow = r; swipedAt = performance.now(); }, { passive: true }));
   const fullyIn = (t, row) => {
     const box = row.getBoundingClientRect();
     const r = t.getBoundingClientRect();
@@ -635,7 +657,9 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollPick = tile;
     if (!tile) return;
     if (!now) {
-      dwellTimer = setTimeout(() => { if (scrollPick === tile && !hovered) pickTile(tile, true); }, DWELL);
+      // you swiped to it yourself: start sooner
+      const wait = touch && tile.closest('.row-track') === swipedRow && performance.now() - swipedAt < 4000 ? 400 : DWELL;
+      dwellTimer = setTimeout(() => { if (scrollPick === tile && !hovered) pickTile(tile, true); }, wait);
       return;
     }
     Previews.play(tile);
@@ -645,8 +669,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (hovered || scrollPick !== tile || document.hidden) return;
       const list = [...row.children].filter(t => !t.hidden && t.dataset.preview);
       const next = list[list.indexOf(tile) + 1];
-      if (next && fullyIn(next, row)) pickTile(next, true);
-      else if (next && touch) row.scrollBy({ left: next.getBoundingClientRect().left - row.getBoundingClientRect().left, behavior: 'smooth' });   // the row's scroll picks it
+      if (next && !touch && fullyIn(next, row)) pickTile(next, true);   // phones always slide it to the middle
+      else if (next && touch) {   // slide it to the middle; the row's scroll then picks it
+        const r = next.getBoundingClientRect(), box = row.getBoundingClientRect();
+        row.scrollBy({ left: (r.left + r.right) / 2 - (box.left + box.right) / 2, behavior: 'smooth' });
+      }
       else pickTile(list.find(t => fullyIn(t, row)) || tile, true);
     }, 12000);
   };
