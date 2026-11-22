@@ -780,6 +780,23 @@ function readSiteText() {
   return text;
 }
 
+// "More work" at the bottom of a project page: the next project in the section (looping round), and
+// three tiles: same client first, then the projects that follow in the section's order.
+function moreWork(project, list, category) {
+  if (list.length < 2) return null;
+  const i = list.indexOf(project);
+  const after = [...list.slice(i + 1), ...list.slice(0, i)];   // the section's order, starting after this one
+  const key = p => String(p.client || '').trim().toLowerCase();
+  const sameClient = key(project) ? after.filter(p => key(p) === key(project)) : [];
+  const tiles = [...sameClient, ...after.filter(p => !sameClient.includes(p))].slice(0, 3);
+  const fromClient = sameClient.length >= 2 || (sameClient.length && sameClient.length >= tiles.length);
+  return {
+    next: after[0],
+    tiles,
+    heading: fromClient ? `More from ${project.client.trim()}` : `More ${category.name} work`,
+  };
+}
+
 function resolveHome(projects) {
   const file = path.join(DATA_DIR, 'home.json');
   const empty = { tagline: '', projectLayout: 'standard', landscape: [], vertical: [], categoryTiles: categoryTiles(projects, null) };
@@ -958,6 +975,7 @@ async function buildPages() {
         activePage: category.slug,
         category,
         project,
+        more: moreWork(project, categoryProjects, category),
         projectLayout: home.projectLayout,
         pageDescription: projectDescription,
         pageUrl: `/${category.slug}/${project.id}/`,

@@ -78,4 +78,26 @@
   </div>
 </section>
 
+<%# More work: keeps people watching. The next project in this section, and related ones (same client
+    first). Worked out in build.js moreWork. %>
+<% if (more) { %>
+<section class="more-work">
+  <div class="container mx-auto px-4 max-w-5xl">
+    <div class="more-work-head">
+      <h2 class="text-xl md:text-2xl font-light"><%= more.heading %></h2>
+      <a href="/<%= category.slug %>/<%= more.next.id %>/" class="more-next">
+        <span class="more-next-label">Next project</span>
+        <span class="more-next-title"><%= more.next.title %></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+    <div class="<%= category.id === 'vertical' ? 'portfolio-grid-vertical more-grid-v' : 'more-grid' %>">
+      <% more.tiles.forEach(p => { %>
+        <%- include('partials/card', { project: p, category, vertical: category.id === 'vertical' }) %>
+      <% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
+
 <%- include('partials/footer') %>

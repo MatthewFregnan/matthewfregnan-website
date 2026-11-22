@@ -651,3 +651,21 @@ footer { animation: page-fade 0.35s ease-out 0.1s backwards; }
 @media (prefers-reduced-motion: reduce) {
   #site-header, main > *, .hero-content > *, footer { animation: none !important; }
 }
+
+/* Project pages: "More work" at the bottom (templates/project.ejs) */
+.more-work { padding: 8px 0 72px; }
+.more-work .container { border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 40px; }
+.more-work-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px 32px; flex-wrap: wrap; margin-bottom: 20px; }
+.more-next {
+  display: inline-flex; align-items: center; gap: 12px; padding: 10px 14px 10px 20px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.45); max-width: 100%; transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.more-next-label { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.7; white-space: nowrap; }
+.more-next-title { font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22em; }
+.more-next svg { width: 18px; height: 18px; flex: none; transition: transform 0.2s; }
+.more-next:hover { background: #fff; color: #111; border-color: #fff; opacity: 1; }
+.more-next:hover svg { transform: translateX(3px); }
+.more-grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .more-grid { grid-template-columns: repeat(3, 1fr); } }
+.more-grid-v { max-width: none !important; }
+@media (max-width: 639px) { .more-next-title { max-width: 12em; } .more-grid-v > :nth-child(3) { display: none; } }
