@@ -76,5 +76,10 @@
         "vertical/crkd---casual-ad"
       ]
     }
-  ]
+  ],
+  "text": {
+    "homeAboutText": "A Melbourne-based video editor & colourist. Read more about me, and how to get in touch.",
+    "homeAboutButton": "About me",
+    "aboutCta": "See more of my work"
+  }
 }
