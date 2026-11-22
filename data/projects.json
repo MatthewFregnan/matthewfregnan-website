@@ -548,13 +548,14 @@
       "category": "vertical",
       "videoFile": "https://videos.matthewfregnan.com/vertical/vce-games-design.mp4",
       "vimeoId": "1097235081",
-      "thumbnail": "vertical/vce-games-design.webp",
+      "thumbnail": "vertical/vce-games-design.jpg",
       "client": "VCAA",
       "description": "",
       "role": "Editor",
       "year": "2024",
       "production": "Elastic",
-      "updated": "2026-11-22T03:50:25"
+      "updated": "2026-11-22T04:48:16",
+      "thumbFocus": "54% 23%"
     },
     {
       "id": "vce-photography",
@@ -568,7 +569,8 @@
       "role": "Editor",
       "year": "2024",
       "production": "Elastic",
-      "updated": "2026-11-22T03:50:27"
+      "updated": "2026-11-22T04:48:29",
+      "thumbFocus": "63% 31%"
     },
     {
       "id": "vce-landscape-design",
@@ -582,7 +584,8 @@
       "role": "Editor",
       "year": "2024",
       "production": "Elastic",
-      "updated": "2026-11-22T03:50:31"
+      "updated": "2026-11-22T04:48:36",
+      "thumbFocus": "53% 43%"
     },
     {
       "id": "kia-ao24-influencer",
@@ -596,7 +599,8 @@
       "role": "Editor",
       "year": "2024",
       "production": "Elastic",
-      "updated": "2026-11-22T03:50:34"
+      "updated": "2026-11-22T04:48:46",
+      "thumbFocus": "51% 28%"
     },
     {
       "id": "kia-shipyard",
@@ -610,7 +614,8 @@
       "role": "Editor",
       "year": "2024",
       "production": "Elastic",
-      "updated": "2026-11-22T03:50:36"
+      "updated": "2026-11-22T04:48:53",
+      "thumbFocus": "61% 54%"
     },
     {
       "id": "kia-ao24-ev5",
@@ -636,7 +641,8 @@
       "role": "Editor",
       "vimeoId": "1130172158",
       "year": "2026",
-      "updated": "2026-11-22T03:51:04"
+      "updated": "2026-11-22T04:49:05",
+      "thumbFocus": "90% 16%"
     },
     {
       "id": "crkd---casual-ad",
@@ -648,7 +654,8 @@
       "role": "Editor",
       "vimeoId": "1162347243",
       "year": "2026",
-      "updated": "2026-11-22T03:50:55"
+      "updated": "2026-11-22T04:49:19",
+      "thumbFocus": "41% 42%"
     },
     {
       "id": "crkd---febuary-news-reel",
@@ -660,7 +667,8 @@
       "role": "Editor",
       "vimeoId": "1162347291",
       "year": "2026",
-      "updated": "2026-11-22T03:50:58"
+      "updated": "2026-11-22T04:49:22",
+      "thumbFocus": "37% 58%"
     },
     {
       "id": "rs-rewards-footy",
@@ -674,7 +682,8 @@
       "role": "Editor",
       "year": "2025",
       "production": "Milk Video",
-      "updated": "2026-11-22T03:50:51"
+      "updated": "2026-11-22T04:49:26",
+      "thumbFocus": "37% 15%"
     },
     {
       "id": "rs-rewards-beer-pong",
@@ -688,7 +697,8 @@
       "role": "Editor",
       "year": "2025",
       "production": "Milk Video",
-      "updated": "2026-11-22T03:51:07"
+      "updated": "2026-11-22T04:49:36",
+      "thumbFocus": "49% 6%"
     },
     {
       "id": "rs-rewards-bull-riding",
@@ -702,7 +712,8 @@
       "role": "Editor",
       "year": "2025",
       "production": "Milk Video",
-      "updated": "2026-11-22T03:51:10"
+      "updated": "2026-11-22T04:49:41",
+      "thumbFocus": "48% 16%"
     },
     {
       "id": "ladbrokes-afl-scott-cummings",
@@ -716,7 +727,8 @@
       "role": "Editor",
       "year": "2024",
       "production": "Elastic",
-      "updated": "2026-11-22T03:51:13"
+      "updated": "2026-11-22T04:49:47",
+      "thumbFocus": "53% 26%"
     },
     {
       "id": "ladbrokes-afl-gary-aryes",
@@ -730,7 +742,8 @@
       "role": "Editor",
       "year": "2024",
       "production": "Elastic",
-      "updated": "2026-11-22T03:51:17"
+      "updated": "2026-11-22T04:49:56",
+      "thumbFocus": "53% 30%"
     },
     {
       "id": "ladbrokes-afl-leo-barry",
@@ -744,7 +757,8 @@
       "role": "Editor",
       "year": "2024",
       "production": "Elastic",
-      "updated": "2026-11-22T03:51:20"
+      "updated": "2026-11-22T04:50:06",
+      "thumbFocus": "44% 28%"
     },
     {
       "id": "deakin-cyclone-cutdown-asher",
@@ -772,7 +786,8 @@
       "role": "Editor",
       "year": "2024",
       "production": "Milk Video",
-      "updated": "2026-11-22T03:51:25"
+      "updated": "2026-11-22T04:50:14",
+      "thumbFocus": "52% 16%"
     },
     {
       "id": "deakin-genesis-nicole",
@@ -786,7 +801,8 @@
       "role": "Editor",
       "year": "2024",
       "production": "Milk Video",
-      "updated": "2026-11-22T03:51:28"
+      "updated": "2026-11-22T04:50:18",
+      "thumbFocus": "73% 46%"
     },
     {
       "id": "riswm",
