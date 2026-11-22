@@ -503,6 +503,18 @@
 .portfolio-item:hover .card-logo, .portfolio-item-vertical:hover .card-logo { transform: none; }
 /* out of the way while the tile's video plays */
 .portfolio-item.is-previewing .card-logo, .portfolio-item-vertical.is-previewing .card-logo { opacity: 0; }
+/* Logo beside the title (logoPosition "title-right", "title-right-faint" or "title-left") */
+.portfolio-item-title.has-logo { display: flex; align-items: flex-end; gap: 12px; }
+.portfolio-item-title.has-logo .title-text { min-width: 0; flex: 1; }
+.portfolio-item .title-logo, .portfolio-item-vertical .title-logo {
+  flex: none; width: auto; height: 26px; max-width: 64px; margin-bottom: 2px; object-fit: contain; object-position: right bottom;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5)); opacity: 0.9; transform: none !important;
+}
+.portfolio-item-vertical .title-logo { height: 20px; max-width: 40px; }
+.logo-title-right-faint .title-logo { height: 22px; max-width: 56px; opacity: 0.45; filter: none; }
+.portfolio-item-vertical .logo-title-right-faint .title-logo { height: 17px; max-width: 36px; }
+.logo-title-left .title-logo { order: -1; align-self: center; object-position: left center; padding-right: 12px; border-right: 1px solid rgba(255, 255, 255, 0.3); box-sizing: content-box; }
+.portfolio-item-vertical .logo-title-left .title-logo { padding-right: 10px; }
 
 /* End of a home page row: "More Commercial ›" etc. takes you to that section's page */
 .scroller-more {

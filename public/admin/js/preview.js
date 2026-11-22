@@ -41,13 +41,17 @@ function img(h, src, focus, cls = '') {
     : h('span', { class: `pv-noimg ${cls}` });
 }
 
-function tile(h, p, { vertical, thumb, badge, onPick, logo }) {
-  const logoSrc = logo ? logo(p) : '';
+function tile(h, p, { vertical, thumb, badge, onPick, logo, logoPosition = 'corner' }) {
+  const logoSrc = logo && logoPosition !== 'none' ? logo(p) : '';
+  const inTitle = logoSrc && logoPosition.startsWith('title-');
+  const text = [h('b', {}, p.title || '(untitled)'), p.client ? h('small', {}, p.client) : null];
   return h('div', { class: `pv-tile${vertical ? ' v' : ''}`, title: p.title, onclick: onPick ? () => onPick(p) : null },
     img(h, thumb(p), p.thumbFocus),
-    logoSrc && !badge ? h('img', { class: 'pv-logo', src: logoSrc, alt: '' }) : null,
+    logoSrc && !inTitle && !badge ? h('img', { class: 'pv-logo', src: logoSrc, alt: '' }) : null,
     badge ? h('span', { class: `pv-badge ${badge.kind}` }, badge.text) : null,
-    h('div', { class: 'pv-tile-title' }, h('b', {}, p.title || '(untitled)'), p.client ? h('small', {}, p.client) : null));
+    inTitle
+      ? h('div', { class: `pv-tile-title has-logo logo-${logoPosition}` }, h('div', { class: 'pv-tt' }, text), h('img', { class: 'pv-title-logo', src: logoSrc, alt: '' }))
+      : h('div', { class: 'pv-tile-title' }, text));
 }
 
 /** Row settings for a home page set: the landscape (featured projects) row or the social (reels) row. */
@@ -145,7 +149,7 @@ export function homePreview(h, opts) {
       el: h('div', { class: 'pv-social' },
         h('div', { class: 'pv-track pv-grid' }, feat.shown.map(p => {
           const t = tile(h, p, {
-            thumb, onPick, logo: opts.logo,
+            thumb, onPick, logo: opts.logo, logoPosition: opts.logoPosition,
             badge: badgeFor(feat, landSettings)(p),
           });
           t.style.flex = `0 0 ${tileW}`;
@@ -161,7 +165,7 @@ export function homePreview(h, opts) {
     rows.push({ kind: 'social', title: String(set.socialTitle || '').trim(),
       el: h('div', { class: 'pv-social' },
         h('div', { class: 'pv-track' }, reels.shown.map(p => {
-          const t = tile(h, p, { vertical: true, thumb, onPick, logo: opts.logo, badge: badgeFor(reels, reelSettings)(p) });
+          const t = tile(h, p, { vertical: true, thumb, onPick, logo: opts.logo, logoPosition: opts.logoPosition, badge: badgeFor(reels, reelSettings)(p) });
           t.style.flex = `0 0 ${tileW}`;
           return t;
         })),
@@ -249,8 +253,8 @@ export function projectPreview(h, opts) {
 }
 
 /** The project's tile as it appears in lists on the site (category page and home page). */
-export function cardPreview(h, p, thumb, logo) {
-  return h('div', { class: 'pv-card-demo' }, tile(h, p, { vertical: p.category === 'vertical', thumb, logo }));
+export function cardPreview(h, p, thumb, logo, logoPosition) {
+  return h('div', { class: 'pv-card-demo' }, tile(h, p, { vertical: p.category === 'vertical', thumb, logo, logoPosition }));
 }
 
 const PLATFORM_NAMES = { youtube: 'YouTube', vimeo: 'Vimeo', instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook', linkedin: 'LinkedIn', x: 'X' };

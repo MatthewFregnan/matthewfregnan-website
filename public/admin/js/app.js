@@ -59,6 +59,9 @@ function go(page, { push = true } = {}) {
 
 const liveSet = () => homeSet(S.home.active) || S.home.sets[0];
 const liveLayout = () => liveSet()?.projectLayout || 'standard';
+// Where client logos sit on the tiles (per home page set; build.js reads "logoPosition")
+const LOGO_POSITIONS = [['corner', 'Top corner'], ['title-right', 'Beside the title, right'], ['title-right-faint', 'Beside the title, right, faint'],
+  ['title-left', 'Beside the title, left'], ['none', 'Hidden']];
 const thumbSrc = p => (p?.thumbnail ? I.src('thumbnails', p.thumbnail, p.updated) : '');
 
 // =========================================================================== helpers
@@ -1609,6 +1612,10 @@ function renderHomeDialog() {
         h('select', { onchange: e => editHome(() => { homeSet(set.id).projectLayout = e.target.value; }) },
           LAYOUTS.map(l => h('option', { value: l.id, selected: (set.projectLayout || 'standard') === l.id }, l.name))),
         h('span', { class: 'muted small' }, (LAYOUTS.find(l => l.id === (set.projectLayout || 'standard')) || LAYOUTS[0]).hint)),
+      h('div', { class: 'field' }, h('label', {}, 'Client logos'),
+        h('select', { onchange: e => editHome(() => { const s2 = homeSet(set.id); if (e.target.value === 'corner') delete s2.logoPosition; else s2.logoPosition = e.target.value; }) },
+          LOGO_POSITIONS.map(([id, name]) => h('option', { value: id, selected: (set.logoPosition || 'corner') === id }, name))),
+        h('span', { class: 'muted small' }, 'Where client logos sit on the thumbnails, on every page.')),
       h('div', { class: 'vrow-tools' },
         h('button', { class: 'btn primary', disabled: live,
           onclick: () => editHome(() => { S.home.active = set.id; }) }, live ? 'This set is on the site' : 'Show This on the Site'),
@@ -1626,7 +1633,7 @@ function renderHomeDialog() {
         onclick: () => { HD.seed += 1; renderHomeDialog(); } }, '⤮ Shuffle Again') : null),
     h('div', { class: `preview-frame ${S.screen}` }, P.homePreview(h, {
       set, projects: projects().filter(p => !p.hidden), categories: S.data.categories, site: S.site, thumb: thumbSrc, screen: S.screen, seed: HD.seed,
-      logo: p => (logoOf(p) ? I.src('logos', logoOf(p)) : ''),
+      logo: p => (logoOf(p) ? I.src('logos', logoOf(p)) : ''), logoPosition: set.logoPosition,
       onPick: p => { clearSearchFor(p); select(p); },
     })),
     h('p', { class: 'hint' }, 'Click a project in the preview to edit it. Changes show here straight away; they go live when you Publish.')) : null;
@@ -1668,7 +1675,7 @@ function renderProjectPreview() {
       })),
       h('div', { class: 'preview-side' },
         h('h4', {}, 'In lists'),
-        h('div', { class: p.category === 'vertical' ? 'side-card v' : 'side-card' }, P.cardPreview(h, p, thumbSrc, q => (logoOf(q) ? I.src('logos', logoOf(q)) : ''))),
+        h('div', { class: p.category === 'vertical' ? 'side-card v' : 'side-card' }, P.cardPreview(h, p, thumbSrc, q => (logoOf(q) ? I.src('logos', logoOf(q)) : ''), liveSet()?.logoPosition)),
         h('p', { class: 'muted small' }, `How it looks on the ${category(p.category).name} page${inSets.length ? ' and the home page' : ''}.`),
         h('h4', {}, 'Home page'),
         h('p', { class: 'small' }, inSets.length

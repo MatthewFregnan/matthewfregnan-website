@@ -514,7 +514,7 @@ function fileHash(file) {
 async function renderTemplate(templateName, data) {
   const templatePath = path.join(TEMPLATES_DIR, `${templateName}.ejs`);
   const template = await fs.readFile(templatePath, 'utf8');
-  return ejs.render(template, { focusOf, logoOf, imageUrl, ...data }, { filename: templatePath });
+  return ejs.render(template, { focusOf, logoOf, logoPosition, imageUrl, ...data }, { filename: templatePath });
 }
 
 // Build CSS with Tailwind
@@ -598,7 +598,13 @@ async function fingerprintAdmin() {
 // Client logos (optional): "clients" in projects.json, e.g. { "KIA": { "logo": "kia.webp" } }, files in
 // images/logos. Shown small on that client's thumbnails (see partials/card.ejs).
 const CLIENT_LOGOS = new Map();
+// Where logos sit on the tiles, chosen per home page set ("logoPosition" in home.json):
+// corner (default), title-right, title-right-faint, title-left, or none.
+const LOGO_POSITIONS = ['corner', 'title-right', 'title-right-faint', 'title-left', 'none'];
+let LOGO_POSITION = 'corner';
+const logoPosition = () => LOGO_POSITION;
 function logoOf(p) {
+  if (LOGO_POSITION === 'none') return '';
   const file = CLIENT_LOGOS.get(String(p.client || '').trim().toLowerCase());
   if (!file || !fs.existsSync(path.join(IMAGES_DIR, 'logos', file))) return '';
   // the white copy made by makeWhiteLogos, versioned by the original file
@@ -714,6 +720,7 @@ function resolveHome(projects) {
   const out = {
     tagline: set.tagline || '',
     projectLayout: set.projectLayout || 'standard',
+    logoPosition: LOGO_POSITIONS.includes(set.logoPosition) ? set.logoPosition : 'corner',
     // How the selected work section looks for this set (all optional, see the Home Page editor)
     heading: (set.heading || '').trim() || 'Featured Work',
     order: set.order === 'social-first' ? 'social-first' : 'landscape-first',
@@ -800,6 +807,8 @@ async function buildPages() {
 
   await findBarredThumbnails(projects);
   const home = resolveHome(projects);
+  LOGO_POSITION = home.logoPosition || 'corner';
+  if (LOGO_POSITION !== 'corner') console.log(`  Client logos: ${LOGO_POSITION}`);
 
   // Build home page with Person + LocalBusiness schema
   console.log('Building home page...');

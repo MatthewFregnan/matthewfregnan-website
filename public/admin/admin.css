@@ -734,3 +734,9 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 
 .hidden-note { flex-basis: 100%; display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 12px; border-radius: 8px; background: rgba(107, 75, 0, .25); font-size: 13px; }
 .hidden-note .btn { margin-left: auto; }
+.pv-tile-title.has-logo { display: flex; align-items: flex-end; gap: 8px; }
+.pv-tile-title.has-logo .pv-tt { min-width: 0; flex: 1; }
+.pv-tile .pv-title-logo { flex: none; width: auto; height: 18px; max-width: 44px; object-fit: contain; object-position: right bottom; filter: brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0,0,0,.5)); opacity: .9; }
+.pv-tile.v .pv-title-logo { height: 14px; max-width: 30px; }
+.logo-title-right-faint .pv-title-logo { opacity: .45; filter: brightness(0) invert(1); }
+.logo-title-left .pv-title-logo { order: -1; align-self: center; object-position: left center; padding-right: 8px; border-right: 1px solid rgba(255,255,255,.3); box-sizing: content-box; }
