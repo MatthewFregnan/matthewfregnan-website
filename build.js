@@ -405,6 +405,14 @@ Sitemap: ${siteConfig.domain}/sitemap.xml`;
   console.log('Generated robots.txt');
 }
 
+function fileHash(file) {
+  try {
+    return require('crypto').createHash('sha1').update(fs.readFileSync(file)).digest('hex').slice(0, 10);
+  } catch {
+    return String(Date.now());
+  }
+}
+
 // Render template
 async function renderTemplate(templateName, data) {
   const templatePath = path.join(TEMPLATES_DIR, `${templateName}.ejs`);
@@ -470,7 +478,12 @@ async function buildPages() {
   const commonData = {
     site: siteConfig,
     categories: projects.categories,
-    currentYear: new Date().getFullYear()
+    currentYear: new Date().getFullYear(),
+    // Fingerprints so browsers and Cloudflare fetch the new file whenever it changes
+    assetVersion: {
+      css: fileHash(path.join(DIST_DIR, 'css', 'styles.css')),
+      js: fileHash(path.join(DIST_DIR, 'js', 'main.js'))
+    }
   };
 
   // Build home page with Person + LocalBusiness schema
