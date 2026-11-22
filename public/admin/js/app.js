@@ -698,10 +698,9 @@ function activeSource(p) {
  *  YouTube video) upload a ~30 second excerpt; otherwise the hosted video file is used, if there is one. */
 function previewClipRow(p) {
   const job = uploadJobFor(p, 'preview');
-  const pick = () => {
-    const input = h('input', { type: 'file', accept: 'video/*,.mov,.mp4' });
-    input.addEventListener('change', () => { if (input.files[0]) { startUpload(p, input.files[0], 'preview'); renderVideo(); } });
-    input.click();
+  const pick = async () => {
+    const [f] = await chooseFiles('video/*,.mov,.mp4');
+    if (f) { startUpload(p, f, 'preview'); renderVideo(); }
   };
   const name = p.previewFile ? decodeURIComponent(p.previewFile.split('?')[0].split('/').pop()) : '';
   return h('div', { class: 'preview-clip' },
@@ -843,12 +842,21 @@ function uploadConfig() {
 
 const uploadJobFor = (p, kind = 'video') => S.uploads.find(j => j.key === keyOf(p) && (j.kind || 'video') === kind && !j.finished);
 
-function pickVideoFile() {
+/** Open the file picker. The input is attached to the page while the picker is open: Safari can drop a
+ *  detached one, and then the chosen file never arrives (it looked like "nothing happens"). */
+function chooseFiles(accept, multiple = false) {
   return new Promise(resolve => {
-    const input = h('input', { type: 'file', accept: 'video/*,.mov,.mp4,.m4v,.mkv,.webm' });
-    input.addEventListener('change', () => resolve([...input.files]));
+    const input = h('input', { type: 'file', accept, multiple, style: 'position:fixed;left:-9999px;opacity:0' });
+    const done = files => { input.remove(); resolve(files); };
+    input.addEventListener('change', () => done([...input.files]), { once: true });
+    input.addEventListener('cancel', () => done([]), { once: true });
+    document.body.append(input);
     input.click();
   });
+}
+
+function pickVideoFile() {
+  return chooseFiles('video/*,.mov,.mp4,.m4v,.mkv,.webm');
 }
 
 // kind: 'video' (the project's video) or 'preview' (a short clip that plays on the thumbnail, for long videos)
@@ -1102,11 +1110,7 @@ async function storeThumbnail(p, file) {
 }
 
 function pickFiles(multiple) {
-  return new Promise(resolve => {
-    const input = h('input', { type: 'file', accept: 'image/*', multiple });
-    input.addEventListener('change', () => resolve([...input.files]));
-    input.click();
-  });
+  return chooseFiles('image/*', multiple);
 }
 
 function dropTarget(el, onFiles) {
