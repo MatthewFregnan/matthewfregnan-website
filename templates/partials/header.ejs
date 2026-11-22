@@ -21,12 +21,14 @@
 </head>
 <body class="min-h-screen flex flex-col">
   <!-- Header -->
-  <%# On the home page the bar starts clear over the hero and turns solid once you scroll (src/main.js) %>
+  <%# On the home page the bar starts clear over the hero and turns solid once you scroll, and the name only
+      appears in it once the big name in the hero has scrolled away (src/main.js). On phones the bar tucks
+      away while scrolling down and comes back when scrolling up. %>
   <header class="header-blur border-b border-white/10<%= activePage === 'home' ? ' is-clear at-top' : '' %>" id="site-header">
     <div class="container mx-auto px-4 py-4">
       <nav class="flex items-center justify-between">
         <!-- Logo -->
-        <a href="/" class="text-xl font-medium tracking-tight">
+        <a href="/" class="site-name text-xl font-medium tracking-tight">
           <%= site.title %>
         </a>
 

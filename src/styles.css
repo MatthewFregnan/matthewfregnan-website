@@ -749,3 +749,22 @@ footer { animation: page-fade 0.35s ease-out 0.1s backwards; }
 /* Section pages: one line under the heading (Site Text) */
 .section-intro { max-width: 38em; margin: 0 auto 40px; text-align: center; color: #a0a0a0; font-size: 1rem; line-height: 1.6; }
 @media (max-width: 639px) { .section-intro { font-size: 0.95rem; margin-bottom: 28px; } }
+
+/* Header: name hidden on the home page until the big hero name has scrolled away (src/main.js) */
+.site-name { transition: opacity 0.3s ease; }
+.header-blur.is-clear:not(.show-name) .site-name { opacity: 0; pointer-events: none; }
+/* Phones: the bar tucks away while scrolling down and returns when scrolling up */
+.header-blur { transition: background-color 0.35s ease, border-color 0.35s ease, backdrop-filter 0.35s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.header-blur.is-tucked { transform: translateY(-100%); }
+/* the "Back to video" pill follows the bar up */
+.info-pill { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease, top 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.nav-tucked .info-pill { top: calc(env(safe-area-inset-top, 0px) + 12px); }
+
+/* Phones: once a tile's preview has played for a moment, its title fades out so our text doesn't sit on
+   top of text in the video (it was read during the pause before playing); back as soon as it stops. */
+@media (hover: none) {
+  .portfolio-item .portfolio-item-title, .portfolio-item-vertical .portfolio-item-title { transition: opacity 0.25s ease; }
+  .portfolio-item.is-previewing .portfolio-item-title, .portfolio-item-vertical.is-previewing .portfolio-item-title {
+    opacity: 0; transition: opacity 0.5s ease 1.2s;
+  }
+}

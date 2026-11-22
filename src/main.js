@@ -1,10 +1,42 @@
-// Home page: the nav bar is clear while you're at the top of the hero, and solid once you scroll
+// Home page: the nav bar is clear while you're at the top of the hero, and solid once you scroll. Your
+// name is already big in the hero, so the bar only shows it once that has scrolled out of sight.
 document.addEventListener('DOMContentLoaded', () => {
   const header = document.getElementById('site-header');
   if (!header || !header.classList.contains('is-clear')) return;
-  const update = () => header.classList.toggle('at-top', window.scrollY < 24);
+  const big = document.querySelector('.hero h1');
+  const update = () => {
+    header.classList.toggle('at-top', window.scrollY < 24);
+    header.classList.toggle('show-name', !big || big.getBoundingClientRect().bottom < header.offsetHeight);
+  };
   window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
   update();
+});
+
+// Phones: like iOS apps, the bar slides away while you scroll down (more room for the work) and comes
+// straight back when you scroll up. Always shown at the very top and while the menu is open.
+document.addEventListener('DOMContentLoaded', () => {
+  const header = document.getElementById('site-header');
+  if (!header) return;
+  const phone = window.matchMedia('(max-width: 767px)');
+  let lastY = window.scrollY;
+  let ticking = false;
+  const tuck = (on) => {
+    header.classList.toggle('is-tucked', on);
+    document.body.classList.toggle('nav-tucked', on);
+  };
+  const update = () => {
+    ticking = false;
+    const y = Math.max(0, window.scrollY);
+    const delta = y - lastY;
+    const menuOpen = !document.getElementById('mobile-menu')?.classList.contains('hidden');
+    if (!phone.matches || menuOpen || y < header.offsetHeight) tuck(false);
+    else if (delta > 6) tuck(true);
+    else if (delta < -6) tuck(false);
+    if (Math.abs(delta) > 6 || y < header.offsetHeight) lastY = y;
+  };
+  window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  phone.addEventListener?.('change', () => tuck(false));
 });
 
 // Mobile menu toggle
