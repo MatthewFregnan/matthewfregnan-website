@@ -176,15 +176,21 @@ export function projectPreview(h, opts) {
     ];
   }
 
+  const title = h('div', { class: 'pv-title' }, p.title || '(untitled)');
+  const client = p.client ? h('div', { class: 'pv-muted pv-client' }, p.client) : null;
+  const empty = !hasVideo && !gallery.length ? h('p', { class: 'pv-muted' }, 'No video or stills yet.') : null;
+  // Social projects on wider screens: video on the left sized to fit the screen, details beside it
+  // (matches .portrait-page in src/styles.css)
+  const portrait = vertical && !phone && player;
+  if (portrait) player.style.width = `${Math.min(420, (SCREENS[screen].height - 220) * 9 / 16)}px`;
   const frame = h('div', { class: `pv-site${phone ? ' phone' : ''}` },
     nav(h, site, phone, c.name),
     h('div', { class: 'pv-page' },
       h('div', { class: 'pv-back' }, `‹  Back to ${c.name}`),
-      h('div', { class: 'pv-title' }, p.title || '(untitled)'),
-      p.client ? h('div', { class: 'pv-muted pv-client' }, p.client) : null,
-      player, gallery.length ? h('div', { class: 'pv-gallery' }, gallery) : null,
-      details,
-      !hasVideo && !gallery.length ? h('p', { class: 'pv-muted' }, 'No video or stills yet.') : null));
+      portrait
+        ? h('div', { class: 'pv-portrait' }, player,
+          h('div', {}, title, client, h('div', { class: 'pv-one' }, details), gallery.length ? h('div', { class: 'pv-gallery' }, gallery) : null))
+        : [title, client, player, gallery.length ? h('div', { class: 'pv-gallery' }, gallery) : null, details, empty]));
   return scaled(h, frame, SCREENS[screen].width);
 }
 

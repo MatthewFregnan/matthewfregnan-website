@@ -10,13 +10,16 @@
       Back to <%= category.name %>
     </a>
 
+    <%# Social (portrait) projects: on wider screens the video sits on the left, sized to fit the
+        screen, with the title and details beside it (see .portrait-page in src/styles.css). %>
+    <div class="<%= category.id === 'vertical' ? 'portrait-page' : '' %>">
     <!-- Project Title -->
-    <h1 class="text-3xl md:text-4xl font-light mb-4">
+    <h1 class="pp-title text-3xl md:text-4xl font-light mb-4">
       <%= project.title %>
     </h1>
 
     <% if (project.client) { %>
-      <p class="text-site-text-muted mb-8"><%= project.client %></p>
+      <p class="pp-client text-site-text-muted mb-8"><%= project.client %></p>
     <% } %>
 
     <!-- Video: starts on the first working source. Hosted video files play in the site's own player
@@ -27,7 +30,7 @@
          const isVertical = category.id === 'vertical';
          const shape = src.kind === 'instagram' ? 'is-instagram' : (isVertical ? 'is-vertical' : '');
          const poster = project.thumbnail ? `/images/thumbnails/${project.thumbnail}` : ''; %>
-      <div class="video-player mb-8"
+      <div class="pp-media video-player mb-8"
            data-video-sources="<%= JSON.stringify(video.sources.map(s => ({ kind: s.kind, embed: s.embed, check: s.check }))) %>"
            data-active="<%= video.active %>"
            data-vertical="<%= isVertical %>"
@@ -60,7 +63,7 @@
 
     <!-- Image Gallery (for colour grading) -->
     <% if (project.gallery && project.gallery.length > 0) { %>
-      <div class="space-y-4 mb-8">
+      <div class="pp-gallery space-y-4 mb-8">
         <% project.gallery.forEach((image, index) => { %>
           <img
             src="/images/gallery/<%= image %>"
@@ -73,7 +76,10 @@
     <% } %>
 
     <!-- Details: layout chosen per home page set (Standard or Detailed); see data/home.json -->
+    <div class="pp-details">
     <%- include(projectLayout === 'detailed' ? 'partials/project-detailed' : 'partials/project-standard', { project }) %>
+    </div>
+    </div>
   </div>
 </section>
 

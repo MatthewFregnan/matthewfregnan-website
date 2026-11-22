@@ -394,3 +394,28 @@
 .scroller-btn[hidden] { display: none; }
 @media (hover: none) { .scroller-btn { display: none; } }
 .card-blank { display: block; background: linear-gradient(135deg, #1f1f22, #121214); }
+
+/* ----------------------------------------------------------------------------------------
+   Social (portrait) project pages on wider screens: video on the left, sized so the whole
+   video fits on screen, with the title, client and details beside it.
+   ---------------------------------------------------------------------------------------- */
+@media (min-width: 900px) {
+  .portrait-page {
+    --pp-video: min(420px, calc((100vh - 220px) * 9 / 16));
+    display: grid;
+    grid-template-columns: var(--pp-video) minmax(0, 1fr);
+    grid-template-areas: "media title" "media client" "media details" "media gallery" "media rest";
+    grid-template-rows: auto auto auto auto 1fr;
+    column-gap: 56px;
+    align-items: start;
+  }
+  .portrait-page .pp-title { grid-area: title; margin-top: 4px; }
+  .portrait-page .pp-client { grid-area: client; margin-bottom: 28px; }
+  .portrait-page .pp-media { grid-area: media; margin-bottom: 0; }
+  .portrait-page .pp-gallery { grid-area: gallery; }
+  .portrait-page .pp-details { grid-area: details; }
+  .portrait-page .player-shell.is-vertical, .portrait-page .player-shell.is-instagram { max-width: none; margin: 0; }
+  /* details read better as one column in the narrower space */
+  .portrait-page .project-context { grid-template-columns: 1fr; gap: 28px; }
+  .portrait-page .pp-details > div:first-child.mt-8 { margin-top: 0; }
+}
