@@ -36,6 +36,20 @@
     </div>
   </div>
 
+  <% if (clientStrip.length > 3) { %>
+    <%# Clients worked with: fades in a few seconds after the page opens and drifts slowly sideways.
+        Every logo that has a file in images/logos (see "clients" in data/projects.json). %>
+    <div class="hero-clients" aria-label="Clients include">
+      <div class="hero-clients-track">
+        <% [0, 1].forEach(copy => { %>
+          <div class="hero-clients-set"<% if (copy) { %> aria-hidden="true"<% } %>>
+            <% clientStrip.forEach(c => { %><img src="<%= c.src %>" alt="<%= copy ? '' : c.name %>" loading="lazy"><% }) %>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  <% } %>
+
   <% if (home.landscape.length || home.vertical.length) { %>
     <!-- Nudge to scroll: bounces gently, fades out once you scroll -->
     <a href="#selected-work" class="scroll-cue" aria-label="Scroll to featured work">
@@ -137,6 +151,18 @@
         </a>
       <% }) %>
     </div>
+
+    <%# Where to next: a bit about me %>
+    <a href="/about/" class="home-about">
+      <img src="<%= imageUrl('', 'headshot.jpg').replace('/images//', '/images/') %>" alt="" loading="lazy">
+      <span class="home-about-text">
+        <span class="home-about-title">Hi, I’m Matthew</span>
+        <span class="home-about-sub">A Melbourne-based video editor &amp; colourist. More about me, and how to get in touch.</span>
+      </span>
+      <span class="home-about-go">About me
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </span>
+    </a>
   </div>
 </section>
 <% } %>

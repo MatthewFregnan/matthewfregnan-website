@@ -287,6 +287,9 @@ async function fetchStats(projects) {
     const s = p._stats;
     const part = (n, word) => (n ? `${compact.format(n)} ${word}${n === 1 ? '' : 's'}` : '');
     s.text = [part(s.views, 'view'), part(s.likes, 'like'), part(s.comments, 'comment')].filter(Boolean).join(' · ');
+    // one line per number on the project page (partials/stats-fact.ejs)
+    s.lines = [[s.views, 'view'], [s.likes, 'like'], [s.comments, 'comment']].filter(([n]) => n)
+      .map(([n, word]) => ({ n: compact.format(n), word: `${word}${n === 1 ? '' : 's'}` }));
     s.where = STATS_PLATFORMS[s.kind] || '';
     // "on Instagram" etc. links to the post when the project has that platform's link
     s.link = (p._video?.sources || []).find(src => src.kind === s.kind)?.page || '';
@@ -611,6 +614,17 @@ function logoOf(p) {
   return imageUrl('logos', file).replace('/images/logos/', '/images/logos-white/');
 }
 
+// Every client logo once (several clients can share a file), for the strip on the home page.
+function clientLogos(projects) {
+  const seen = new Map();
+  for (const p of projects) {
+    const src = logoOf(p);
+    const file = CLIENT_LOGOS.get(String(p.client || '').trim().toLowerCase());
+    if (src && !seen.has(file)) seen.set(file, { src, name: p.client.trim() });
+  }
+  return [...seen.values()];
+}
+
 // Logos show white on the tiles. Bake that into white copies (dist/images/logos-white) instead of a
 // CSS colour filter, which some browsers drop while the tile animates (the logo flashed black).
 async function makeWhiteLogos() {
@@ -817,6 +831,7 @@ async function buildPages() {
     buildLocalBusinessSchema(siteConfig)
   ];
   const homeHtml = await renderTemplate('home', {
+    clientStrip: clientLogos(projects.projects),
     ...commonData,
     home,
     title: `${siteConfig.title} | Melbourne Video Editor & Colourist`,

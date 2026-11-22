@@ -521,17 +521,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     let tile = null;
     if (best) {
-      const box = best.getBoundingClientRect();
-      tile = [...best.children].find(t => !t.hidden && t.dataset.preview
-        && t.getBoundingClientRect().left >= box.left - 4 && t.getBoundingClientRect().right <= box.right + 4) || null;
+      tile = [...best.children].find(t => !t.hidden && t.dataset.preview && fullyIn(t, best)) || null;
+    } else if (!rows.length && touch) {
+      // Section pages on phones (no hover): the tile nearest the middle of the screen plays
+      let d = Infinity;
+      for (const t of tiles) {
+        const r = t.getBoundingClientRect();
+        if (r.bottom < window.innerHeight * 0.2 || r.top > window.innerHeight * 0.8) continue;
+        const dist = Math.abs((r.top + r.bottom) / 2 - mid);
+        if (dist < d) { d = dist; tile = t; }
+      }
     }
-    if (tile !== scrollPick) {
-      if (scrollPick && Previews.current === scrollPick) Previews.stop(scrollPick);
-      scrollPick = tile;
-      if (tile) Previews.play(tile);
-    }
+    if (tile !== scrollPick) pickTile(tile);
   };
-  if (rows.length) {
+  const touch = !window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const fullyIn = (t, row) => {
+    const box = row.getBoundingClientRect();
+    const r = t.getBoundingClientRect();
+    return r.left >= box.left - 4 && r.right <= box.right + 4;
+  };
+  // Play a tile for the scroll position, and after 12 seconds move on to the next video in the row
+  // (the next one on screen; on phones, where one fills the row, the row slides along to it).
+  let advanceTimer = null;
+  const pickTile = (tile) => {
+    clearTimeout(advanceTimer);
+    if (scrollPick && Previews.current === scrollPick) Previews.stop(scrollPick);
+    scrollPick = tile;
+    if (!tile) return;
+    Previews.play(tile);
+    const row = tile.closest('.row-track');
+    if (!row) return;
+    advanceTimer = setTimeout(() => {
+      if (hovered || scrollPick !== tile || document.hidden) return;
+      const list = [...row.children].filter(t => !t.hidden && t.dataset.preview);
+      const next = list[list.indexOf(tile) + 1];
+      if (next && fullyIn(next, row)) pickTile(next);
+      else if (next && touch) row.scrollBy({ left: next.getBoundingClientRect().left - row.getBoundingClientRect().left, behavior: 'smooth' });   // the row's scroll picks it
+      else pickTile(list.find(t => fullyIn(t, row)) || tile);
+    }, 12000);
+  };
+  if (rows.length || touch) {
     let ticking = false;
     const onScroll = () => { if (!ticking) { ticking = true; setTimeout(() => { ticking = false; pickFromScroll(); }, 120); } };
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -654,6 +683,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const update = () => cue.classList.toggle('is-hidden', window.scrollY > 40);
   window.addEventListener('scroll', update, { passive: true });
   update();
+
+  // After 12 seconds sitting at the top, glide down to the work on its own. Only once per visit:
+  // if you scroll yourself (or come back up to the top), it leaves you alone for the rest of the visit.
+  const KEY = 'mf-auto-scroll';
+  let seen = false;
+  try { seen = sessionStorage.getItem(KEY) === '1'; } catch { /* storage blocked: still fine */ }
+  if (!target || seen || window.scrollY > 40 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const done = () => { try { sessionStorage.setItem(KEY, '1'); } catch { /* ignore */ } };
+  let timer = setTimeout(() => {
+    timer = null;
+    if (window.scrollY > 40 || document.hidden) return;
+    done();
+    const navH = document.querySelector('header')?.offsetHeight || 64;
+    glideTo(target.getBoundingClientRect().top + window.scrollY - navH, 1500);
+  }, 12000);
+  const cancel = () => {
+    if (!timer) return;
+    clearTimeout(timer);
+    timer = null;
+    done();
+  };
+  window.addEventListener('scroll', () => { if (window.scrollY > 40) cancel(); }, { passive: true });
+  ['wheel', 'touchstart', 'keydown'].forEach(ev => window.addEventListener(ev, cancel, { passive: true, once: true }));
 });
 
 // "All work" section tiles: slowly crossfade through each tile's pictures, staggered so the

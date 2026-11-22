@@ -38,7 +38,7 @@ const S = {
   trafficDays: 30,
 };
 
-const PAGES = ['overview', 'projects', 'home', 'sections', 'traffic', 'storage'];
+const PAGES = ['overview', 'home', 'projects', 'sections', 'traffic', 'storage'];
 
 /** Switch the main area to one of the pages in the left menu. */
 function go(page, { push = true } = {}) {
@@ -414,8 +414,14 @@ function renderList({ scroll = false } = {}) {
     if (only && c.id !== only) continue;
     const rows = projects().filter(p => p.category === c.id).filter(p => !q
       || ['title', 'client', 'production', 'role'].some(k => String(p[k] || '').toLowerCase().includes(q)));
-    frag.push(h('h3', {}, `${c.name} (${rows.length})`));
-    rows.forEach((p, i) => frag.push(row(p, i, !q)));
+    frag.push(h('h3', {}, `${c.name} (${rows.filter(p => !p.hidden).length})`));
+    rows.forEach((p, i) => { if (!p.hidden) frag.push(row(p, i, !q)); });
+    // hidden projects sit at the bottom of their section, under a divider
+    const hiddenRows = rows.filter(p => p.hidden);
+    if (hiddenRows.length) {
+      frag.push(h('div', { class: 'list-divider' }, `Hidden (${hiddenRows.length})`));
+      hiddenRows.forEach(p => frag.push(row(p, rows.indexOf(p), false)));
+    }
   }
   list.replaceChildren(...frag);
   if (scroll) list.querySelector('.row.selected')?.scrollIntoView({ block: 'nearest' });
@@ -495,10 +501,12 @@ function renderEditor() {
     onclick: () => { S.editorTab = id; renderEditor(); } }, label);
   const head = h('div', { class: 'editor-head' },
     h('h2', { id: 'heading' }, p.title || '(untitled)'),
-    h('div', { class: 'tabs', role: 'tablist' }, tab('details', 'Details'), tab('preview', 'Page Preview')),
+    h('div', { class: 'head-tools' },
+      h('button', { class: 'btn', title: p.hidden ? 'Put it back on the site' : 'Take it off the site but keep its entry (and video)',
+        onclick: () => setHidden(p, !p.hidden) }, p.hidden ? 'Show on Site' : 'Hide from Site'),
+      h('div', { class: 'tabs', role: 'tablist' }, tab('details', 'Details'), tab('preview', 'Page Preview'))),
     p.hidden ? h('div', { class: 'hidden-note' }, h('span', { class: 'tag-hidden' }, 'Hidden'),
-      ` Not on the site${p.hiddenSince ? ` since ${p.hiddenSince}` : ''}. Its entry and video are kept.`,
-      h('button', { class: 'btn', onclick: () => setHidden(p, false) }, 'Show on Site')) : null);
+      ` Not on the site${p.hiddenSince ? ` since ${p.hiddenSince}` : ''}. Its entry and video are kept.`) : null);
   if (S.editorTab === 'preview') {
     ed.replaceChildren(h('div', { class: 'editor-inner' }, head, h('div', { id: 'project-preview' })));
     renderProjectPreview();
@@ -654,6 +662,29 @@ function activeSource(p) {
   return refs.find(r => V.status(r)?.ok !== false) || refs[0] || null;
 }
 
+/** Hover preview: a short silent clip that plays on the thumbnail. For long videos (e.g. a 40-minute
+ *  YouTube video) upload a ~30 second excerpt; otherwise the hosted video file is used, if there is one. */
+function previewClipRow(p) {
+  const job = uploadJobFor(p, 'preview');
+  const pick = () => {
+    const input = h('input', { type: 'file', accept: 'video/*,.mov,.mp4' });
+    input.addEventListener('change', () => { if (input.files[0]) { startUpload(p, input.files[0], 'preview'); renderVideo(); } });
+    input.click();
+  };
+  const name = p.previewFile ? decodeURIComponent(p.previewFile.split('?')[0].split('/').pop()) : '';
+  return h('div', { class: 'preview-clip' },
+    h('div', { class: 'preview-clip-head' }, h('b', {}, 'Hover preview'),
+      h('span', { class: 'muted small' }, p.previewFile ? ` · ${name}`
+        : p.videoFile ? ' · uses the hosted video file' : ' · none yet')),
+    h('p', { class: 'muted small' }, 'Plays silently on the thumbnail when someone hovers over it (and on phones as they scroll). For a long video, link it on YouTube above and upload a short clip here, around 30 seconds.'),
+    job ? h('div', { class: 'upload-line' }, h('span', { class: 'dot null' }), ` ${job.label}`,
+      h('div', { class: 'upload-bar' }, h('span', { style: `width:${Math.round(job.progress * 100)}%` }))) : null,
+    p.previewFile ? h('video', { class: 'preview-clip-video', src: p.previewFile, muted: true, loop: true, playsInline: true, autoplay: true, preload: 'metadata' }) : null,
+    h('div', { class: 'vrow-tools' },
+      h('button', { class: 'btn', disabled: !!job, onclick: pick }, p.previewFile ? 'Replace Clip…' : 'Upload Clip…'),
+      p.previewFile ? h('button', { class: 'btn link danger', onclick: () => { mutate(() => { delete p.previewFile; }); renderVideo(); } }, 'Remove') : null));
+}
+
 function renderVideo() {
   const card = $('#video-card');
   const p = S.current;
@@ -741,6 +772,7 @@ function renderVideo() {
         class: 'btn', onclick: useVideoDetails, disabled: !refs.some(r => r.kind !== 'file' && V.status(r)?.ok),
       }, 'Use Video’s Title, Year & Thumbnail')) :'',
     refs.length && p.showStats ? statsFields(p) : '',
+    previewClipRow(p),
     h('div', { class: 'vrow-tools' },
       h('button', {
         class: 'btn', disabled: !!job || !uploadConfig(),
@@ -762,7 +794,7 @@ function uploadConfig() {
   return null;
 }
 
-const uploadJobFor = p => S.uploads.find(j => j.key === keyOf(p) && !j.finished);
+const uploadJobFor = (p, kind = 'video') => S.uploads.find(j => j.key === keyOf(p) && (j.kind || 'video') === kind && !j.finished);
 
 function pickVideoFile() {
   return new Promise(resolve => {
@@ -772,11 +804,12 @@ function pickVideoFile() {
   });
 }
 
-function startUpload(p, file) {
+// kind: 'video' (the project's video) or 'preview' (a short clip that plays on the thumbnail, for long videos)
+function startUpload(p, file, kind = 'video') {
   if (!uploadConfig()) { toast('Sign in to upload videos.'); return; }
   if (!U.looksLikeVideo(file)) { toast('Choose a video file (MP4 or MOV).'); return; }
-  if (uploadJobFor(p)) { toast('This project already has a video uploading.'); return; }
-  S.uploads.push({ key: keyOf(p), title: p.title || p.id, file, progress: 0, label: 'Waiting to upload…', finished: false });
+  if (uploadJobFor(p, kind)) { toast(kind === 'preview' ? 'This project already has a preview clip uploading.' : 'This project already has a video uploading.'); return; }
+  S.uploads.push({ key: keyOf(p), kind, title: p.title || p.id, file, progress: 0, label: 'Waiting to upload…', finished: false });
   renderUploads();
   runUploads();
 }
@@ -792,7 +825,7 @@ async function runUploads() {
   try {
     const blob = await U.prepare(job.file, (f, label) => step(f * 0.5, `${label}… ${Math.round(f * 100)}%`));
     // A new address for every upload, so the live video isn't replaced until you publish (and undo works)
-    const url = await U.upload(blob, `${job.key}-${Date.now().toString(36)}.mp4`, {
+    const url = await U.upload(blob, `${job.key}${job.kind === 'preview' ? '-preview' : ''}-${Date.now().toString(36)}.mp4`, {
       ...uploadConfig(),
       onProgress: f => step(0.5 + f * 0.5, `Uploading ${(blob.size / 1e6).toFixed(0)} MB… ${Math.round(f * 100)}%`),
     });
@@ -812,6 +845,15 @@ function linkUploadedVideo(job, url) {
   const p = projects().find(x => keyOf(x) === job.key);
   if (!p) {
     toast(`“${job.title}” uploaded, but the project was renamed or deleted. Its video is at ${url}`, 15000);
+    return;
+  }
+  if (job.kind === 'preview') {
+    const prev = S.current;
+    S.current = p;
+    mutate(() => { p.previewFile = url; }, { list: true });
+    S.current = prev;
+    if (S.current === p) renderVideo();
+    toast(`Uploaded the preview clip for “${job.title}”. Publish to put it live.`, 6000);
     return;
   }
   const ref = { kind: 'file', id: url, hash: '' };
@@ -2071,7 +2113,10 @@ function renderSectionsPage() {
     h('p', { class: 'muted small' }, preset
       ? `Editing “${preset.name}”. Drag tiles (or use ↑ Top) to arrange it. New ${cat.name} projects are added at the end.`
       : `Standard order is the normal project order (the same as the Projects list). Drag to change it, or save it as a new layout first.`),
-    h('div', { class: `sp-grid${vertical ? ' v' : ''}` }, tiles, endDrop)));
+    h('div', { class: `sp-grid${vertical ? ' v' : ''}` }, tiles.filter((t, i) => !items[i].hidden), endDrop),
+    items.some(p => p.hidden) ? [
+      h('div', { class: 'list-divider sp-divider' }, `Hidden from the site (${items.filter(p => p.hidden).length})`),
+      h('div', { class: `sp-grid${vertical ? ' v' : ''}` }, tiles.filter((t, i) => items[i].hidden))] : null));
   page.scrollTop = scroll;
 }
 
@@ -2161,8 +2206,10 @@ async function renderStoragePage(force = false) {
   }
   const users = new Map();
   for (const p of projects()) {
-    const k = p.videoFile && storageKeyOf(p.videoFile);
-    if (k) users.set(k, p);
+    for (const url of [p.videoFile, p.previewFile]) {   // the video and its hover preview clip
+      const k = url && storageKeyOf(url);
+      if (k) users.set(k, p);
+    }
   }
   const files = data.objects.map(o => ({ ...o, project: users.get(o.key), section: o.key.split('/')[0] }));
   const pct = Math.min(100, (data.total / STORAGE_LIMIT) * 100);

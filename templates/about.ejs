@@ -1,5 +1,9 @@
 <%- include('partials/header') %>
 
+<%# Backdrop: the foliage from the headshot (person removed), blurred and darkened, behind the page
+    like the home page's video. Made from images/headshot.jpg; see images/about-bg.webp. %>
+<div class="page-backdrop" aria-hidden="true" style="background-image: url('<%= imageUrl('', 'about-bg.webp').replace('/images//', '/images/') %>')"></div>
+
 <section class="py-12 md:py-16">
   <div class="container mx-auto px-4">
     <div class="grid md:grid-cols-5 gap-10 md:gap-14 max-w-5xl mx-auto items-start">
@@ -14,7 +18,7 @@
 
       <!-- Bio -->
       <div class="md:col-span-3">
-        <h1 class="text-3xl md:text-4xl font-light mb-6">About</h1>
+        <h1 class="text-3xl md:text-4xl font-light mb-6">Hi, I’m Matthew</h1>
 
         <div class="space-y-4 text-site-text-muted leading-relaxed">
           <p>
@@ -54,8 +58,16 @@
                 <a href="<%= site.social.linkedin %>" class="about-link" target="_blank" rel="noopener">LinkedIn</a>
               </li>
             <% } %>
-            <li class="text-site-text-muted"><%= site.location %></li>
+            <li class="text-site-text-muted with-icon"><%- include('partials/icon-globe') %><%= site.location %></li>
           </ul>
+        </div>
+
+        <%# Keep people moving: from here into the work %>
+        <div class="about-block">
+          <a href="/<%= (categories.find(c => c.id === 'commercial') || categories[0]).slug %>/" class="about-cta">
+            See my commercial work
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
         </div>
       </div>
     </div>
