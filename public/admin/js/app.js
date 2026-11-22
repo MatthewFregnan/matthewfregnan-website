@@ -1707,6 +1707,7 @@ function renderHomeDialog() {
         h('select', { onchange: e => editHome(() => { homeSet(set.id).projectLayout = e.target.value; }) },
           LAYOUTS.map(l => h('option', { value: l.id, selected: (set.projectLayout || 'standard') === l.id }, l.name))),
         h('span', { class: 'muted small' }, (LAYOUTS.find(l => l.id === (set.projectLayout || 'standard')) || LAYOUTS[0]).hint)),
+      tailoredLinkField(set),
       h('div', { class: 'field' }, h('label', {}, 'Client logos'),
         h('select', { onchange: e => editHome(() => { const s2 = homeSet(set.id); if (e.target.value === 'corner') delete s2.logoPosition; else s2.logoPosition = e.target.value; }) },
           LOGO_POSITIONS.map(([id, name]) => h('option', { value: id, selected: (set.logoPosition || 'corner') === id }, name))),
@@ -2251,8 +2252,33 @@ function renderTextPage() {
 // ---------------------------------------------------------------- traffic (anonymous visit stats)
 
 /** "Home", "About", "Social", or a project's title for a page address. */
+// Tailored links: /for/<name>/ shows that set's home page (build.js setLinkName; keep the two in step)
+const setLinkName = set => String(set.link || set.name || set.id || '').toLowerCase().normalize('NFKD')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || set.id;
+
+function tailoredLinkField(set) {
+  const url = `${SITE}/for/${setLinkName(set)}/`;
+  const copy = h('button', { class: 'btn', onclick: async () => {
+    try { await navigator.clipboard.writeText(url); copy.textContent = 'Copied'; setTimeout(() => { copy.textContent = 'Copy Link'; }, 1600); } catch { prompt('Copy this link:', url); }
+  } }, 'Copy Link');
+  return h('div', { class: 'field' }, h('label', {}, 'Tailored link'),
+    h('div', { class: 'vrow-tools' },
+      h('code', { class: 'tailored-url' }, url.replace('https://', '')), copy),
+    h('span', { class: 'muted small' }, 'Send this with a pitch: it always shows this set’s home page, even when another set is on the site. Opens show on Traffic. Live after you publish.'),
+    h('label', { class: 'muted small' }, 'Link name ',
+      h('input', { value: set.link || '', placeholder: setLinkName({ ...set, link: '' }), style: 'width:auto', onchange: e => {
+        const v = e.target.value.trim();
+        editHome(() => { const s2 = homeSet(set.id); if (v) s2.link = v; else delete s2.link; });
+      } })));
+}
+
 function titleOfPath(path) {
   if (path === '/') return 'Home';
+  const forName = path.match(/^\/for\/([a-z0-9-]+)\/$/)?.[1];
+  if (forName) {
+    const set = S.home.sets.find(x => setLinkName(x) === forName);
+    return `Home (“${set ? set.name : forName}” link)`;
+  }
   const [slug, id] = path.split('/').filter(Boolean);
   const cat = S.data.categories.find(c => c.slug === slug);
   if (!cat) return slug === 'about' ? 'About' : slug === 'contact' ? 'Contact panel opened' : slug === 'my-work' ? 'All work' : path;

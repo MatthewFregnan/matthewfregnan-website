@@ -808,12 +808,17 @@ function moreWork(project, list, category) {
   };
 }
 
-function resolveHome(projects) {
+// A home page set's tailored-link name: /for/<name>/ (its "link" if set in the admin, else from its name)
+const setLinkName = set => String(set.link || set.name || set.id || '').toLowerCase().normalize('NFKD')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || set.id;
+
+// setId: build the home page for that set (tailored links) instead of the one that's on the site
+function resolveHome(projects, setId = null) {
   const file = path.join(DATA_DIR, 'home.json');
   const empty = { tagline: '', projectLayout: 'standard', landscape: [], vertical: [], categoryTiles: categoryTiles(projects, null) };
   if (!fs.existsSync(file)) return empty;
   const home = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const set = (home.sets || []).find(s => s.id === home.active) || (home.sets || [])[0];
+  const set = (home.sets || []).find(s => s.id === (setId || home.active)) || (home.sets || [])[0];
   if (!set) return empty;
   const byKey = new Map(projects.projects.map(p => [`${p.category}/${p.id}`, p]));
   const out = {
@@ -928,6 +933,32 @@ async function buildPages() {
     structuredData: homeStructuredData
   });
   await fs.outputFile(path.join(DIST_DIR, 'index.html'), homeHtml);
+
+  // Tailored links: every home page set also gets its own address, /for/<name>/, to send with a pitch
+  // (e.g. a gaming-first home page for a games studio). Not for search engines; the Traffic page shows
+  // when one is opened. Visitors who arrive this way keep seeing that version when they go back Home.
+  const liveLogos = LOGO_POSITION;
+  for (const set of readHomeFile().sets || []) {
+    const name = setLinkName(set);
+    const tailored = resolveHome(projects, set.id);
+    LOGO_POSITION = tailored.logoPosition || 'corner';
+    const html = await renderTemplate('home', {
+      clientStrip: clientLogos(projects.projects, projects.clients, readHomeFile().clientStrip),
+      ...commonData,
+      home: tailored,
+      title: `${siteConfig.title} | Melbourne Video Editor & Colourist`,
+      activePage: 'home',
+      tailoredLink: `/for/${name}/`,
+      noindex: true,
+      pageDescription: `${siteConfig.title} - Melbourne video editor and colourist.`,
+      pageUrl: '/',
+      pageType: 'website',
+      structuredData: homeStructuredData
+    });
+    await fs.outputFile(path.join(DIST_DIR, 'for', name, 'index.html'), html);
+  }
+  LOGO_POSITION = liveLogos;
+  console.log(`  Tailored links: ${(readHomeFile().sets || []).map(s => `/for/${setLinkName(s)}/`).join(', ')}`);
 
   // Build about page with Person schema
   console.log('Building about page...');

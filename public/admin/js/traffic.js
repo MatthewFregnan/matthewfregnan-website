@@ -7,7 +7,12 @@
 const DAY = 86400000;
 const dayKey = t => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
-export function summarise(rows, days, now = Date.now()) {
+export function summarise(allRows, days, now = Date.now()) {
+  // Watch events (/watch/<page>/<start|25|50|75|end>/) are how far people watched a hosted video, not
+  // page views: counted separately (see "watching" below) and left out of everything else.
+  const isWatch = r => String(r[3]).startsWith('/watch/');
+  const rows = allRows.filter(r => !isWatch(r));
+  const watchRows = allRows.filter(isWatch);
   const visits = new Map();   // visit -> { pages: [{seq, path, secs}], source, country, device, start }
   for (const [ts, visit, seq, path, source, country, device, secs, city] of rows) {
     let v = visits.get(visit);
@@ -88,6 +93,7 @@ export function summarise(rows, days, now = Date.now()) {
     sources: count(vs, v => v.source),
     countries: count(vs, v => v.country || '??'),
     cities: count(vs.filter(v => v.city), v => `${v.city}|${v.country || ''}`),
+    watching: watching(watchRows),
     // every visit, newest first, for the visit-by-visit log
     visits: vs.slice().sort((a, b) => b.start - a.start),
     devices: count(vs, v => v.device || 'computer'),
@@ -200,8 +206,36 @@ export function renderTraffic(h, sum, opts = {}) {
       list('Devices', sum.devices.map(d => h('div', { class: 'tr-row' },
         h('span', { class: 'tr-name' }, d.name[0].toUpperCase() + d.name.slice(1)), h('span', {}),
         h('span', { class: 'tr-num' }, `${Math.round((d.n / t.visitors) * 100)}%`))))),
+    watchingCard(h, sum.watching, pageLink),
     visitLog(h, sum.visits, titleOf, pageLink),
     h('p', { class: 'muted small' }, 'Anonymous: no cookies, no IP addresses. A visit is one browser tab session (it resets after 30 idle minutes). Visitors who switch on Do Not Track aren’t counted.'));
+}
+
+/** Per video page: how many plays, and how many reached a quarter, half, three quarters and the end. */
+function watching(rows) {
+  const by = new Map();
+  for (const [, visit, , path] of rows) {
+    const m = String(path).match(/^\/watch(\/.+\/)(start|25|50|75|end)\/$/);
+    if (!m) continue;
+    const e = by.get(m[1]) || { path: m[1], start: new Set(), 25: new Set(), 50: new Set(), 75: new Set(), end: new Set() };
+    e[m[2]].add(visit);
+    by.set(m[1], e);
+  }
+  return [...by.values()].map(e => ({ path: e.path, plays: e.start.size, q25: e[25].size, q50: e[50].size, q75: e[75].size, end: e.end.size }))
+    .filter(e => e.plays).sort((a, b) => b.plays - a.plays);
+}
+
+function watchingCard(h, items, pageLink) {
+  const pct = (n, d) => (d ? Math.round((n / d) * 100) : 0);
+  return h('section', { class: 'tr-card' },
+    h('h4', {}, 'Watching'),
+    h('p', { class: 'muted small', style: 'margin:0 0 8px' }, 'How far people watch your hosted videos (YouTube, Vimeo and other embeds can’t report this). One play per visit.'),
+    items.length ? h('div', { class: 'tr-list' }, items.slice(0, 15).map(w => h('div', { class: 'tr-watch' },
+      h('span', { class: 'tr-name' }, pageLink(w.path)),
+      h('span', { class: 'tr-funnel', title: `Played ${w.plays} · ¼ ${pct(w.q25, w.plays)}% · ½ ${pct(w.q50, w.plays)}% · ¾ ${pct(w.q75, w.plays)}% · end ${pct(w.end, w.plays)}%` },
+        [w.q25, w.q50, w.q75, w.end].map(n => h('span', { style: `--f:${pct(n, w.plays)}%` }))),
+      h('span', { class: 'tr-num' }, `${w.plays} play${w.plays === 1 ? '' : 's'} · ${pct(w.q50, w.plays)}% halfway · ${pct(w.end, w.plays)}% to the end`))))
+      : h('p', { class: 'muted small' }, 'No plays of hosted videos yet.'));
 }
 
 /** A steady colour for a visit, so one person's journey is easy to follow down the log. */

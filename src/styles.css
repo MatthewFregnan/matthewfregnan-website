@@ -768,3 +768,35 @@ footer { animation: page-fade 0.35s ease-out 0.1s backwards; }
     opacity: 0; transition: opacity 0.5s ease 1.2s;
   }
 }
+
+/* Page transitions (browsers that support cross-page view transitions; others just load as before).
+   Quick and punchy: pages crossfade in about a quarter of a second, the menu bar stays put, and the tile
+   you tapped grows into the video on the project page (src/main.js names it as you tap). */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+}
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.25s; }
+::view-transition-group(project-media) { animation-duration: 0.35s; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+::view-transition-old(project-media), ::view-transition-new(project-media) { height: 100%; object-fit: cover; }
+#site-header { view-transition-name: site-header; }
+.pp-media .player-shell { view-transition-name: project-media; }
+/* during a page transition the normal load-in fade would double up, so it's skipped */
+html:active-view-transition #site-header, html:active-view-transition main > *, html:active-view-transition .hero-content > *,
+html:active-view-transition footer { animation: none !important; }
+
+/* Section pages: client filter chips (templates/gallery.ejs) */
+.client-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: -16px auto 28px; max-width: 900px; }
+.client-chip {
+  padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem; transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.client-chip span { opacity: 0.5; margin-left: 2px; font-variant-numeric: tabular-nums; }
+.client-chip:hover { border-color: rgba(255, 255, 255, 0.5); color: #fff; }
+.client-chip.is-on { background: #fff; color: #111; border-color: #fff; }
+.client-chip.is-on span { opacity: 0.6; }
+@media (max-width: 639px) {
+  .client-chips { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; margin: -8px -16px 20px; padding: 0 16px; scrollbar-width: none; }
+  .client-chips::-webkit-scrollbar { display: none; }
+  .client-chip { flex: none; }
+}
+.is-filtered-out { display: none !important; }

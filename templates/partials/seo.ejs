@@ -12,6 +12,7 @@
 <meta name="keywords" content="<%= site.seo.keywords %>">
 <meta name="author" content="<%= site.title %>">
 <link rel="canonical" href="<%= site.domain %><%= url %>">
+<% if (typeof noindex !== 'undefined' && noindex) { %><meta name="robots" content="noindex"><% } %>
 
 <!-- Open Graph / Facebook -->
 <meta property="og:type" content="<%= type %>">

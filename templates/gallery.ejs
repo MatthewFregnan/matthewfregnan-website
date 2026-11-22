@@ -8,6 +8,18 @@
     </h1>
     <% if (text['intro_' + category.id]) { %><p class="section-intro"><%= text['intro_' + category.id] %></p><% } %>
 
+    <%# Client filter: chips for clients with two or more projects here (only when there are at least two
+        such clients). Picking one shows just that client's work; ?client=<name> links straight to it. %>
+    <% const byClient = new Map();
+       projects.forEach(p => { const n = String(p.client || '').trim(); if (n) byClient.set(n, (byClient.get(n) || 0) + 1); });
+       const chips = [...byClient].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]); %>
+    <% if (chips.length >= 2) { %>
+    <div class="client-chips" role="group" aria-label="Show work for one client">
+      <button type="button" class="client-chip is-on" data-chip="">All</button>
+      <% chips.forEach(([name, n]) => { %><button type="button" class="client-chip" data-chip="<%= name.toLowerCase() %>"><%= name %> <span><%= n %></span></button><% }) %>
+    </div>
+    <% } %>
+
     <!-- Portfolio Grid -->
     <div class="<%= category.id === 'vertical' ? 'portfolio-grid-vertical' : 'portfolio-grid' %>">
       <% projects.forEach(project => { %>

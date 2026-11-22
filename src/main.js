@@ -1,3 +1,12 @@
+// Tailored links (/for/<name>/): someone who arrived on one keeps seeing that version of the home page
+// when they click Home or the name during the same visit.
+document.addEventListener('DOMContentLoaded', () => {
+  let home = null;
+  try { home = sessionStorage.getItem('mf-home'); } catch { /* storage blocked */ }
+  if (!home || !/^\/for\/[a-z0-9-]+\/$/.test(home)) return;
+  document.querySelectorAll('a[href="/"]').forEach(a => a.setAttribute('href', home));
+});
+
 // Home page: the nav bar is clear while you're at the top of the hero, and solid once you scroll. Your
 // name is already big in the hero, so the bar only shows it once that has scrolled out of sight.
 document.addEventListener('DOMContentLoaded', () => {
@@ -208,6 +217,18 @@ class VideoPlayer {
   // ------------------------------------------------------------------ hosted file
   setupFile(video) {
     this.video = video;
+    // How far people watch (Traffic → Watching): a play, then 25%, 50%, 75% and the end, each counted
+    // once per page view. Sent as made-up addresses like /watch/commercial/warning-levels/50/.
+    const base = location.pathname.replace(/\/?$/, '/');
+    const sent = new Set();
+    const mark = (m) => { if (!sent.has(m)) { sent.add(m); window.mfTrack?.(`/watch${base}${m}/`); } };
+    video.addEventListener('play', () => mark('start'));
+    video.addEventListener('timeupdate', () => {
+      const d = video.duration;
+      if (!d || !isFinite(d)) return;
+      const f = video.currentTime / d;
+      for (const [at, m] of [[0.25, '25'], [0.5, '50'], [0.75, '75'], [0.97, 'end']]) if (f >= at) mark(m);
+    });
     video.controls = false; // ours replace the browser's (they stay on if this script doesn't run)
     video.setAttribute('aria-label', this.title);
     this.shell.classList.add('custom-player', 'is-idle-start');
@@ -937,4 +958,41 @@ document.addEventListener('DOMContentLoaded', () => {
   new IntersectionObserver(([e]) => btn.classList.toggle('is-shown', e.isIntersecting && !pageIsShort()))
     .observe(footer);
   btn.addEventListener('click', () => glideTo(0, 900));
+});
+
+// Page transitions: name the tile you tap, so it grows into the video on the project page (styles.css).
+document.addEventListener('click', (e) => {
+  const tile = e.target.closest('a.portfolio-item, a.portfolio-item-vertical');
+  if (!tile || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+  document.querySelectorAll('[style*="view-transition-name"]').forEach(el => { el.style.viewTransitionName = ''; });
+  // the playing preview if there is one (the thumbnail is hidden under it), else the thumbnail
+  const media = (tile.classList.contains('is-previewing') && tile.querySelector('video.vp-preview'))
+    || tile.querySelector('img:not(.card-logo), video.card-still') || tile;
+  media.style.viewTransitionName = 'project-media';
+});
+// coming back with the Back button: clear the name so the next tap starts fresh
+window.addEventListener('pageshow', () => {
+  document.querySelectorAll('[style*="view-transition-name"]').forEach(el => { el.style.viewTransitionName = ''; });
+});
+
+// Section pages: client filter chips. Picking a client shows only their work (and ?client=name in the
+// address, so a filtered page can be linked); All shows everything again.
+document.addEventListener('DOMContentLoaded', () => {
+  const box = document.querySelector('.client-chips');
+  if (!box) return;
+  const tiles = [...document.querySelectorAll('[data-client]')].filter(t => !t.closest('.more-work'));
+  const apply = (client) => {
+    box.querySelectorAll('.client-chip').forEach(c => c.classList.toggle('is-on', c.dataset.chip === client));
+    tiles.forEach(t => t.classList.toggle('is-filtered-out', !!client && t.dataset.client !== client));
+    const url = new URL(location.href);
+    if (client) url.searchParams.set('client', client); else url.searchParams.delete('client');
+    history.replaceState(null, '', url);
+    window.dispatchEvent(new Event('scroll'));   // let the playing preview re-pick
+  };
+  box.addEventListener('click', (e) => {
+    const chip = e.target.closest('.client-chip');
+    if (chip) apply(chip.classList.contains('is-on') && chip.dataset.chip ? '' : chip.dataset.chip);
+  });
+  const start = (new URLSearchParams(location.search).get('client') || '').toLowerCase();
+  if (start && box.querySelector(`[data-chip="${CSS.escape(start)}"]`)) apply(start);
 });

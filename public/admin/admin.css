@@ -765,3 +765,8 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .tr-visit-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vc); flex: none; }
 .tr-visit-pages { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 5px; }
 .tr-visit .tr-step { border: 1px solid color-mix(in srgb, var(--vc) 45%, transparent); }
+.tailored-url { font-size: 12px; padding: 6px 10px; border-radius: 6px; background: rgba(255,255,255,.06); user-select: all; }
+.tr-watch { display: grid; grid-template-columns: minmax(0, 1fr) 120px auto; align-items: center; gap: 12px; font-size: 13px; padding: 4px 0; }
+.tr-watch + .tr-watch { border-top: 1px solid var(--border); }
+.tr-funnel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; height: 10px; }
+.tr-funnel span { border-radius: 2px; background: linear-gradient(to top, var(--accent) var(--f), rgba(255,255,255,.08) var(--f)); }
