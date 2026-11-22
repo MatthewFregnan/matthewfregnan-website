@@ -74,7 +74,7 @@
 
   /* Scroll nudge at the bottom of the hero */
   .scroll-cue {
-    position: absolute; left: 50%; bottom: 14px; z-index: 10;
+    position: absolute; left: 50%; bottom: 4px; z-index: 10;
     width: 60px; height: 60px; margin-left: -30px;
     display: grid; place-items: center; border-radius: 50%;
     color: rgba(255, 255, 255, 0.85);
@@ -621,3 +621,8 @@
 .stats-lines li { display: flex; align-items: baseline; gap: 8px; }
 .stats-n { font-size: 1.5rem; font-weight: 300; line-height: 1.25; font-variant-numeric: tabular-nums; }
 .stats-w { color: #a0a0a0; font-size: 0.9rem; }
+
+/* Home hero: the name, tagline and button sit a little above centre, so with the client logos and
+   arrow below, the whole stack reads as balanced */
+.hero-content { transform: translateY(-5vh); }
+@media (max-height: 640px) { .hero-content { transform: none; } }
