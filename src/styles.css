@@ -485,12 +485,13 @@
 @media (min-width: 1024px) { .info-pill { display: none; } }
 
 /* Client logo on a tile (optional, per client): small, white, top-left, readable on any picture */
-.card-logo {
-  position: absolute; top: 12px; left: 12px; z-index: 2; height: 24px; width: auto; max-width: 45%;
+.portfolio-item .card-logo, .portfolio-item-vertical .card-logo {
+  position: absolute; top: 12px; left: 12px; z-index: 2; height: 24px; width: auto; max-width: 45%; transform: none;
   object-fit: contain; object-position: left top; pointer-events: none;
   filter: brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55)); opacity: 0.92;
 }
 .portfolio-item-vertical .card-logo { height: 18px; top: 10px; left: 10px; }
+.portfolio-item:hover .card-logo, .portfolio-item-vertical:hover .card-logo { transform: none; }
 
 /* End of a home page row: "More Commercial ›" etc. takes you to that section's page */
 .scroller-more {

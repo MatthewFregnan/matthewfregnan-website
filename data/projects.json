@@ -1435,5 +1435,73 @@
       "updated": "2026-11-22T04:58:33",
       "thumbFocus": "66% 7%"
     }
-  ]
+  ],
+  "clients": {
+    "RedOctane Games": {
+      "logo": "redoctane-games.webp"
+    },
+    "Oporto": {
+      "logo": "oporto.webp"
+    },
+    "Australian Human Rights Commission": {
+      "logo": "australian-human-rights-commission.webp"
+    },
+    "Royal Children's Hospital": {
+      "logo": "royal-childrens-hospital.webp"
+    },
+    "Victorian Legal Services Board + Commissioner": {
+      "logo": "victorian-legal-services-board.webp"
+    },
+    "VACCHO": {
+      "logo": "vaccho.webp"
+    },
+    "Yarra Valley Water": {
+      "logo": "yarra-valley-water.webp"
+    },
+    "TAB": {
+      "logo": "tab.webp"
+    },
+    "Deakin University": {
+      "logo": "deakin-university.webp"
+    },
+    "Preshil School": {
+      "logo": "preshil.webp"
+    },
+    "DSS": {
+      "logo": "dss.webp"
+    },
+    "Department of Transport": {
+      "logo": "ptv.webp"
+    },
+    "PTV": {
+      "logo": "ptv.webp"
+    },
+    "Ladbrokes": {
+      "logo": "ladbrokes.webp"
+    },
+    "Life Saving Victoria": {
+      "logo": "life-saving-victoria.webp"
+    },
+    "VCAA": {
+      "logo": "vcaa.webp"
+    },
+    "KIA": {
+      "logo": "kia.webp"
+    },
+    "CRKD": {
+      "logo": "crkd.webp"
+    },
+    "Victorian Government": {
+      "logo": "victorian-government.webp"
+    },
+    "Department of Education": {
+      "logo": "victorian-government.webp"
+    },
+    "Australian Warning Systems": {
+      "logo": "australian-government.webp"
+    },
+    "Iona College": {
+      "logo": "iona-college-geelong.webp"
+    }
+  }
 }
