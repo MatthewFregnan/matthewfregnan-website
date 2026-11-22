@@ -391,7 +391,7 @@
       "year": "2026",
       "description": "",
       "thumbnail": "branded/we-are-rebranding.jpg",
-      "updated": "2026-11-22T13:50:12",
+      "updated": "2026-11-22T13:50:38",
       "youtubeId": "zu_ccbnQBYo",
       "platform": "",
       "showStats": true,
@@ -401,21 +401,6 @@
         "branded/we-are-rebranding"
       ],
       "thumbFocus": "43% 23%"
-    },
-    {
-      "id": "iona-college-hero",
-      "title": "Iona College - Welcome Video",
-      "category": "branded",
-      "videoFile": "https://videos.matthewfregnan.com/branded/iona-college-hero.mp4",
-      "vimeoId": "1097248874",
-      "thumbnail": "branded/iona-college-hero.webp",
-      "client": "Iona College",
-      "description": "",
-      "role": "Editor",
-      "year": "2025",
-      "production": "Milk Video",
-      "updated": "2026-11-22T04:56:37",
-      "thumbFocus": "52% 30%"
     },
     {
       "id": "deakin-alumni-25-anika",
@@ -478,6 +463,21 @@
       "thumbFocus": "51% 21%"
     },
     {
+      "id": "iona-college-hero",
+      "title": "Iona College - Welcome Video",
+      "category": "branded",
+      "videoFile": "https://videos.matthewfregnan.com/branded/iona-college-hero.mp4",
+      "vimeoId": "1097248874",
+      "thumbnail": "branded/iona-college-hero.webp",
+      "client": "Iona College",
+      "description": "",
+      "role": "Editor",
+      "year": "2025",
+      "production": "Milk Video",
+      "updated": "2026-11-22T04:56:37",
+      "thumbFocus": "52% 30%"
+    },
+    {
       "id": "preshil-primary-school",
       "title": "Preshil Primary School",
       "category": "branded",
@@ -493,18 +493,18 @@
       "thumbFocus": "51% 73%"
     },
     {
-      "id": "dss-yan-lucy-luz",
-      "title": "DSS - Yan, Lucy & Luz",
+      "id": "dot-dayinthelife",
+      "title": "DOT - A Day In The Life",
       "category": "branded",
-      "videoFile": "https://videos.matthewfregnan.com/branded/dss-yan-lucy-luz.mp4",
-      "vimeoId": "846783593",
-      "thumbnail": "branded/dss-yan-lucy-luz.webp",
-      "client": "DSS",
+      "videoFile": "https://videos.matthewfregnan.com/branded/dot-dayinthelife.mp4",
+      "vimeoId": "766775165",
+      "thumbnail": "branded/dot-dayinthelife.webp",
+      "client": "Department of Transport",
       "description": "",
       "role": "Editor",
-      "year": "2023",
+      "year": "2022",
       "production": "ThinkHQ",
-      "updated": "2026-11-22T03:49:33"
+      "updated": "2026-11-22T03:49:39"
     },
     {
       "id": "birth-for-humankind",
@@ -521,18 +521,33 @@
       "updated": "2026-11-22T03:49:36"
     },
     {
-      "id": "dot-dayinthelife",
-      "title": "DOT - A Day In The Life",
+      "id": "life-saving-vic-rockfishing",
+      "title": "Life Saving Vic - Rock Fishing",
       "category": "branded",
-      "videoFile": "https://videos.matthewfregnan.com/branded/dot-dayinthelife.mp4",
-      "vimeoId": "766775165",
-      "thumbnail": "branded/dot-dayinthelife.webp",
-      "client": "Department of Transport",
+      "videoFile": "https://videos.matthewfregnan.com/branded/life-saving-vic-rockfishing.mp4",
+      "vimeoId": "766796032",
+      "thumbnail": "branded/life-saving-vic-rockfishing.webp",
+      "client": "Life Saving Victoria",
       "description": "",
       "role": "Editor",
       "year": "2022",
       "production": "ThinkHQ",
-      "updated": "2026-11-22T03:49:39"
+      "updated": "2026-11-22T04:58:08",
+      "thumbFocus": "48% 16%"
+    },
+    {
+      "id": "dss-yan-lucy-luz",
+      "title": "DSS - Yan, Lucy & Luz",
+      "category": "branded",
+      "videoFile": "https://videos.matthewfregnan.com/branded/dss-yan-lucy-luz.mp4",
+      "vimeoId": "846783593",
+      "thumbnail": "branded/dss-yan-lucy-luz.webp",
+      "client": "DSS",
+      "description": "",
+      "role": "Editor",
+      "year": "2023",
+      "production": "ThinkHQ",
+      "updated": "2026-11-22T03:49:33"
     },
     {
       "id": "dss-robert-ruby",
@@ -611,22 +626,6 @@
       "thumbFocus": "51% 10%"
     },
     {
-      "id": "ladbrokes-afl-2-terry-williams",
-      "title": "Ladbrokes AFL - Terry Williams",
-      "category": "branded",
-      "videoFile": "https://videos.matthewfregnan.com/branded/ladbrokes-afl-2-terry-williams.mp4",
-      "vimeoId": "",
-      "thumbnail": "branded/ladbrokes-afl-2-terry-williams.webp",
-      "client": "Ladbrokes",
-      "description": "",
-      "role": "Editor",
-      "year": "2024",
-      "production": "Elastic",
-      "youtubeId": "Kn2iTWlVS88",
-      "updated": "2026-11-22T04:57:47",
-      "thumbFocus": "50% 11%"
-    },
-    {
       "id": "dss-shaker-shameron",
       "title": "DSS - Shaker & Shameron",
       "category": "branded",
@@ -669,21 +668,6 @@
       "year": "2021",
       "production": "ThinkHQ",
       "updated": "2026-11-22T04:58:04",
-      "thumbFocus": "48% 16%"
-    },
-    {
-      "id": "life-saving-vic-rockfishing",
-      "title": "Life Saving Vic - Rock Fishing",
-      "category": "branded",
-      "videoFile": "https://videos.matthewfregnan.com/branded/life-saving-vic-rockfishing.mp4",
-      "vimeoId": "766796032",
-      "thumbnail": "branded/life-saving-vic-rockfishing.webp",
-      "client": "Life Saving Victoria",
-      "description": "",
-      "role": "Editor",
-      "year": "2022",
-      "production": "ThinkHQ",
-      "updated": "2026-11-22T04:58:08",
       "thumbFocus": "48% 16%"
     },
     {
@@ -1553,6 +1537,24 @@
       "thumbFocus": "52% 22%"
     },
     {
+      "id": "ladbrokes-afl-2-terry-williams",
+      "title": "Ladbrokes AFL - Terry Williams",
+      "category": "branded",
+      "videoFile": "https://videos.matthewfregnan.com/branded/ladbrokes-afl-2-terry-williams.mp4",
+      "vimeoId": "",
+      "thumbnail": "branded/ladbrokes-afl-2-terry-williams.webp",
+      "client": "Ladbrokes",
+      "description": "",
+      "role": "Editor",
+      "year": "2024",
+      "production": "Elastic",
+      "youtubeId": "Kn2iTWlVS88",
+      "updated": "2026-11-22T13:52:52",
+      "thumbFocus": "50% 11%",
+      "hidden": true,
+      "hiddenSince": "2026-11-22"
+    },
+    {
       "id": "project-one-f5w4d-mwg2g-ech6b-d94s3-ycz6p-9sfws-ewbxa",
       "title": "STAND - Featured Profile #4",
       "category": "branded",
@@ -1564,8 +1566,10 @@
       "role": "Editor",
       "year": "2022",
       "production": "ThinkHQ",
-      "updated": "2026-11-22T04:58:33",
-      "thumbFocus": "66% 7%"
+      "updated": "2026-11-22T13:53:03",
+      "thumbFocus": "66% 7%",
+      "hidden": true,
+      "hiddenSince": "2026-11-22"
     }
   ],
   "clients": {
