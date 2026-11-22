@@ -770,7 +770,7 @@ const SITE_TEXT = {
   availability: '',
   // one line under each section page's heading (key: intro_<section id>)
   'intro_commercial': 'TV and online campaigns for brands, agencies and government.',
-  'intro_branded': 'Brand stories, profiles and series made with organisations and brands.',
+  'intro_branded': 'Stories, profiles and series made with organisations and brands.',
   'intro_vertical': 'Short-form for TikTok, Instagram and YouTube Shorts.',
   'intro_colour-grading': 'Grading for commercials, music videos and short films.',
 };
