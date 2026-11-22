@@ -4,8 +4,8 @@ from __future__ import annotations
 import copy
 import shutil
 
-from PySide6.QtCore import QSettings, QStandardPaths, Qt, QTimer
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import QSettings, QStandardPaths, Qt, QTimer, QUrl
+from PySide6.QtGui import QAction, QDesktopServices, QKeySequence
 from PySide6.QtWidgets import (
     QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QSplitter,
     QStackedWidget, QToolBar, QVBoxLayout,
@@ -168,19 +168,23 @@ class MainWindow(QMainWindow):
         self.act_check = act("Check Videos", self.check_videos, "Ctrl+K", "Check every video link still plays")
         self.act_home = act("Home Page…", self.open_home, "Ctrl+H", "Choose which projects are on the home page")
         self.act_preview = act("Preview Site", self.preview, "Ctrl+R", "Build the site and open it in your browser")
+        self.act_view = act("View on Site", self.view_on_site, "Ctrl+Shift+V", "Open this project on the live site")
+        self.act_discard = act("Discard Unpublished Changes…", self.discard_changes, None,
+                               "Throw away everything that isn't live yet")
         self.act_publish = act("Publish", self.publish, "Ctrl+Shift+P", "Put your changes live")
 
         tb = QToolBar("Main")
         tb.setMovable(False)
         tb.setToolButtonStyle(Qt.ToolButtonTextOnly)
         for a in (self.act_new_link, self.act_new, self.act_dup, self.act_del, None, self.act_undo, self.act_redo,
-                  None, self.act_home, self.act_check, self.act_preview, self.act_publish):
+                  None, self.act_home, self.act_check, self.act_view, self.act_preview, self.act_publish):
             tb.addSeparator() if a is None else tb.addAction(a)
         self.addToolBar(tb)
 
         mb = self.menuBar()
         for title, items in (
-            ("&File", (self.act_new_link, self.act_new, self.act_dup, None, self.act_preview, self.act_publish)),
+            ("&File", (self.act_new_link, self.act_new, self.act_dup, None, self.act_view, self.act_preview,
+                       self.act_publish, None, self.act_discard)),
             ("&Edit", (self.act_undo, self.act_redo, None, self.act_find, self.act_up, self.act_down, None, self.act_del)),
             ("&Tools", (self.act_home, self.act_check)),
         ):
@@ -191,7 +195,7 @@ class MainWindow(QMainWindow):
     def _update_actions(self):
         p = self.editor.p
         has = p is not None and any(x is p for x in self.store.projects)
-        for a in (self.act_dup, self.act_del, self.act_up, self.act_down):
+        for a in (self.act_dup, self.act_del, self.act_up, self.act_down, self.act_view):
             a.setEnabled(has)
         if has:
             row, n = self.store.row_in_category(p)
@@ -315,6 +319,36 @@ class MainWindow(QMainWindow):
         n = len(self.changes)
         self.act_publish.setText(f"Publish ({n})" if n else "Publish")
         self.act_publish.setToolTip("\n".join(self.changes) if n else "Everything is live")
+
+    def view_on_site(self):
+        p = self.editor.p
+        if p is not None:
+            QDesktopServices.openUrl(QUrl("https://matthewfregnan.com" + self.store.page_path(p)))
+
+    def discard_changes(self):
+        self.store.flush()
+        changes = tasks.unpublished_changes(self.repo)
+        if not changes:
+            QMessageBox.information(self, "Discard", "There's nothing unpublished to discard.")
+            return
+        listing = "\n".join(f"• {c}" for c in changes[:15]) + ("\n…" if len(changes) > 15 else "")
+        if QMessageBox.warning(self, "Discard unpublished changes?",
+                               f"This throws away everything that isn't live yet:\n\n{listing}\n\n"
+                               "Your project list and images go back to what's on the site. This can't be undone.",
+                               QMessageBox.Discard | QMessageBox.Cancel, QMessageBox.Cancel) != QMessageBox.Discard:
+            return
+        current = self.editor.p
+        key = (current["category"], current["id"]) if current else None
+        r1 = tasks.git(self.repo, "restore", "--source=HEAD", "--staged", "--worktree", "--", "data", "images")
+        r2 = tasks.git(self.repo, "clean", "-fd", "--", "images")
+        if r1.returncode != 0 or r2.returncode != 0:
+            QMessageBox.critical(self, "Discard", f"Couldn't discard:\n{(r1.stderr or r2.stderr)[-400:]}")
+            return
+        self.store.reload()
+        match = next((p for p in self.store.projects if key and (p["category"], p["id"]) == key), None)
+        self.sidebar.select(match)
+        self._refresh_changes()
+        self.statusBar().showMessage("Discarded unpublished changes.", 6000)
 
     def preview(self):
         self.store.flush()

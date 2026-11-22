@@ -20,6 +20,20 @@ The first launch installs what the app needs (about a minute). After that it ope
 - Client, Role and Production suggest values you've used before.
 - Backup video links and the stills gallery stay hidden until you need them (*+ Add a backup link*, *+ Add stills*).
 
+## Adding a video
+
+**Easiest: Upload Video File…** in the project's Video section (or drop a video file on the player). Any file works: a ProRes or 4K master, a phone video, a reel you've saved from your own Instagram. The app:
+
+1. checks the file, and if it's already a web-ready 1080p H.264 MP4 just tidies it so it starts playing instantly, otherwise converts it to a high-quality 1080p web video (keeping it under the 300 MB upload limit);
+2. uploads it to videos.matthewfregnan.com;
+3. links it as the project's Video file. Press **Publish** to put it live.
+
+It needs ffmpeg (`brew install ffmpeg`) and Wrangler signed in once (`npx wrangler@3 login`). Uploading is desktop-only: the storage login can't safely live in a web page.
+
+**Exporting so no conversion is needed:** H.264 MP4, 1080p (or 1080×1920 for vertical), around 8–10 Mbps, AAC audio.
+
+**Thumbnails and stills from the video:** **Pick from Video…** (desktop app and web admin) lets you scrub to any frame of the project's hosted video and use it as the thumbnail or add it to the stills.
+
 ## Videos
 
 **Your own video files come first.** Videos are stored in Cloudflare R2 (free up to 10 GB, no charge for views) at `https://videos.matthewfregnan.com/<category>/<project>.mp4` and play in the site's own player: no ads, no logos. To add one:

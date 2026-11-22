@@ -135,6 +135,10 @@ class ProjectEditor(QScrollArea):
 
         # ---------------- right: video
         right.addWidget(section("Video"))
+        from media import VideoPreview
+        self.preview = VideoPreview()
+        self.preview.fileDropped.connect(self.upload_video)
+        right.addWidget(self.preview)
         grid = QGridLayout()
         grid.setHorizontalSpacing(6)
         grid.setVerticalSpacing(4)
@@ -180,7 +184,15 @@ class ProjectEditor(QScrollArea):
         right.addWidget(self.show_stats)
         self.btn_fetch = QPushButton("Use Video's Title, Year && Thumbnail")
         self.btn_fetch.clicked.connect(self.use_video_details)
-        right.addWidget(self.btn_fetch, 0, Qt.AlignLeft)
+        vbtns = QHBoxLayout()
+        vbtns.addWidget(self.btn_fetch)
+        self.btn_upload = QPushButton("Upload Video File…")
+        self.btn_upload.setToolTip("Convert (if needed) and upload a video to videos.matthewfregnan.com, "
+                                   "then use it as this project's video. You can also drop a file on the player.")
+        self.btn_upload.clicked.connect(self._choose_upload)
+        vbtns.addWidget(self.btn_upload)
+        vbtns.addStretch()
+        right.addLayout(vbtns)
 
         # ---------------- right: thumbnail
         right.addWidget(section("Thumbnail"))
@@ -189,6 +201,10 @@ class ProjectEditor(QScrollArea):
         self.thumb.fileChosen.connect(self.set_thumbnail)
         self.thumb.focusChosen.connect(self._set_focus)
         right.addWidget(self.thumb)
+        self.btn_pick = QPushButton("Pick from Video…")
+        self.btn_pick.setToolTip("Choose a frame of this project's video as the thumbnail or as gallery stills")
+        self.btn_pick.clicked.connect(self.pick_from_video)
+        right.addWidget(self.btn_pick, 0, Qt.AlignLeft)
         self.focus_hint = QLabel("Click the picture to choose what stays in view when it’s cropped (e.g. a face).")
         self.focus_hint.setWordWrap(True)
         self.focus_hint.setStyleSheet("color: palette(placeholder-text);")
@@ -246,6 +262,7 @@ class ProjectEditor(QScrollArea):
 
     # ------------------------------------------------------------------ loading
     def set_project(self, p: dict | None):
+        self.preview.stop()
         self.p = p
         self._show_backups = self._show_gallery = False
         self._gallery_shown = None
@@ -424,6 +441,8 @@ class ProjectEditor(QScrollArea):
         self.show_stats.setVisible(bool(ordered))
         self.btn_fetch.setVisible(bool(ordered))
         self.btn_fetch.setEnabled(any((s := self.checker.get(r)) and s.ok and r.kind != "file" for r in ordered))
+        self.btn_fetch.setVisible(any(r.kind != "file" for r in ordered))
+        self._update_preview(p, ordered)
 
         if not ordered:
             self.video_state.setText("No video. The page will show the gallery only." if p.get("gallery") else "")
@@ -445,6 +464,55 @@ class ProjectEditor(QScrollArea):
             msg = (f"{dot('bad')} Nothing plays: {first.message.lower()}.<br>"
                    "Check the link opens in your browser, or add a backup link.")
         self.video_state.setText(msg)
+
+    # ------------------------------------------------------------------ preview / upload / frames
+    def _update_preview(self, p, ordered):
+        file_ref = next((r for r in ordered if r.kind == "file"), None)
+        self.btn_pick.setVisible(file_ref is not None)
+        active = next((r for r in ordered if (s := self.checker.get(r)) is None or s.ok is not False), None)
+        active = active or (ordered[0] if ordered else None)
+        if active and active.kind == "file":
+            self.preview.show_file(active.id, p.get("category") == "vertical")
+        elif active:
+            self.preview.show_message(f"This project plays from {core.SOURCE_NAMES[active.kind]}. "
+                                      "Click Open to watch it, or upload a video file to host it yourself.")
+        else:
+            self.preview.show_message("No video yet. Paste a link below, or drop a video file here to upload it.")
+
+    def _choose_upload(self):
+        f, _ = QFileDialog.getOpenFileName(self, "Choose a video to upload", "",
+                                           "Videos (*.mp4 *.mov *.m4v *.mxf *.mkv *.webm *.avi)")
+        if f:
+            self.upload_video(Path(f))
+
+    def upload_video(self, src: Path):
+        p = self.p
+        if p is None:
+            return
+        from media import UploadDialog
+        from upload import upload_video
+        self.preview.stop()
+
+        def done(url: str):
+            if self.p is not p:
+                return
+            ref = core.VideoRef("file", url)
+            self.store.edit(p, "Upload Video", lambda q: core.set_source(q, "file", ref))
+            self.checker.check(ref, force=True)
+            self.load()
+
+        UploadDialog(self, p.get("title", ""), lambda progress: upload_video(p, src, progress), done).exec()
+
+    def pick_from_video(self):
+        p = self.p
+        ref = core.project_sources(p).get("file") if p else None
+        if not ref:
+            return
+        from media import FramePicker
+        self.preview.stop()
+        FramePicker(self, p.get("title", ""), ref.id,
+                    on_thumbnail=self.set_thumbnail,
+                    on_still=lambda path: self.add_gallery([path])).exec()
 
     def use_video_details(self):
         p = self.p

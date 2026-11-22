@@ -1,10 +1,11 @@
 """Left-hand project list: search, category filter, drag to reorder."""
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import QRect, QSize, Qt, Signal
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
-    QAbstractItemView, QComboBox, QLineEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
+    QAbstractItemView, QComboBox, QLineEdit, QStyle, QStyledItemDelegate, QTreeWidget, QTreeWidgetItem,
+    QVBoxLayout, QWidget,
 )
 
 from store import Store
@@ -13,6 +14,81 @@ from widgets import COLORS, dot_icon
 
 PID = Qt.UserRole        # id() of the project dict an item shows
 CAT = Qt.UserRole + 1    # category id on category header items
+THUMB = Qt.UserRole + 2  # thumbnail file path
+SUB = Qt.UserRole + 3    # "client · year" line
+DOT = Qt.UserRole + 4    # status dot colour (or "")
+FOCUS = Qt.UserRole + 5  # (x%, y%) focus point for cropping the thumbnail
+
+THUMB_W, THUMB_H = 48, 27
+
+
+class ProjectDelegate(QStyledItemDelegate):
+    """Project rows like the web admin: status dot, small thumbnail, title with client · year under it."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._cache: dict[tuple, QPixmap] = {}
+
+    def _thumb(self, path: str, focus) -> QPixmap | None:
+        focus = tuple(focus) if focus else (50.0, 50.0)
+        key = (path, focus)
+        if key not in self._cache:
+            pix = QPixmap(path)
+            if pix.isNull():
+                self._cache[key] = None
+            else:
+                from widgets import crop_preview
+                self._cache[key] = crop_preview(pix, focus or (50.0, 50.0), THUMB_W / THUMB_H, THUMB_W * 2)
+        return self._cache[key]
+
+    def sizeHint(self, option, index):
+        if index.data(PID) is None:
+            return super().sizeHint(option, index)
+        return QSize(option.rect.width(), 40)
+
+    def paint(self, painter: QPainter, option, index):
+        if index.data(PID) is None:
+            return super().paint(painter, option, index)
+        painter.save()
+        selected = option.state & QStyle.State_Selected
+        if selected:
+            painter.fillRect(option.rect, option.palette.highlight())
+        elif option.state & QStyle.State_MouseOver:
+            painter.fillRect(option.rect, option.palette.alternateBase())
+        r = option.rect
+        x = r.left() + 4
+        dot = index.data(DOT)
+        if dot:
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor(dot))
+            painter.drawEllipse(x, r.center().y() - 4, 8, 8)
+        x += 14
+        thumb_rect = QRect(x, r.center().y() - THUMB_H // 2, THUMB_W, THUMB_H)
+        pix = self._thumb(index.data(THUMB), index.data(FOCUS)) if index.data(THUMB) else None
+        if pix:
+            painter.drawPixmap(thumb_rect, pix)
+        else:
+            painter.fillRect(thumb_rect, option.palette.mid())
+        x += THUMB_W + 8
+        text_w = r.right() - x - 4
+        title_color = option.palette.highlightedText().color() if selected else option.palette.text().color()
+        sub_color = QColor(title_color)
+        sub_color.setAlpha(150)
+        f = option.font
+        painter.setFont(f)
+        painter.setPen(title_color)
+        fm = painter.fontMetrics()
+        painter.drawText(QRect(x, r.top() + 4, text_w, fm.height()), Qt.AlignLeft | Qt.AlignVCenter,
+                         fm.elidedText(index.data(Qt.DisplayRole) or "", Qt.ElideRight, text_w))
+        small = f.__class__(f)
+        small.setPointSizeF(max(8.0, f.pointSizeF() - 1.5))
+        painter.setFont(small)
+        painter.setPen(sub_color)
+        sfm = painter.fontMetrics()
+        painter.drawText(QRect(x, r.top() + 4 + fm.height(), text_w, sfm.height()), Qt.AlignLeft | Qt.AlignVCenter,
+                         sfm.elidedText(index.data(SUB) or "", Qt.ElideRight, text_w))
+        painter.restore()
 
 
 class ProjectTree(QTreeWidget):
@@ -62,6 +138,8 @@ class Sidebar(QWidget):
             self.filter.addItem(c["name"], c["id"])
         self.filter.currentIndexChanged.connect(self.rebuild)
         self.tree = ProjectTree()
+        self.tree.setItemDelegate(ProjectDelegate(self.tree))
+        self.tree.setMouseTracking(True)
         self.tree.currentItemChanged.connect(self._on_current)
         self.tree.moved.connect(self._on_moved)
 
@@ -116,10 +194,15 @@ class Sidebar(QWidget):
             self.select(None)  # it was deleted (or an add was undone)
 
     def _decorate(self, item: QTreeWidgetItem, p: dict):
+        from widgets import parse_focus
         item.setText(0, p.get("title") or "(untitled)")
         item.setToolTip(0, f"{p.get('client', '')}  ·  {self.store.page_path(p)}")
         state = self.checker.state(p)
-        item.setIcon(0, dot_icon(COLORS[state]) if state else QIcon())
+        item.setData(0, DOT, COLORS[state] if state else "")
+        thumb = self.store.repo.thumb_path(p)
+        item.setData(0, THUMB, str(thumb) if thumb and thumb.exists() else "")
+        item.setData(0, FOCUS, parse_focus(p.get("thumbFocus")))
+        item.setData(0, SUB, " · ".join(x for x in (p.get("client", ""), p.get("year", "")) if x) or " ")
 
     def refresh_icons(self):
         by_id = {id(p): p for p in self.store.projects}
