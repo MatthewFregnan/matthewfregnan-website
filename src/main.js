@@ -405,6 +405,28 @@ document.addEventListener('DOMContentLoaded', () => {
   reduce.addEventListener?.('change', apply);
 });
 
+// Home page backdrop: as you scroll past the hero, the showreel zooms in, blurs and darkens behind the
+// work (see .hero-bg in src/styles.css). Reduced-motion: it just blurs and darkens, no zoom.
+document.addEventListener('DOMContentLoaded', () => {
+  const bg = document.getElementById('hero-bg');
+  if (!bg) return;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let last = -1;
+  let ticking = false;
+  const update = () => {
+    ticking = false;
+    const p = Math.min(1, Math.max(0, window.scrollY / (window.innerHeight * 0.7)));
+    const q = Math.round(p * 200) / 200;
+    if (q === last) return;
+    last = q;
+    bg.style.setProperty('--p', q);
+    bg.classList.toggle('no-zoom', reduce.matches);
+  };
+  window.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  window.addEventListener('resize', update);
+  update();
+});
+
 // Hover previews: tiles with a hosted video play it silently while the mouse is over
 // them (desktop only; on phones a tap just opens the project). The video only loads on hover.
 document.addEventListener('DOMContentLoaded', () => {

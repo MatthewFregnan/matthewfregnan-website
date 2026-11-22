@@ -443,3 +443,23 @@
 
 /* Slightly rounded tiles (project cards and the "All work" section tiles) */
 .portfolio-item, .portfolio-item-vertical, .category-tile { border-radius: 6px; overflow: hidden; isolation: isolate; }
+
+/* ----------------------------------------------------------------------------------------
+   Home page backdrop: the showreel sits behind the whole page. Scrolling zooms it in, blurs and
+   darkens it (src/main.js sets --p from 0 at the top to 1 once the hero has scrolled away).
+   ---------------------------------------------------------------------------------------- */
+.hero-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; --p: 0; background: #0a0a0a; }
+.hero-media {
+  position: absolute; inset: 0;
+  transform: scale(calc(1 + var(--p) * 0.15));
+  filter: blur(calc(var(--p) * 18px));
+  will-change: transform, filter;
+}
+.hero-media video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hero-shade { position: absolute; inset: 0; background: #000; opacity: calc(0.5 + var(--p) * 0.3); }
+/* at the top, the area under the hero (Featured Work) fades to near-black so it reads cleanly */
+.hero-fade {
+  position: absolute; inset: 0; opacity: calc(1 - var(--p));
+  background: linear-gradient(to bottom, transparent 64%, rgba(10, 10, 10, 0.92) 86%);
+}
+.hero-bg.no-zoom .hero-media { transform: none; }
