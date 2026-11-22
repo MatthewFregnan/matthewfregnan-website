@@ -1,6 +1,7 @@
 """Home Page window: choose which set of projects is live on the home page, and edit the sets."""
 from __future__ import annotations
 
+import json
 import re
 
 from PySide6.QtCore import QSize, Qt
@@ -67,6 +68,34 @@ class AddProjectsDialog(QDialog):
                 if self.list.item(i).checkState() == Qt.Checked]
 
 
+def featured_plan(store: Store, s: dict) -> dict:
+    """Which landscape projects the home page shows for set `s`, with a status line for each (matches build.js)."""
+    keys = [k for k in s.get("projects", [])
+            if (p := store.project_by_key(k)) and p.get("category") != "vertical"]
+    try:
+        count = max(0, int(s.get("featuredCount") or 0))
+    except (TypeError, ValueError):
+        count = 0
+    locked = set(s.get("locked", []))
+    plan = {"total": len(keys), "count": count if 0 < count < len(keys) else 0,
+            "shuffle": bool(s.get("shuffle")), "status": {}, "locked": 0}
+    if not plan["count"]:
+        return plan
+    n = plan["count"]
+    locked_keys = [k for k in keys if k in locked]
+    plan["locked"] = len(locked_keys)
+    first = (locked_keys + [k for k in keys if k not in locked])[:n]
+    for k in keys:
+        if k in locked:
+            st = "Locked: always shown" if k in first else f"Not shown (more than {n} locked)"
+        elif plan["shuffle"]:
+            st = "Not shown (all places are locked)" if len(locked_keys) >= n else "In the shuffle"
+        else:
+            st = "Shown" if k in first else f"Not shown (only the top {n})"
+        plan["status"][k] = st
+    return plan
+
+
 class HomeDialog(QDialog):
     def __init__(self, parent, store: Store):
         super().__init__(parent)
@@ -120,6 +149,19 @@ class HomeDialog(QDialog):
         b_add.clicked.connect(self._add)
         b_rm = QPushButton("Remove")
         b_rm.clicked.connect(self._remove)
+        self.b_lock = QPushButton("Lock")
+        self.b_lock.setToolTip("Locked landscape projects are always shown on the home page")
+        self.b_lock.clicked.connect(self._toggle_lock)
+        self.items.itemSelectionChanged.connect(self._update_lock_button)
+
+        # Featured: how many landscape projects show, and whether the rest are shuffled
+        self.f_count = QComboBox()
+        self.f_count.activated.connect(self._set_count)
+        self.f_shuffle = QCheckBox("Shuffle on each visit")
+        self.f_shuffle.toggled.connect(self._set_shuffle)
+        self.f_hint = QLabel()
+        self.f_hint.setWordWrap(True)
+        self.f_hint.setStyleSheet("color: palette(placeholder-text);")
         hint = QLabel("Drag to reorder. Landscape and Social projects show in separate rows, in the order set above.")
         hint.setStyleSheet("color: palette(placeholder-text);")
         right = QWidget()
@@ -163,10 +205,18 @@ class HomeDialog(QDialog):
         form.addRow("Show", shows)
         rl.addWidget(box)
         self.display_box = box
+        frow = QHBoxLayout()
+        frow.addWidget(QLabel("Landscape projects shown:"))
+        frow.addWidget(self.f_count)
+        frow.addWidget(self.f_shuffle)
+        frow.addStretch()
+        rl.addLayout(frow)
+        rl.addWidget(self.f_hint)
         rl.addWidget(self.items, 1)
         r2 = QHBoxLayout()
         r2.addWidget(b_add)
         r2.addWidget(b_rm)
+        r2.addWidget(self.b_lock)
         r2.addStretch()
         rl.addLayout(r2)
         rl.addWidget(hint)
@@ -235,13 +285,42 @@ class HomeDialog(QDialog):
         self.d_show_social.setChecked(st.get("showSocial", True) is not False)
         for w in (self.d_heading, self.d_order, self.d_land, self.d_social, self.d_show_land, self.d_show_social):
             w.blockSignals(False)
+        plan = featured_plan(self.store, st) if s else {"total": 0, "count": 0, "shuffle": False, "status": {}, "locked": 0}
+        self._plan = plan
+        self.f_count.blockSignals(True)
+        self.f_shuffle.blockSignals(True)
+        self.f_count.clear()
+        self.f_count.addItem(f"All {plan['total']}", 0)
+        for n in range(1, plan["total"]):
+            self.f_count.addItem(str(n), n)
+        self.f_count.setCurrentIndex(max(0, self.f_count.findData(plan["count"])))
+        self.f_count.setEnabled(bool(s))
+        self.f_shuffle.setChecked(bool(st.get("shuffle")))
+        self.f_shuffle.setEnabled(bool(plan["count"]))
+        self.f_count.blockSignals(False)
+        self.f_shuffle.blockSignals(False)
+        n, lk = plan["count"], min(plan["locked"], plan["count"])
+        if not n:
+            hint = "Every landscape project in this set is shown."
+        elif plan["shuffle"]:
+            free = n - lk
+            hint = (f"{lk} locked, plus {free} picked at random from the other {plan['total'] - plan['locked']} "
+                    "each time someone visits." if free > 0 else "All places are locked, so nothing is shuffled.")
+        else:
+            hint = f"Locked projects first, then the top of the list. Drag to change which {n} show."
+        self.f_hint.setText(hint)
+        dim = self.palette().placeholderText()
         self.items.blockSignals(True)
         self.items.clear()
         for key in (s.get("projects", []) if s else []):
             p = self.store.project_by_key(key)
             if p:
                 cat = self.store.category(p["category"])["name"]
-                item = QListWidgetItem(f"{p.get('title') or '(untitled)'}   ·   {cat}")
+                status = plan["status"].get(key)
+                lock = "🔒  " if status and key in st.get("locked", []) else ""
+                item = QListWidgetItem(f"{lock}{p.get('title') or '(untitled)'}   ·   {cat}" + (f"   ·   {status}" if status else ""))
+                if status and status.startswith("Not shown"):
+                    item.setForeground(dim)
                 thumb = self.store.repo.thumb_path(p)
                 if thumb and thumb.exists():
                     item.setIcon(QIcon(str(thumb)))
@@ -250,6 +329,7 @@ class HomeDialog(QDialog):
             item.setData(KEY, key)
             self.items.addItem(item)
         self.items.blockSignals(False)
+        self._update_lock_button()
 
     # ------------------------------------------------------------------ actions
     def _edit_current(self, label, fn):
@@ -274,10 +354,8 @@ class HomeDialog(QDialog):
                                         text=f"{copy_from['name']} (copy)" if copy_from else "")
         if not ok or not name.strip():
             return
-        new = {"id": self._unique_id(name), "name": name.strip(),
-               "tagline": copy_from.get("tagline", "") if copy_from else "",
-               "projectLayout": copy_from.get("projectLayout", "standard") if copy_from else "standard",
-               "projects": list(copy_from.get("projects", [])) if copy_from else []}
+        base = json.loads(json.dumps(copy_from)) if copy_from else {"tagline": "", "projectLayout": "standard", "projects": []}
+        new = {**base, "id": self._unique_id(name), "name": name.strip()}
         self.current = new["id"]
         self.store.edit_home(f"New Set “{new['name']}”", lambda h: h.setdefault("sets", []).append(new))
 
@@ -345,6 +423,45 @@ class HomeDialog(QDialog):
             if lid != self.store.home_set(self.current).get("projectLayout", "standard"):
                 self._edit_current("Change Project Layout", lambda st, _h: st.__setitem__("projectLayout", lid))
 
+    # ------------------------------------------------------------------ featured picks
+    def _set_count(self):
+        if self.current:
+            n = self.f_count.currentData() or 0
+            self._edit_current("Change Number Shown",
+                               lambda st, _h: st.__setitem__("featuredCount", n) if n else st.pop("featuredCount", None))
+
+    def _set_shuffle(self, on: bool):
+        if self.current:
+            self._edit_current("Shuffle On" if on else "Shuffle Off",
+                               lambda st, _h: st.__setitem__("shuffle", True) if on else st.pop("shuffle", None))
+
+    def _lockable(self) -> list[str]:
+        return [i.data(KEY) for i in self.items.selectedItems() if i.data(KEY) in self._plan["status"]]
+
+    def _update_lock_button(self):
+        keys = self._lockable() if hasattr(self, "_plan") else []
+        s = self.store.home_set(self.current) if self.current else None
+        locked = set((s or {}).get("locked", []))
+        self.b_lock.setEnabled(bool(keys))
+        self.b_lock.setText("Unlock" if keys and all(k in locked for k in keys) else "Lock")
+
+    def _toggle_lock(self):
+        keys = self._lockable()
+        if not keys:
+            return
+        s = self.store.home_set(self.current)
+        unlock = all(k in s.get("locked", []) for k in keys)
+
+        def fn(st, _h):
+            now = set(st.get("locked", []))
+            now = now - set(keys) if unlock else now | set(keys)
+            ordered = [k for k in st.get("projects", []) if k in now]
+            if ordered:
+                st["locked"] = ordered
+            else:
+                st.pop("locked", None)
+        self._edit_current("Unlock" if unlock else "Lock", fn)
+
     def _add(self):
         s = self.store.home_set(self.current) if self.current else None
         if not s:
@@ -357,8 +474,13 @@ class HomeDialog(QDialog):
     def _remove(self):
         keys = {i.data(KEY) for i in self.items.selectedItems()}
         if keys:
-            self._edit_current("Remove from Home Page",
-                               lambda st, _h: st.__setitem__("projects", [k for k in st["projects"] if k not in keys]))
+            def fn(st, _h):
+                st["projects"] = [k for k in st["projects"] if k not in keys]
+                if "locked" in st:
+                    st["locked"] = [k for k in st["locked"] if k not in keys]
+                    if not st["locked"]:
+                        st.pop("locked")
+            self._edit_current("Remove from Home Page", fn)
 
     def _reordered(self, *_):
         order = [self.items.item(i).data(KEY) for i in range(self.items.count())]

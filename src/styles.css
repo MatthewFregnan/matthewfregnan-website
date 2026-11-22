@@ -344,3 +344,39 @@
 .ctx-facts div { display: grid; grid-template-columns: 110px 1fr; gap: 12px; font-size: 0.9375rem; }
 .ctx-facts dt { color: #a0a0a0; }
 .ctx-facts dd { margin: 0; }
+
+/* ----------------------------------------------------------------------------------------
+   Home page: featured row (some cards hidden by the shuffle) and the social scroller
+   ---------------------------------------------------------------------------------------- */
+.portfolio-grid-home > [hidden] { display: none !important; }
+
+.shortform-scroller { position: relative; --gap: 12px; --per: 2.3; }
+@media (min-width: 640px) { .shortform-scroller { --per: 3.4; } }
+@media (min-width: 1024px) { .shortform-scroller { --per: 5.4; } }
+@media (min-width: 1280px) { .shortform-scroller { --per: 6.4; } }
+.shortform-track {
+  display: flex; gap: var(--gap); overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory; scroll-padding-left: 0; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.shortform-track::-webkit-scrollbar { display: none; }
+.shortform-track > * {
+  flex: 0 0 calc((100% - var(--gap) * (var(--per) - 1)) / var(--per));
+  scroll-snap-align: start;
+}
+/* Fade the edge that has more to see */
+.shortform-scroller.more-after .shortform-track { mask-image: linear-gradient(to right, #000 88%, transparent); }
+.shortform-scroller.more-before .shortform-track { mask-image: linear-gradient(to left, #000 88%, transparent); }
+.shortform-scroller.more-before.more-after .shortform-track { mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent); }
+.scroller-btn {
+  position: absolute; top: 50%; z-index: 2; width: 40px; height: 40px; margin-top: -20px;
+  display: grid; place-items: center; border-radius: 999px; color: #fff;
+  background: rgba(20, 20, 20, 0.75); border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px); cursor: pointer; transition: background 0.2s, opacity 0.2s;
+}
+.scroller-btn:hover { background: rgba(255, 255, 255, 0.95); color: #111; }
+.scroller-btn svg { width: 20px; height: 20px; }
+.scroller-btn.prev { left: -8px; }
+.scroller-btn.next { right: -8px; }
+.scroller-btn[hidden] { display: none; }
+@media (hover: none) { .scroller-btn { display: none; } }

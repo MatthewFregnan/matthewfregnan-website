@@ -200,6 +200,7 @@ const homeSet = id => S.home.sets.find(s => s.id === id);
 function renameRefs(oldKey, newKey) {
   for (const s of S.home.sets) {
     s.projects = (s.projects || []).flatMap(k => (k === oldKey ? (newKey ? [newKey] : []) : [k]));
+    if (s.locked) s.locked = s.locked.flatMap(k => (k === oldKey ? (newKey ? [newKey] : []) : [k]));
   }
 }
 
@@ -1260,14 +1261,32 @@ function renderHomeDialog() {
         } }, 'Add Selected')));
   } else {
     let dragFrom = null;
+    const feat = featuredPlan(set, byKey);
     const rows = (set.projects || []).map((key, i) => {
       const p = byKey.get(key);
-      const el = h('div', { class: 'row home-item', draggable: true },
+      const landscape = p && p.category !== 'vertical';
+      const isLocked = (set.locked || []).includes(key);
+      const status = !p ? '' : !landscape || !feat.count ? category(p.category).name
+        : `${category(p.category).name} · ${feat.status.get(key)}`;
+      const el = h('div', { class: `row home-item${landscape && feat.count && feat.status.get(key).startsWith('Not shown') ? ' is-off' : ''}`, draggable: true },
         h('span', { class: 'grip', 'aria-hidden': 'true' }, '⋮⋮'), thumbFor(p),
         h('span', { class: 'row-text' }, h('span', { class: 'row-title' }, p ? p.title : `(missing: ${key})`),
-          h('span', { class: 'row-sub' }, p ? category(p.category).name : '')),
+          h('span', { class: 'row-sub' }, status)),
+        landscape && feat.count ? h('button', {
+          class: `btn link lock${isLocked ? ' on' : ''}`,
+          title: isLocked ? 'Locked: always shown. Click to unlock.' : 'Lock so it’s always shown',
+          'aria-pressed': String(isLocked),
+          onclick: () => editHome(() => {
+            const s2 = homeSet(set.id);
+            const lockedNow = new Set(s2.locked || []);
+            if (lockedNow.has(key)) lockedNow.delete(key); else lockedNow.add(key);
+            s2.locked = s2.projects.filter(k => lockedNow.has(k));
+            if (!s2.locked.length) delete s2.locked;
+          }),
+        }, isLocked ? '🔒 Locked' : '🔓 Lock') : null,
         h('button', { class: 'btn link danger', title: 'Remove', onclick: () => editHome(() => {
           const s2 = homeSet(set.id); s2.projects = s2.projects.filter(k => k !== key);
+          if (s2.locked) { s2.locked = s2.locked.filter(k => k !== key); if (!s2.locked.length) delete s2.locked; }
         }) }, 'Remove'));
       el.addEventListener('dragstart', e => { dragFrom = i; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
       el.addEventListener('dragend', () => el.classList.remove('dragging'));
@@ -1334,6 +1353,7 @@ function renderHomeDialog() {
         h('button', { class: 'btn primary', disabled: live,
           onclick: () => editHome(() => { S.home.active = set.id; }) }, live ? 'This set is on the site' : 'Show This on the Site'),
         h('button', { class: 'btn', onclick: () => { HD.adding = true; HD.q = ''; renderHomeDialog(); } }, 'Add Projects…')),
+      featuredControls(set, feat),
       h('div', { class: 'home-list' }, rows.length ? rows : h('p', { class: 'muted' }, 'No projects yet. Use “Add Projects…”.')),
       h('p', { class: 'hint' }, 'Drag to reorder. Landscape and Social projects show in separate rows, in the order set above.'));
   }
@@ -1347,6 +1367,51 @@ function renderHomeDialog() {
     h('div', { class: 'actions' },
       h('span', { class: 'muted small', style: 'margin-right:auto' }, 'Changes go live when you Publish.'),
       h('button', { class: 'btn primary', onclick: close }, 'Done')));
+}
+
+/** Which landscape projects the home page shows for a set, and a status line for each. */
+function featuredPlan(set, byKey) {
+  const keys = (set.projects || []).filter(k => byKey.get(k) && byKey.get(k).category !== 'vertical');
+  const count = Math.max(0, parseInt(set.featuredCount, 10) || 0);
+  const locked = new Set(set.locked || []);
+  const status = new Map();
+  const plan = { total: keys.length, count: count && count < keys.length ? count : 0, shuffle: !!set.shuffle, status, lockedCount: 0 };
+  if (!plan.count) return plan;
+  const lockedKeys = keys.filter(k => locked.has(k));
+  plan.lockedCount = lockedKeys.length;
+  const first = [...lockedKeys, ...keys.filter(k => !locked.has(k))].slice(0, plan.count);
+  for (const k of keys) {
+    if (locked.has(k)) status.set(k, first.includes(k) ? 'Locked: always shown' : `Not shown (more than ${plan.count} locked)`);
+    else if (plan.shuffle) status.set(k, lockedKeys.length >= plan.count ? 'Not shown (all places are locked)' : 'In the shuffle');
+    else status.set(k, first.includes(k) ? 'Shown' : `Not shown (only the top ${plan.count})`);
+  }
+  return plan;
+}
+
+function featuredControls(set, feat) {
+  const total = feat.total;
+  const count = parseInt(set.featuredCount, 10) || 0;
+  const options = [h('option', { value: '0', selected: !count || count >= total }, `All ${total}`)];
+  for (let n = 1; n < total; n++) options.push(h('option', { value: String(n), selected: count === n }, String(n)));
+  const free = feat.count - Math.min(feat.lockedCount, feat.count);
+  const hint = !feat.count ? 'Every landscape project in this set is shown.'
+    : feat.shuffle
+      ? (free > 0
+        ? `${Math.min(feat.lockedCount, feat.count)} locked, plus ${free} picked at random from the other ${feat.total - feat.lockedCount} each time someone visits.`
+        : 'All places are locked, so nothing is shuffled.')
+      : `Locked projects first, then the top of the list. Drag to change which ${feat.count} show.`;
+  return h('div', { class: 'featured-box' },
+    h('div', { class: 'vrow-tools' },
+      h('label', {}, 'Landscape projects shown: ',
+        h('select', { style: 'width:auto', onchange: e => editHome(() => {
+          const s2 = homeSet(set.id); const n = +e.target.value;
+          if (n) s2.featuredCount = n; else delete s2.featuredCount;
+        }) }, options)),
+      h('label', { class: 'check', title: total < 2 ? '' : 'Show a different mix on each visit' },
+        h('input', { type: 'checkbox', checked: !!set.shuffle, disabled: !feat.count,
+          onchange: e => editHome(() => { const s2 = homeSet(set.id); if (e.target.checked) s2.shuffle = true; else delete s2.shuffle; }) }),
+        'Shuffle on each visit')),
+    h('p', { class: 'muted small' }, hint));
 }
 
 function accountMenu() {

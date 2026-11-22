@@ -436,6 +436,32 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// Social scroller (home page): arrows page through the row, and only show when there's more that way.
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-scroller]').forEach((box) => {
+    const track = box.querySelector('.shortform-track');
+    const prev = box.querySelector('.scroller-btn.prev');
+    const next = box.querySelector('.scroller-btn.next');
+    const update = () => {
+      const before = track.scrollLeft > 4;
+      const after = track.scrollLeft + track.clientWidth < track.scrollWidth - 4;
+      prev.hidden = !before;
+      next.hidden = !after;
+      box.classList.toggle('more-before', before);
+      box.classList.toggle('more-after', after);
+    };
+    const page = (dir) => {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      track.scrollBy({ left: dir * track.clientWidth * 0.85, behavior: reduce ? 'auto' : 'smooth' });
+    };
+    prev.addEventListener('click', () => page(-1));
+    next.addEventListener('click', () => page(1));
+    track.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  });
+});
+
 // Home page scroll nudge: smooth-scroll to the work, and fade the arrow out once the page scrolls.
 document.addEventListener('DOMContentLoaded', () => {
   const cue = document.querySelector('.scroll-cue');

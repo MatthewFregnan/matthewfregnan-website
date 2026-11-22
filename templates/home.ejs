@@ -72,16 +72,42 @@
       <% } %>
       <% if (row.kind === 'landscape') { %>
         <%# 4 across when that fills the rows evenly (4 or 8 projects), otherwise 3 %>
-        <div class="portfolio-grid-home <%= row.items.length % 4 === 0 ? 'is-four' : '' %>">
-          <% row.items.forEach(({ project, category }) => { %>
-            <%- include('partials/card', { project, category, vertical: false }) %>
+        <div id="featured" class="portfolio-grid-home <%= home.landscapeShown % 4 === 0 ? 'is-four' : '' %>"
+          <% if (home.featured.count && home.featured.shuffle) { %>data-count="<%= home.featured.count %>" data-shuffle<% } %>>
+          <% row.items.forEach(({ project, category, locked, shown }) => { %>
+            <%- include('partials/card', { project, category, vertical: false,
+              extra: (locked ? 'data-locked ' : '') + (shown ? '' : 'hidden') }) %>
           <% }) %>
         </div>
+        <% if (home.featured.count && home.featured.shuffle) { %>
+        <script>
+          // Shuffle: keep the locked projects and fill the other places at random, before the row is drawn
+          (function () {
+            var grid = document.getElementById('featured');
+            var cards = [].slice.call(grid.children);
+            var n = +grid.dataset.count;
+            var locked = cards.filter(function (c) { return c.hasAttribute('data-locked'); }).slice(0, n);
+            var rest = cards.filter(function (c) { return locked.indexOf(c) < 0; });
+            for (var i = rest.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = rest[i]; rest[i] = rest[j]; rest[j] = t; }
+            var pick = locked.concat(rest.slice(0, n - locked.length));
+            cards.forEach(function (c) { c.hidden = pick.indexOf(c) < 0; });
+          })();
+        </script>
+        <% } %>
       <% } else { %>
-        <div class="portfolio-grid-shortform">
-          <% row.items.forEach(({ project, category }) => { %>
-            <%- include('partials/card', { project, category, vertical: true }) %>
-          <% }) %>
+        <%# One scrolling row so a long list doesn't make the page long. Arrows on wider screens; swipe on phones. %>
+        <div class="shortform-scroller" data-scroller>
+          <button type="button" class="scroller-btn prev" aria-label="Scroll back" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+          </button>
+          <div class="shortform-track">
+            <% row.items.forEach(({ project, category }) => { %>
+              <%- include('partials/card', { project, category, vertical: true }) %>
+            <% }) %>
+          </div>
+          <button type="button" class="scroller-btn next" aria-label="Scroll forward" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
         </div>
       <% } %>
     <% }) %>

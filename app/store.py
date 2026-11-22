@@ -236,6 +236,8 @@ def _rename_refs(home: dict, old: str, new: str | None):
     for s in home.get("sets", []):
         items = s.get("projects", [])
         s["projects"] = [new if k == old else k for k in items if not (k == old and new is None)]
+        if "locked" in s:
+            s["locked"] = [new if k == old else k for k in s["locked"] if not (k == old and new is None)]
 
 
 class _EditHome(QUndoCommand):

@@ -1,8 +1,8 @@
-<%# One project tile. Expects: project, category, vertical (bool). Short-form tiles with a hosted
+<%# One project tile. Expects: project, category, vertical (bool), optional extra (raw attributes). Short-form tiles with a hosted
     video play a silent preview on hover (see "Hover previews" in src/main.js). %>
 <a href="/<%= category.slug %>/<%= project.id %>/"
    class="<%= vertical ? 'portfolio-item-vertical' : 'portfolio-item' %> group"
-   <% if (vertical && project.videoFile) { %>data-preview="<%= project.videoFile %>"<% } %>>
+   <% if (vertical && project.videoFile) { %>data-preview="<%= project.videoFile %>"<% } %><%- typeof extra !== 'undefined' ? ' ' + extra : '' %>>
   <img
     src="/images/thumbnails/<%= project.thumbnail %>"
     alt="<%= project.title %>"

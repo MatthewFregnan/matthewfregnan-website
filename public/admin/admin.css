@@ -375,7 +375,8 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .home-dialog { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 20px; }
 .home-left, .home-right { display: grid; gap: 10px; align-content: start; min-width: 0; }
 .home-list { display: grid; gap: 2px; max-height: 52vh; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius); }
-.home-item { grid-template-columns: 16px 48px 1fr auto; cursor: grab; }
+.home-item { grid-template-columns: 16px 48px 1fr auto auto; cursor: grab; }
+.home-item > .btn.danger:nth-child(4) { grid-column: 5; }
 .home-item .grip { color: var(--muted); font-size: 12px; letter-spacing: -2px; }
 .row.pick { grid-template-columns: 16px 48px 1fr; }
 .row.set-row { grid-template-columns: 10px 1fr; }
@@ -418,3 +419,10 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .upload-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
 .upload-bar span { display: block; height: 100%; background: var(--accent); transition: width 0.3s ease; }
 .player.over { outline: 2px dashed var(--accent); outline-offset: 2px; }
+
+/* ---------------------------------------------------------------- home page: featured picks */
+.featured-box { border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin: 10px 0 6px; }
+.featured-box p { margin: 4px 0 0; }
+.home-item.is-off { opacity: 0.5; }
+.home-item .btn.lock { white-space: nowrap; color: var(--muted); }
+.home-item .btn.lock.on { color: var(--accent); }

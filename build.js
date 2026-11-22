@@ -602,7 +602,28 @@ function resolveHome(projects) {
   }
   if (!out.showLandscape) out.landscape = [];
   if (!out.showSocial) out.vertical = [];
-  console.log(`  Home page set: ${set.name} (${out.landscape.length + out.vertical.length} projects shown)`);
+
+  // Landscape row: show `featuredCount` of them (0 = all). Locked ones always show; with shuffle
+  // on, the other places are filled at random on each visit (a small script on the home page),
+  // otherwise from the top of the list. The page is built with the no-shuffle pick, so it also
+  // works without JavaScript.
+  const pool = out.landscape;
+  const count = Math.max(0, parseInt(set.featuredCount, 10) || 0);
+  const locked = new Set(set.locked || []);
+  const isLocked = item => locked.has(`${item.project.category}/${item.project.id}`);
+  out.featured = { count: count && count < pool.length ? count : 0, shuffle: !!set.shuffle };
+  if (out.featured.count) {
+    const first = [...pool.filter(isLocked), ...pool.filter(i => !isLocked(i))].slice(0, out.featured.count);
+    pool.forEach(item => {
+      item.locked = isLocked(item);
+      item.shown = first.includes(item);
+    });
+  } else {
+    pool.forEach(item => { item.locked = false; item.shown = true; });
+  }
+  out.landscapeShown = out.featured.count || pool.length;
+  const how = out.featured.count ? ` (${out.featured.count} of ${pool.length} landscape${out.featured.shuffle ? ', shuffled' : ''})` : '';
+  console.log(`  Home page set: ${set.name} (${out.landscapeShown + out.vertical.length} projects shown${how})`);
   out.categoryTiles = categoryTiles(projects, set);
   return out;
 }
