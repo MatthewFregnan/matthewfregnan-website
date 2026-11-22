@@ -63,34 +63,44 @@ export function rowSettings(set, kind) {
  * with shuffle on, every other place gets a random unpinned project. Returns
  * { shown, count, pinned:Set, status:Map(key -> text) }.
  */
-export function rowPlan(items, { count, shuffle }, pinnedKeys, seed = 1) {
+export function rowPlan(items, { count, shuffle }, pinnedKeys, seed = 1, softKeys = new Set()) {
+  // Shuffle: pinned projects keep their place. Soft-pinned ones take the first free places, in a
+  // random order among themselves; every other place gets a random project from the rest.
+  // (build.js plan() and the script in templates/home.ejs do the same on the site.)
   const key = p => `${p.category}/${p.id}`;
   const n = count && count < items.length ? count : items.length;
   const status = new Map();
   const pinnedAt = new Map();
   if (shuffle) items.forEach((p, i) => { if (i < n && pinnedKeys.has(key(p))) pinnedAt.set(i, p); });
+  const isHard = p => [...pinnedAt.values()].includes(p);
   let shown;
+  let soft = [];
   if (!shuffle) {
     shown = items.slice(0, n);
   } else {
-    let pool = items.filter((p, i) => !(i < n && pinnedKeys.has(key(p))));
     // seeded shuffle so "Shuffle again" gives a new mix but re-renders while editing don't
     let x = seed * 9301 + 49297;
     const rnd = () => ((x = (x * 9301 + 49297) % 233280) / 233280);
-    pool = pool.map(p => [rnd(), p]).sort((a, b) => a[0] - b[0]).map(([, p]) => p);
+    const mix = list => list.map(p => [rnd(), p]).sort((a, b) => a[0] - b[0]).map(([, p]) => p);
+    soft = items.filter(p => !isHard(p) && softKeys.has(key(p)));
+    const pool = [...mix(soft), ...mix(items.filter(p => !isHard(p) && !softKeys.has(key(p))))];
     shown = [];
     for (let i = 0; i < n; i++) shown.push(pinnedAt.get(i) || pool.shift());
     shown = shown.filter(Boolean);
   }
   const free = n - pinnedAt.size;
+  const softShown = Math.min(soft.length, free);
   items.forEach((p, i) => {
     const k = key(p);
     if (!shuffle) status.set(k, i < n ? (n < items.length ? 'Shown' : '') : `Not shown (only the top ${n})`);
     else if (pinnedAt.get(i) === p) status.set(k, `📌 Pinned to place ${i + 1}`);
+    else if (soft.includes(p)) status.set(k, soft.length <= free
+      ? `Soft pinned: always shown, in one of the first ${softShown} free places`
+      : `Soft pinned, but only ${free} free place${free === 1 ? '' : 's'} for ${soft.length} soft pins, so it's sometimes left out`);
     else if (pinnedKeys.has(k)) status.set(k, `Pinned below the ${n} places shown, so it's shuffled`);
-    else status.set(k, free > 0 ? 'In the shuffle' : 'Not shown (every place is pinned)');
+    else status.set(k, free - softShown > 0 ? 'In the shuffle' : 'Not shown (every place is pinned)');
   });
-  return { shown, count: n < items.length ? n : 0, pinned: new Set(pinnedAt.values()), status };
+  return { shown, count: n < items.length ? n : 0, pinned: new Set(pinnedAt.values()), soft: new Set(soft), status };
 }
 
 /**
@@ -106,12 +116,13 @@ export function homePreview(h, opts) {
   const landscape = set.showLandscape === false ? [] : chosen.filter(p => p.category !== 'vertical');
   const social = set.showSocial === false ? [] : chosen.filter(p => p.category === 'vertical');
   const pinned = new Set(set.locked || []);
+  const soft = new Set(set.soft || []);
   const landSettings = rowSettings(set, 'landscape');
   const reelSettings = rowSettings(set, 'social');
-  const feat = rowPlan(landscape, landSettings, pinned, seed);
-  const reels = rowPlan(social, reelSettings, pinned, seed + 7);
+  const feat = rowPlan(landscape, landSettings, pinned, seed, soft);
+  const reels = rowPlan(social, reelSettings, pinned, seed + 7, soft);
   const badgeFor = (plan, settings) => p => (settings.shuffle
-    ? (plan.pinned.has(p) ? { kind: 'lock', text: '📌 Pinned' } : { kind: 'shuffle', text: '⤮ Shuffled' }) : null);
+    ? (plan.pinned.has(p) ? { kind: 'lock', text: '📌 Pinned' } : plan.soft.has(p) ? { kind: 'soft', text: '☆ Soft pinned' } : { kind: 'shuffle', text: '⤮ Shuffled' }) : null);
 
   // Same split as the site: hero 82% of the screen, heading 12%, then the work peeks in
   const screenH = SCREENS[screen].height;

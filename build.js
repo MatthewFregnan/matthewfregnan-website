@@ -31,6 +31,11 @@ function loadData() {
       };
 
   projects.projects.forEach(normaliseProject);
+  // Hidden projects (hidden in the admin's Pages screen) keep their entry but aren't on the site;
+  // their page address forwards to their section page (see generateRedirects).
+  projects.hiddenProjects = projects.projects.filter(p => p.hidden);
+  projects.projects = projects.projects.filter(p => !p.hidden);
+  if (projects.hiddenProjects.length) console.log(`  Hidden projects (not on the site): ${projects.hiddenProjects.length}`);
   return { projects, siteConfig };
 }
 
@@ -419,6 +424,11 @@ async function generateRedirects(projects, siteConfig) {
   }
   if (moved) console.log(`  Redirects for renamed projects: ${moved}`);
 
+  for (const p of projects.hiddenProjects || []) {
+    if (live.has(`${p.category}/${p.id}`) || !/^[a-z0-9-]+$/.test(p.id || '')) continue;
+    await fs.outputFile(path.join(DIST_DIR, slugOf(p.category), p.id, 'index.html'), redirectPage(`/${slugOf(p.category)}/`, siteConfig));
+  }
+
   for (const [from, to] of Object.entries(MOVED_SECTIONS)) {
     const category = projects.categories.find(c => c.slug === to);
     if (!category) continue;
@@ -504,7 +514,7 @@ function fileHash(file) {
 async function renderTemplate(templateName, data) {
   const templatePath = path.join(TEMPLATES_DIR, `${templateName}.ejs`);
   const template = await fs.readFile(templatePath, 'utf8');
-  return ejs.render(template, { focusOf, logoOf, ...data }, { filename: templatePath });
+  return ejs.render(template, { focusOf, logoOf, imageUrl, ...data }, { filename: templatePath });
 }
 
 // Build CSS with Tailwind
@@ -590,7 +600,18 @@ async function fingerprintAdmin() {
 const CLIENT_LOGOS = new Map();
 function logoOf(p) {
   const file = CLIENT_LOGOS.get(String(p.client || '').trim().toLowerCase());
-  return file && fs.existsSync(path.join(IMAGES_DIR, 'logos', file)) ? `/images/logos/${file}` : '';
+  return file && fs.existsSync(path.join(IMAGES_DIR, 'logos', file)) ? imageUrl('logos', file) : '';
+}
+
+// Image URLs carry a short hash of the file (?v=...), so replacing an image under the same
+// name (e.g. a new thumbnail) shows straight away instead of the browser/Cloudflare's old copy.
+const IMAGE_HASHES = new Map();
+function imageUrl(kind, file) {
+  if (!file) return '';
+  const full = path.join(IMAGES_DIR, kind, file);
+  if (!IMAGE_HASHES.has(full)) IMAGE_HASHES.set(full, fs.existsSync(full) ? fileHash(full).slice(0, 8) : '');
+  const v = IMAGE_HASHES.get(full);
+  return `/images/${kind}/${file}${v ? `?v=${v}` : ''}`;
 }
 
 function focusOf(p) {
@@ -701,14 +722,26 @@ function resolveHome(projects) {
   // unpinned project on each visit (a small script on the home page; public/admin/js/preview.js
   // rowPlan does the same for the admin preview). The page is built with the plain top-of-the-list
   // pick, so it also works without JavaScript.
+  // Soft-pinned projects take the first free places in a random order among themselves.
   const pinned = new Set(set.locked || []);
+  const soft = new Set(set.soft || []);
   const plan = (items, countValue, shuffle) => {
     const count = Math.max(0, parseInt(countValue, 10) || 0);
     const n = count && count < items.length ? count : items.length;
+    const keyOf = item => `${item.project.category}/${item.project.id}`;
     items.forEach((item, i) => {
-      item.pinned = !!shuffle && i < n && pinned.has(`${item.project.category}/${item.project.id}`);
-      item.shown = i < n;
+      item.pinned = !!shuffle && i < n && pinned.has(keyOf(item));
+      item.soft = !!shuffle && !item.pinned && soft.has(keyOf(item));
     });
+    // without JavaScript: pinned stay put, soft pins fill the first free places, then the list order
+    if (shuffle) {
+      const fixed = new Map(items.map((item, i) => [i, item]).filter(([, item]) => item.pinned));
+      const rest = [...items.filter(item => item.soft), ...items.filter(item => !item.pinned && !item.soft)];
+      const ordered = [];
+      for (let i = 0; i < items.length; i++) ordered.push(fixed.get(i) || rest.shift());
+      items.splice(0, items.length, ...ordered.filter(Boolean));
+    }
+    items.forEach((item, i) => { item.shown = i < n; });
     return { count: n < items.length ? n : 0, shuffle: !!shuffle && items.length > 1, shown: n };
   };
   out.featured = plan(out.landscape, set.featuredCount, set.shuffle);

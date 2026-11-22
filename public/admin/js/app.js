@@ -59,7 +59,7 @@ function go(page, { push = true } = {}) {
 
 const liveSet = () => homeSet(S.home.active) || S.home.sets[0];
 const liveLayout = () => liveSet()?.projectLayout || 'standard';
-const thumbSrc = p => (p?.thumbnail ? I.src('thumbnails', p.thumbnail) : '');
+const thumbSrc = p => (p?.thumbnail ? I.src('thumbnails', p.thumbnail, p.updated) : '');
 
 // =========================================================================== helpers
 
@@ -293,7 +293,7 @@ function renameRefs(oldKey, newKey) {
   }
   for (const s of S.home.sets) {
     s.projects = (s.projects || []).flatMap(k => (k === oldKey ? (newKey ? [newKey] : []) : [k]));
-    if (s.locked) s.locked = s.locked.flatMap(k => (k === oldKey ? (newKey ? [newKey] : []) : [k]));
+    for (const list of ['locked', 'soft']) if (s[list]) s[list] = s[list].flatMap(k => (k === oldKey ? (newKey ? [newKey] : []) : [k]));
   }
 }
 
@@ -420,10 +420,10 @@ function renderList({ scroll = false } = {}) {
 function row(p, index, draggable) {
   const state = V.state(p);
   const img = p.thumbnail
-    ? I.withFallback(h('img', { src: I.src('thumbnails', p.thumbnail), alt: '', loading: 'lazy' }), 'thumbnails', p.thumbnail)
+    ? I.withFallback(h('img', { src: thumbSrc(p), alt: '', loading: 'lazy' }), 'thumbnails', p.thumbnail)
     : h('span', { class: 'noimg' });
   const el = h('button', {
-    class: `row${p === S.current ? ' selected' : ''}`,
+    class: `row${p === S.current ? ' selected' : ''}${p.hidden ? ' is-hidden' : ''}`,
     draggable,
     onclick: () => select(p, { scroll: false }),
     title: `${p.client || ''}  ·  ${pagePath(p)}`,
@@ -432,7 +432,7 @@ function row(p, index, draggable) {
   img,
   h('span', { class: 'row-text' },
     h('span', { class: 'row-title' }, p.title || '(untitled)'),
-    h('span', { class: 'row-sub' }, [p.client, p.year].filter(Boolean).join(' · ') || ' ')));
+    h('span', { class: 'row-sub' }, p.hidden ? h('span', { class: 'tag-hidden' }, 'Hidden') : null, [p.client, p.year].filter(Boolean).join(' · ') || ' ')));
   el._project = p;
 
   if (draggable) {
@@ -491,7 +491,10 @@ function renderEditor() {
     onclick: () => { S.editorTab = id; renderEditor(); } }, label);
   const head = h('div', { class: 'editor-head' },
     h('h2', { id: 'heading' }, p.title || '(untitled)'),
-    h('div', { class: 'tabs', role: 'tablist' }, tab('details', 'Details'), tab('preview', 'Page Preview')));
+    h('div', { class: 'tabs', role: 'tablist' }, tab('details', 'Details'), tab('preview', 'Page Preview')),
+    p.hidden ? h('div', { class: 'hidden-note' }, h('span', { class: 'tag-hidden' }, 'Hidden'),
+      ` Not on the site${p.hiddenSince ? ` since ${p.hiddenSince}` : ''}. Its entry and video are kept.`,
+      h('button', { class: 'btn', onclick: () => setHidden(p, false) }, 'Show on Site')) : null);
   if (S.editorTab === 'preview') {
     ed.replaceChildren(h('div', { class: 'editor-inner' }, head, h('div', { id: 'project-preview' })));
     renderProjectPreview();
@@ -848,6 +851,38 @@ function statsToRefresh() {
   }).sort((a, b) => b.days - a.days);
 }
 
+// Hidden projects still take up video storage. After this long hidden, the Overview suggests deleting them.
+const HIDDEN_STALE_DAYS = 182;
+function staleHidden() {
+  return projects().filter(p => p.hidden && p.hiddenSince).map(p => ({ p,
+    days: Math.floor((Date.now() - new Date(`${p.hiddenSince}T00:00`).getTime()) / 86400000) }))
+    .filter(x => x.days >= HIDDEN_STALE_DAYS).sort((a, b) => b.days - a.days);
+}
+
+function hiddenCard(card, open) {
+  const list = staleHidden();
+  if (!list.length) return null;
+  const sizeOf = p => {   // from the storage listing, when it's loaded
+    const f = S.storage?.data?.objects?.find(x => p.videoFile && storageKeyOf(p.videoFile) === x.key);
+    return f ? ` · ${fmtBytes(f.size)}` : '';
+  };
+  const del = async p => {
+    if (!(await confirmDialog('Delete project?', `Delete “${p.title}”? It has been hidden since ${p.hiddenSince}. You can undo this until you publish. Its video file then shows under “Not used by any project” on the Storage page, where you can free the space.`, 'Delete', true))) return;
+    const list = projects();
+    mutate(() => { list.splice(list.indexOf(p), 1); renameRefs(keyOf(p), null); if (S.current === p) S.current = null; }, { list: true, editor: true });
+    toast(`Deleted “${p.title}”. Press Undo to bring it back.`, 6000);
+    renderOverview();
+  };
+  return card(`Hidden for over 6 months (${list.length})`,
+    h('p', { class: 'muted small' }, 'These are off the site but their videos still use storage. Delete them if you won’t bring them back.'),
+    h('div', { class: 'ov-list' }, list.map(({ p, days }) => h('div', { class: 'ov-stat-row' },
+      h('button', { class: 'ov-row', onclick: () => open(p) }, thumbFor(p),
+        h('span', { class: 'row-text' }, h('span', { class: 'row-title' }, p.title || '(untitled)'),
+          h('span', { class: 'row-sub' }, `Hidden ${agoText(days)}${p.videoFile ? sizeOf(p) : ' · no hosted video'}`))),
+      h('button', { class: 'btn link', title: 'Put it back on the site', onclick: () => { setHidden(p, false); renderOverview(); } }, 'Show'),
+      h('button', { class: 'btn link danger', onclick: () => del(p) }, 'Delete')))));
+}
+
 const STATS_DUE_DAYS = 30;
 const agoText = days => (days >= 9999 ? 'never dated' : days === 0 ? 'today' : days === 1 ? 'yesterday'
   : days < 60 ? `${days} days ago` : `${Math.round(days / 30)} months ago`);
@@ -1026,7 +1061,7 @@ function renderThumb() {
 
   // With a thumbnail: click the picture to set its focus point (what crops keep in view).
   const focus = parseFocus(p.thumbFocus);
-  const src = I.src('thumbnails', p.thumbnail);
+  const src = thumbSrc(p);
   const img = I.withFallback(h('img', { src, alt: 'Thumbnail', draggable: false }), 'thumbnails', p.thumbnail);
   const marker = h('span', { class: 'focus-marker', style: `left:${focus.x}%;top:${focus.y}%` });
   const frame = h('div', { class: 'focus-frame', title: 'Click to set the focus point' }, img, marker);
@@ -1590,7 +1625,7 @@ function renderHomeDialog() {
       set.shuffle && set.featuredCount ? h('button', { class: 'btn', title: 'Show another random mix, like a new visitor would see',
         onclick: () => { HD.seed += 1; renderHomeDialog(); } }, '⤮ Shuffle Again') : null),
     h('div', { class: `preview-frame ${S.screen}` }, P.homePreview(h, {
-      set, projects: projects(), categories: S.data.categories, site: S.site, thumb: thumbSrc, screen: S.screen, seed: HD.seed,
+      set, projects: projects().filter(p => !p.hidden), categories: S.data.categories, site: S.site, thumb: thumbSrc, screen: S.screen, seed: HD.seed,
       logo: p => (logoOf(p) ? I.src('logos', logoOf(p)) : ''),
       onPick: p => { clearSearchFor(p); select(p); },
     })),
@@ -1707,6 +1742,7 @@ function renderOverview() {
           issues.length > 8 ? h('p', { class: 'muted small' }, `…and ${issues.length - 8} more`) : null)
           : h('p', { class: 'muted' }, checking ? 'Checking videos…' : [h('span', { class: 'dot ok' }), ' Nothing to fix. Every video plays.']),
         h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: checkVideos }, 'Check Videos Now'))),
+      hiddenCard(card, open),
       statsCard(card, p => { clearSearchFor(p); S.editorTab = 'details'; select(p);
         setTimeout(() => $('.stats-box')?.scrollIntoView({ block: 'center' }), 50); }),
       trafficCard, storageCard), h('div', { class: 'ov-col' },
@@ -1714,7 +1750,7 @@ function renderOverview() {
         h('p', {}, h('strong', {}, set?.name || '—'), h('span', { class: 'muted' }, ' is on the site')),
         h('p', { class: 'muted small' }, `${fc && fc < land ? `${fc} of ${land} landscape${set.shuffle ? ', shuffled' : ''}` : `${land} landscape`} · ${soc} social · ${LAYOUTS.find(l => l.id === liveLayout())?.name} project pages`),
         set ? h('div', { class: 'ov-mini', onclick: () => go('home'), title: 'Edit the home page' },
-          P.homePreview(h, { set, projects: projects(), categories: S.data.categories, site: S.site, thumb: thumbSrc, screen: 'desktop', seed: HD.seed, heroHeight: 300 })) : null,
+          P.homePreview(h, { set, projects: projects().filter(p => !p.hidden), categories: S.data.categories, site: S.site, thumb: thumbSrc, screen: 'desktop', seed: HD.seed, heroHeight: 300 })) : null,
         h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: () => go('home') }, 'Edit Home Page'))),
       card('Projects',
         h('div', { class: 'ov-cats' }, S.data.categories.map(c => h('button', { class: 'ov-cat', onclick: () => { $('#filter').value = c.id; $('#search').value = ''; go('projects'); renderList(); } },
@@ -1757,7 +1793,8 @@ function rowEditor(set, kind, byKey) {
   const items = keys.map(k => byKey.get(k));
   const settings = P.rowSettings(set, kind);
   const pinned = new Set(set.locked || []);
-  const plan = P.rowPlan(items, settings, pinned);
+  const soft = new Set(set.soft || []);
+  const plan = P.rowPlan(items.filter(p => !p.hidden), settings, pinned, 1, soft);
   const countKey = social ? 'reelsCount' : 'featuredCount';
   const shuffleKey = social ? 'reelsShuffle' : 'shuffle';
   const title = social ? 'Featured reels' : 'Featured projects';
@@ -1772,11 +1809,22 @@ function rowEditor(set, kind, byKey) {
     const others = s2.projects.filter(k => !keys.includes(k));
     s2.projects = social ? [...others, ...mine] : [...mine, ...others];
   });
+  // kind: 'locked' (pinned to its place), 'soft' (somewhere in the first places) or null (shuffled)
+  const setPin = (key, kind) => editHome(() => {
+    const s2 = homeSet(set.id);
+    for (const list of ['locked', 'soft']) {
+      const now = new Set(s2[list] || []);
+      if (list === kind) now.add(key); else now.delete(key);
+      s2[list] = s2.projects.filter(k => now.has(k));
+      if (!s2[list].length) delete s2[list];
+    }
+  });
   let dragFrom = null;
   const rows = items.map((p, i) => {
     const key = keyOf(p);
-    const status = plan.status.get(key) || '';
+    const status = p.hidden ? 'Not shown (hidden from the site)' : plan.status.get(key) || '';
     const isPinned = pinned.has(key);
+    const isSoft = !isPinned && soft.has(key);
     const el = h('div', { class: `row home-item${status.startsWith('Not shown') ? ' is-off' : ''}`, draggable: true },
       h('span', { class: 'slot-num', title: 'Place in the row' }, String(i + 1)),
       h('span', { class: 'grip', 'aria-hidden': 'true' }, '⋮⋮'), thumbFor(p),
@@ -1786,17 +1834,18 @@ function rowEditor(set, kind, byKey) {
         class: `btn link lock${isPinned ? ' on' : ''}`,
         title: isPinned ? `Pinned: always in place ${i + 1}. Click to let it shuffle.` : `Pin to place ${i + 1} so it’s always there`,
         'aria-pressed': String(isPinned),
-        onclick: () => editHome(() => {
-          const s2 = homeSet(set.id);
-          const now = new Set(s2.locked || []);
-          if (now.has(key)) now.delete(key); else now.add(key);
-          s2.locked = s2.projects.filter(k => now.has(k));
-          if (!s2.locked.length) delete s2.locked;
-        }),
+        onclick: () => setPin(key, isPinned ? null : 'locked'),
       }, isPinned ? '📌 Pinned' : 'Pin') : null,
+      settings.shuffle ? h('button', {
+        class: `btn link lock${isSoft ? ' on' : ''}`,
+        title: isSoft ? 'Soft pinned: always shown in the first places, in a random order with the other soft pins. Click to let it shuffle.'
+          : 'Soft pin: always show it in the first places, but let its place among the other soft pins change',
+        'aria-pressed': String(isSoft),
+        onclick: () => setPin(key, isSoft ? null : 'soft'),
+      }, isSoft ? '☆ Soft pinned' : 'Soft pin') : null,
       h('button', { class: 'btn link danger', title: 'Remove from this set', onclick: () => editHome(() => {
         const s2 = homeSet(set.id); s2.projects = s2.projects.filter(k => k !== key);
-        if (s2.locked) { s2.locked = s2.locked.filter(k => k !== key); if (!s2.locked.length) delete s2.locked; }
+        for (const list of ['locked', 'soft']) if (s2[list]) { s2[list] = s2[list].filter(k => k !== key); if (!s2[list].length) delete s2[list]; }
       }) }, 'Remove'));
     el.addEventListener('dragstart', e => { dragFrom = i; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
     el.addEventListener('dragend', () => el.classList.remove('dragging'));
@@ -1822,7 +1871,7 @@ function rowEditor(set, kind, byKey) {
   const shownN = plan.count || items.length;
   const hint = !items.length ? `No ${social ? 'social' : 'landscape'} projects in this set yet. Use “Add Projects…”.`
     : settings.shuffle
-      ? `${plan.pinned.size ? `${plan.pinned.size} pinned, ` : ''}${shownN - plan.pinned.size > 0 ? `${shownN - plan.pinned.size} place${shownN - plan.pinned.size === 1 ? '' : 's'} filled at random from the unpinned ones on each visit` : 'every place is pinned'}. Drag to choose places; pin to keep one there.`
+      ? `${plan.pinned.size ? `${plan.pinned.size} pinned, ` : ''}${plan.soft.size ? `${plan.soft.size} soft pinned (always in the first free places, order shuffled), ` : ''}${shownN - plan.pinned.size - plan.soft.size > 0 ? `${shownN - plan.pinned.size - plan.soft.size} place${shownN - plan.pinned.size - plan.soft.size === 1 ? '' : 's'} filled at random from the rest on each visit` : 'every place is taken'}. Pin keeps a project in its exact place; soft pin keeps it near the front.`
       : `Shown in this order${plan.count ? ` (the top ${plan.count})` : ''}. Drag to reorder.`;
   return h('section', { class: `row-card${hidden ? ' is-hidden-row' : ''}` },
     h('div', { class: 'row-card-head' },
@@ -1868,6 +1917,15 @@ function openStorage() { go('storage'); }
 // "Standard" (no preset) is the normal project order, the same as the Projects list.
 
 const SP = { cat: null, preset: null, drag: null };
+
+/** Hide a project from the site (it keeps its entry, video and place in layouts) or show it again. */
+function setHidden(p, hide) {
+  mutate(() => {
+    if (hide) { p.hidden = true; p.hiddenSince = today(); } else { delete p.hidden; delete p.hiddenSince; }
+    touch(p);
+   }, { list: true, editor: true });
+  toast(hide ? `“${p.title}” is hidden from the site after you publish.` : `“${p.title}” is back on the site after you publish.`);
+}
 
 function sectionLayout(catId) {
   return S.home.sections?.[catId] || { active: '', presets: [] };
@@ -1930,13 +1988,17 @@ function renderSectionsPage() {
       pr.order = order;
     });
   };
+  let shownN = 0;
   const tiles = items.map((p, i) => {
-    const el = h('div', { class: `sp-tile${vertical ? ' v' : ''}`, draggable: true, title: `${p.title} · drag to move` },
+    const el = h('div', { class: `sp-tile${vertical ? ' v' : ''}${p.hidden ? ' is-hidden' : ''}`, draggable: true,
+      title: p.hidden ? `${p.title} · hidden from the site${p.hiddenSince ? ` since ${p.hiddenSince}` : ''}` : `${p.title} · drag to move` },
       thumbFor(p),
-      h('span', { class: 'sp-num' }, String(i + 1)),
+      h('span', { class: 'sp-num' }, p.hidden ? 'Hidden' : String(++shownN)),
       h('div', { class: 'sp-title' }, h('b', {}, p.title || '(untitled)'), p.client ? h('small', {}, p.client) : null),
       h('div', { class: 'sp-tools' },
         i > 0 ? h('button', { class: 'btn', title: 'Move to the top', onclick: e => { e.stopPropagation(); reorder(i, 0); } }, '↑ Top') : null,
+        h('button', { class: 'btn', title: p.hidden ? 'Show it on the site again' : 'Take it off the site but keep its entry (and video)',
+          onclick: e => { e.stopPropagation(); setHidden(p, !p.hidden); renderSectionsPage(); } }, p.hidden ? 'Show' : 'Hide'),
         h('button', { class: 'btn', title: 'Edit this project', onclick: e => { e.stopPropagation(); clearSearchFor(p); select(p); } }, 'Edit')));
     el.addEventListener('dragstart', e => { SP.drag = i; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
     el.addEventListener('dragend', () => { SP.drag = null; el.classList.remove('dragging'); });

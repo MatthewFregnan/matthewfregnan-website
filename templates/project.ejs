@@ -29,7 +29,7 @@
       <% const src = video.sources[video.active];
          const isVertical = category.id === 'vertical';
          const shape = src.kind === 'instagram' ? 'is-instagram' : (isVertical || src.kind === 'tiktok' ? 'is-vertical' : '');
-         const poster = project.thumbnail ? `/images/thumbnails/${project.thumbnail}` : ''; %>
+         const poster = imageUrl('thumbnails', project.thumbnail); %>
       <div class="pp-media video-player mb-8"
            data-video-sources="<%= JSON.stringify(video.sources.map(s => ({ kind: s.kind, embed: s.embed, check: s.check }))) %>"
            data-active="<%= video.active %>"
@@ -61,7 +61,7 @@
       <div class="pp-gallery space-y-4 mb-8">
         <% project.gallery.forEach((image, index) => { %>
           <img
-            src="/images/gallery/<%= image %>"
+            src="<%= imageUrl('gallery', image) %>"
             alt="<%= project.title %> - Image <%= index + 1 %>"
             class="w-full rounded-lg"
             loading="lazy"

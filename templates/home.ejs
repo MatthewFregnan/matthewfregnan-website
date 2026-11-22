@@ -84,9 +84,9 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
         </button>
         <div class="row-track" id="<%= rowId %>"<% if (settings.shuffle) { %> data-count="<%= n %>" data-shuffle<% } %>>
-          <% row.items.forEach(({ project, category, pinned, shown }) => { %>
+          <% row.items.forEach(({ project, category, pinned, soft, shown }) => { %>
             <%- include('partials/card', { project, category, vertical: !landscape,
-              extra: (pinned ? 'data-pinned ' : '') + (shown ? '' : 'hidden') }) %>
+              extra: (pinned ? 'data-pinned ' : '') + (soft ? 'data-soft ' : '') + (shown ? '' : 'hidden') }) %>
           <% }) %>
         </div>
         <button type="button" class="scroller-btn next" aria-label="Scroll forward" hidden>
@@ -95,7 +95,8 @@
       </div>
       <% if (settings.shuffle) { %>
       <script>
-        // Shuffle: pinned projects keep their place; every other place gets a random unpinned project.
+        // Shuffle: pinned projects keep their place; soft-pinned ones fill the first free places (in a random
+        // order); every other place gets a random project from the rest.
         // Runs before the row is drawn.
         (function () {
           var row = document.getElementById('<%= rowId %>');
@@ -103,8 +104,14 @@
           var n = +row.dataset.count;
           var fixed = {};
           cards.forEach(function (c, i) { if (i < n && c.hasAttribute('data-pinned')) fixed[i] = c; });
-          var pool = cards.filter(function (c, i) { return !(i < n && c.hasAttribute('data-pinned')); });
-          for (var i = pool.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+          var mix = function (list) {
+            for (var i = list.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = list[i]; list[i] = list[j]; list[j] = t; }
+            return list;
+          };
+          // soft-pinned projects first (in a random order), then the rest
+          var free = cards.filter(function (c, i) { return !(i < n && c.hasAttribute('data-pinned')); });
+          var pool = mix(free.filter(function (c) { return c.hasAttribute('data-soft'); }))
+            .concat(mix(free.filter(function (c) { return !c.hasAttribute('data-soft'); })));
           var out = [];
           for (var k = 0; k < n; k++) { var c = fixed[k] || pool.shift(); if (c) out.push(c); }
           cards.forEach(function (c) { c.hidden = out.indexOf(c) < 0; });
@@ -121,7 +128,7 @@
       <% home.categoryTiles.forEach(({ category: c, count, thumbs }, i) => { %>
         <a href="/<%= c.slug %>/" class="category-tile" data-cycle-offset="<%= i %>">
           <span class="category-tile-images" aria-hidden="true">
-            <% thumbs.forEach((t, n) => { %><img src="/images/thumbnails/<%= t.src %>" alt="" loading="lazy" class="<%= n === 0 ? 'is-on' : '' %>"<% if (t.focus) { %> style="object-position: <%= t.focus %>"<% } %>><% }) %>
+            <% thumbs.forEach((t, n) => { %><img src="<%= imageUrl('thumbnails', t.src) %>" alt="" loading="lazy" class="<%= n === 0 ? 'is-on' : '' %>"<% if (t.focus) { %> style="object-position: <%= t.focus %>"<% } %>><% }) %>
           </span>
           <span class="category-tile-text">
             <span class="category-tile-name"><%= c.name %></span>

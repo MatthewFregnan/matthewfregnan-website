@@ -84,10 +84,11 @@ export function repoPath(kind, value) {
 }
 
 /** Best URL to show an image: a pending upload, the live site, or GitHub (if not deployed yet). */
-export function src(kind, value) {
+export function src(kind, value, version) {
   const path = repoPath(kind, value);
   if (!path) return '';
-  return urls.get(path) || `/${path}`;
+  // version (e.g. the project's "updated" time) skips a cached old copy after an image is replaced
+  return urls.get(path) || `/${path}${version ? `?v=${encodeURIComponent(version)}` : ''}`;
 }
 
 /** If an image isn't on the live site yet (just published), fall back to GitHub's copy. */

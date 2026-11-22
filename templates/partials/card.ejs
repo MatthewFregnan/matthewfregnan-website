@@ -5,7 +5,7 @@
    <% if (project.videoFile) { %>data-preview="<%= project.videoFile %>"<% } %><%- typeof extra !== 'undefined' ? ' ' + extra : '' %>>
   <% if (project.thumbnail) { %>
   <img
-    src="/images/thumbnails/<%= project.thumbnail %>"
+    src="<%= imageUrl('thumbnails', project.thumbnail) %>"
     alt="<%= project.title %>"
     loading="lazy"
     <% if (focusOf(project)) { %>style="object-position: <%= focusOf(project) %>"<% } %>
