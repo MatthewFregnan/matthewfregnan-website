@@ -573,6 +573,19 @@
       "thumbFocus": "47% 42%"
     },
     {
+      "id": "stage-tour-goodkid-bts",
+      "title": "Stage Tour GoodKid BTS",
+      "category": "vertical",
+      "client": "RedOctane Games",
+      "role": "Editor",
+      "production": "",
+      "year": "2026",
+      "description": "",
+      "thumbnail": "",
+      "updated": "2026-11-22T05:43:18",
+      "instagramId": "DaN045EDNj8"
+    },
+    {
       "id": "stage-tour-chart-guessing-game",
       "title": "Stage Tour Chart Guessing Game",
       "category": "vertical",
@@ -588,6 +601,40 @@
       "showStats": true,
       "videoFile": "https://videos.matthewfregnan.com/vertical/stagetour-chart-guessing-game.mp4?v=1795325410",
       "thumbFocus": "54% 85%"
+    },
+    {
+      "id": "stage-tour-chart-guessing-game-copy",
+      "title": "Stage Tour Acai VS Moose Battle",
+      "category": "vertical",
+      "client": "RedOctane Games",
+      "role": "Editor",
+      "production": "",
+      "year": "2026",
+      "description": "",
+      "thumbnail": "vertical/stage-tour-chart-guessing-game.jpg",
+      "updated": "2026-11-22T05:41:34",
+      "platform": "Social",
+      "showStats": true,
+      "videoFile": "https://videos.matthewfregnan.com/vertical/stagetour-chart-guessing-game.mp4?v=1795325410",
+      "thumbFocus": "54% 85%",
+      "instagramId": "Ddb0j_ADVwK"
+    },
+    {
+      "id": "stage-tour-mocap-bts",
+      "title": "Stage Tour Motion Capture BTS",
+      "category": "vertical",
+      "client": "RedOctane Games",
+      "role": "Editor",
+      "production": "",
+      "year": "2026",
+      "description": "",
+      "thumbnail": "vertical/stage-tour-chart-guessing-game.jpg",
+      "updated": "2026-11-22T05:42:13",
+      "platform": "Social",
+      "showStats": true,
+      "videoFile": "https://videos.matthewfregnan.com/vertical/stagetour-chart-guessing-game.mp4?v=1795325410",
+      "thumbFocus": "54% 85%",
+      "instagramId": "DZsWZXsAKPj"
     },
     {
       "id": "stage-tour-acai-rapid-fire",
