@@ -23,6 +23,20 @@
   ],
   "projects": [
     {
+      "id": "crkd-sale-ad",
+      "title": "CRKD Sale AD",
+      "category": "vertical",
+      "client": "CRKD",
+      "role": "Editor",
+      "production": "",
+      "year": "2026",
+      "description": "",
+      "thumbnail": "vertical/crkd-sale-ad.jpg",
+      "updated": "2026-11-22T12:04:42",
+      "videoFile": "https://videos.matthewfregnan.com/vertical/crkd-sale-ad-mwrsg3o7.mp4?v=1795349019756",
+      "thumbFocus": "53% 78%"
+    },
+    {
       "id": "stage-tour-controller-deep-dive",
       "title": "Stage Tour Controller Hardware Deep Dive",
       "category": "vertical",
@@ -684,7 +698,7 @@
       "year": "2026",
       "description": "",
       "thumbnail": "vertical/stage-tour-acai-rapid-fire.jpg",
-      "updated": "2026-11-22T08:26:28",
+      "updated": "2026-11-22T12:00:57",
       "platform": "Social",
       "showStats": true,
       "videoFile": "https://videos.matthewfregnan.com/vertical/stage-tour-chart-guessing-game-copy.mp4?v=1795325703",
@@ -693,7 +707,9 @@
       "statsViews": "59.8k",
       "statsLikes": "4956",
       "statsComments": "38",
-      "statsPlatform": "tiktok"
+      "statsPlatform": "tiktok",
+      "hidden": true,
+      "hiddenSince": "2026-11-22"
     },
     {
       "id": "vce-games-design",
