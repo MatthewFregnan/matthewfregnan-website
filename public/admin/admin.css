@@ -697,3 +697,9 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .sp-tile.drop-before { box-shadow: -4px 0 0 var(--accent); }
 .sp-end { display: grid; place-items: center; background: none; border: 1.5px dashed var(--border); cursor: default; }
 @media (hover: none) { .sp-tools { opacity: 1; } }
+
+.logo-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.logo-chip { display: inline-grid; place-items: center; height: 34px; min-width: 60px; padding: 4px 10px; border-radius: 6px; background: #2a2a2e; }
+.logo-chip img { max-height: 24px; max-width: 120px; filter: brightness(0) invert(1); }
+.pv-logo { position: absolute; top: 10px; left: 10px; z-index: 1; height: 22px; max-width: 40%; object-fit: contain; object-position: left top; filter: brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0,0,0,.6)); opacity: .92; }
+.pv-tile.v .pv-logo { height: 18px; }

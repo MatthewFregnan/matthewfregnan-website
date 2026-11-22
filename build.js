@@ -504,7 +504,7 @@ function fileHash(file) {
 async function renderTemplate(templateName, data) {
   const templatePath = path.join(TEMPLATES_DIR, `${templateName}.ejs`);
   const template = await fs.readFile(templatePath, 'utf8');
-  return ejs.render(template, { focusOf, ...data }, { filename: templatePath });
+  return ejs.render(template, { focusOf, logoOf, ...data }, { filename: templatePath });
 }
 
 // Build CSS with Tailwind
@@ -585,6 +585,14 @@ async function fingerprintAdmin() {
 // category in order, one per client so the cycle shows range.
 // A project's thumbnail focus point ("x% y%"), set by clicking the thumbnail in the app or
 // admin. Crops keep this point in view. Defaults to the centre.
+// Client logos (optional): "clients" in projects.json, e.g. { "KIA": { "logo": "kia.webp" } }, files in
+// images/logos. Shown small on that client's thumbnails (see partials/card.ejs).
+const CLIENT_LOGOS = new Map();
+function logoOf(p) {
+  const file = CLIENT_LOGOS.get(String(p.client || '').trim().toLowerCase());
+  return file && fs.existsSync(path.join(IMAGES_DIR, 'logos', file)) ? `/images/logos/${file}` : '';
+}
+
 function focusOf(p) {
   const m = /^(\d{1,3}(?:\.\d+)?)% (\d{1,3}(?:\.\d+)?)%$/.exec(String(p.thumbFocus || '').trim());
   return m ? `${Math.min(100, +m[1])}% ${Math.min(100, +m[2])}%` : '';
@@ -717,6 +725,9 @@ function resolveHome(projects) {
 // Build pages
 async function buildPages() {
   const { projects, siteConfig } = loadData();
+  for (const [name, c] of Object.entries(projects.clients || {})) {
+    if (c && c.logo) CLIENT_LOGOS.set(name.trim().toLowerCase(), c.logo);
+  }
 
   console.log('Checking video links...');
   await resolveVideos(projects.projects);

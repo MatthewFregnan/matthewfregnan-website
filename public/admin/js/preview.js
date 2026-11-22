@@ -41,9 +41,11 @@ function img(h, src, focus, cls = '') {
     : h('span', { class: `pv-noimg ${cls}` });
 }
 
-function tile(h, p, { vertical, thumb, badge, onPick }) {
+function tile(h, p, { vertical, thumb, badge, onPick, logo }) {
+  const logoSrc = logo ? logo(p) : '';
   return h('div', { class: `pv-tile${vertical ? ' v' : ''}`, title: p.title, onclick: onPick ? () => onPick(p) : null },
     img(h, thumb(p), p.thumbFocus),
+    logoSrc && !badge ? h('img', { class: 'pv-logo', src: logoSrc, alt: '' }) : null,
     badge ? h('span', { class: `pv-badge ${badge.kind}` }, badge.text) : null,
     h('div', { class: 'pv-tile-title' }, h('b', {}, p.title || '(untitled)'), p.client ? h('small', {}, p.client) : null));
 }
@@ -132,7 +134,7 @@ export function homePreview(h, opts) {
       el: h('div', { class: 'pv-social' },
         h('div', { class: 'pv-track pv-grid' }, feat.shown.map(p => {
           const t = tile(h, p, {
-            thumb, onPick,
+            thumb, onPick, logo: opts.logo,
             badge: badgeFor(feat, landSettings)(p),
           });
           t.style.flex = `0 0 ${tileW}`;
@@ -148,7 +150,7 @@ export function homePreview(h, opts) {
     rows.push({ kind: 'social', title: String(set.socialTitle || '').trim(),
       el: h('div', { class: 'pv-social' },
         h('div', { class: 'pv-track' }, reels.shown.map(p => {
-          const t = tile(h, p, { vertical: true, thumb, onPick, badge: badgeFor(reels, reelSettings)(p) });
+          const t = tile(h, p, { vertical: true, thumb, onPick, logo: opts.logo, badge: badgeFor(reels, reelSettings)(p) });
           t.style.flex = `0 0 ${tileW}`;
           return t;
         })),
@@ -236,8 +238,8 @@ export function projectPreview(h, opts) {
 }
 
 /** The project's tile as it appears in lists on the site (category page and home page). */
-export function cardPreview(h, p, thumb) {
-  return h('div', { class: 'pv-card-demo' }, tile(h, p, { vertical: p.category === 'vertical', thumb }));
+export function cardPreview(h, p, thumb, logo) {
+  return h('div', { class: 'pv-card-demo' }, tile(h, p, { vertical: p.category === 'vertical', thumb, logo }));
 }
 
 const PLATFORM_NAMES = { youtube: 'YouTube', vimeo: 'Vimeo', instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook', linkedin: 'LinkedIn', x: 'X' };

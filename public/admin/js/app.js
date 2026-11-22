@@ -186,8 +186,58 @@ function changed({ list = false, editor = false } = {}) {
   if (S.page === 'projects' && S.editorTab === 'preview') renderProjectPreview();
 }
 
+// ---------------------------------------------------------------- client logos (optional)
+// One logo per client (S.data.clients["Client name"].logo = "name.webp" in images/logos), shown small
+// on that client's thumbnails on the site.
+
+const clientKey = name => String(name || '').trim().toLowerCase();
+function clientEntry(name) {
+  const k = clientKey(name);
+  if (!k) return null;
+  return Object.entries(S.data.clients || {}).find(([n]) => clientKey(n) === k) || null;
+}
+const logoOf = p => clientEntry(p?.client)?.[1]?.logo || '';
+
+function clientLogoRow(p) {
+  if (!String(p.client || '').trim()) return h('span', { class: 'muted small' }, 'Add a client first.');
+  const logo = logoOf(p);
+  const others = projects().filter(x => x !== p && clientKey(x.client) === clientKey(p.client)).length;
+  const setLogo = async () => {
+    const [file] = await pickFiles(false);
+    if (!file) return;
+    try {
+      const { blob, ext } = await I.convert(file, 480);
+      const name = `${slugify(p.client)}.${ext}`;
+      I.addPending(I.repoPath('logos', name), blob);
+      mutate(() => {
+        S.data.clients ||= {};
+        const existing = clientEntry(p.client);
+        const key = existing ? existing[0] : p.client.trim();
+        S.data.clients[key] = { ...(S.data.clients[key] || {}), logo: name };
+      });
+      $('#client-logo')?.replaceChildren(clientLogoRow(p));
+    } catch (e) { toast(e.message); }
+  };
+  const remove = () => {
+    mutate(() => {
+      const existing = clientEntry(p.client);
+      if (existing) delete S.data.clients[existing[0]];
+      if (S.data.clients && !Object.keys(S.data.clients).length) delete S.data.clients;
+    });
+    $('#client-logo')?.replaceChildren(clientLogoRow(p));
+  };
+  return h('div', { class: 'logo-row' },
+    logo ? h('span', { class: 'logo-chip' }, I.withFallback(h('img', { src: I.src('logos', logo), alt: '' }), 'logos', logo)) : null,
+    h('button', { class: 'btn', onclick: setLogo }, logo ? 'Change…' : 'Add Logo…'),
+    logo ? h('button', { class: 'btn link danger', onclick: remove }, 'Remove') : null,
+    h('span', { class: 'muted small' }, logo
+      ? `Shown small on ${p.client}’s thumbnails${others ? ` (${others + 1} projects)` : ''}.`
+      : 'Optional: shown small on this client’s thumbnails. A PNG with a transparent background works best.'));
+}
+
 function usedImagePaths() {
   const used = new Set();
+  for (const c of Object.values(S.data?.clients || {})) if (c.logo) used.add(I.repoPath('logos', c.logo));
   for (const p of projects()) {
     if (p.thumbnail) used.add(I.repoPath('thumbnails', p.thumbnail));
     for (const g of p.gallery || []) used.add(I.repoPath('gallery', g));
@@ -483,6 +533,7 @@ function textField(p, key, opts = {}) {
       if (v !== p[key]) mutate(() => { p[key] = v; }, { mergeKey: `${projects().indexOf(p)}:${key}` });
       e.target.value = v;
       S.mergeKey = null;
+      if (key === 'client') $('#client-logo')?.replaceChildren(clientLogoRow(p));
     },
   });
   if (tag === 'textarea') el.value = p[key] || '';
@@ -530,6 +581,7 @@ function detailsForm(p) {
     h('label', { for: 'f-title' }, 'Title'), textField(p, 'title'),
     h('label', { for: 'f-category' }, 'Category'), cat,
     h('label', { for: 'f-client' }, 'Client'), textField(p, 'client', { list: true, placeholder: 'e.g. Deakin University' }),
+    h('label', {}, 'Client logo'), h('div', { id: 'client-logo' }, clientLogoRow(p)),
     h('label', { for: 'f-role' }, 'Role'), textField(p, 'role', { list: true, placeholder: 'e.g. Editor' }),
     h('label', { for: 'f-production' }, 'Production'), textField(p, 'production', { list: true, placeholder: 'e.g. ThinkHQ' }),
     h('label', { for: 'f-agency' }, 'Agency'), textField(p, 'agency', { list: true, placeholder: 'If you worked through an agency' }),
@@ -1522,6 +1574,7 @@ function renderHomeDialog() {
         onclick: () => { HD.seed += 1; renderHomeDialog(); } }, '⤮ Shuffle Again') : null),
     h('div', { class: `preview-frame ${S.screen}` }, P.homePreview(h, {
       set, projects: projects(), categories: S.data.categories, site: S.site, thumb: thumbSrc, screen: S.screen, seed: HD.seed,
+      logo: p => (logoOf(p) ? I.src('logos', logoOf(p)) : ''),
       onPick: p => { clearSearchFor(p); select(p); },
     })),
     h('p', { class: 'hint' }, 'Click a project in the preview to edit it. Changes show here straight away; they go live when you Publish.')) : null;
@@ -1563,7 +1616,7 @@ function renderProjectPreview() {
       })),
       h('div', { class: 'preview-side' },
         h('h4', {}, 'In lists'),
-        h('div', { class: p.category === 'vertical' ? 'side-card v' : 'side-card' }, P.cardPreview(h, p, thumbSrc)),
+        h('div', { class: p.category === 'vertical' ? 'side-card v' : 'side-card' }, P.cardPreview(h, p, thumbSrc, q => (logoOf(q) ? I.src('logos', logoOf(q)) : ''))),
         h('p', { class: 'muted small' }, `How it looks on the ${category(p.category).name} page${inSets.length ? ' and the home page' : ''}.`),
         h('h4', {}, 'Home page'),
         h('p', { class: 'small' }, inSets.length

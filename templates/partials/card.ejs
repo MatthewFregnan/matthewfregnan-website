@@ -16,6 +16,7 @@
   <% } else { %>
   <span class="card-still card-blank" aria-hidden="true"></span>
   <% } %>
+  <% if (logoOf(project)) { %><img class="card-logo" src="<%= logoOf(project) %>" alt="<%= project.client %>" loading="lazy"><% } %>
   <div class="portfolio-item-title">
     <h2 class="text-lg font-medium"><%= project.title %></h2>
     <% if (project.client) { %>
