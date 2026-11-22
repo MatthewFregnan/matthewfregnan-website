@@ -33,11 +33,18 @@
       "description": "",
       "thumbnail": "vertical/stage-tour-chart-guessing-game.jpg",
       "instagramId": "DfSlE35BF1d",
-      "updated": "2026-11-22T12:06:28",
+      "updated": "2026-11-22T13:19:16",
       "platform": "Social",
       "showStats": true,
       "videoFile": "https://videos.matthewfregnan.com/vertical/stagetour-chart-guessing-game.mp4?v=1795325410",
-      "thumbFocus": "54% 85%"
+      "thumbFocus": "54% 85%",
+      "statsPlatform": "tiktok",
+      "statsUpdated": "2026-11-22",
+      "tiktokId": "7704022867419155725",
+      "tiktokUser": "stagetourgame",
+      "statsViews": "29.8K",
+      "statsLikes": "1384",
+      "statsComments": "31"
     },
     {
       "id": "stage-tour-controller-deep-dive",
@@ -91,9 +98,15 @@
       "year": "2026",
       "description": "",
       "thumbnail": "vertical/stage-tour-acai-vs-moose.jpg",
-      "updated": "2026-11-22T08:28:29",
+      "updated": "2026-11-22T13:20:10",
       "videoFile": "https://videos.matthewfregnan.com/vertical/stage-tour-acai-vs-moose-mwrkqnr6.mp4?v=1795336073604",
-      "thumbFocus": "53% 68%"
+      "thumbFocus": "53% 68%",
+      "showStats": true,
+      "statsViews": "14.7K",
+      "statsUpdated": "2026-11-22",
+      "statsLikes": "668",
+      "statsComments": "21",
+      "statsPlatform": "tiktok"
     },
     {
       "id": "stage-tour-mocap-bts",
@@ -105,9 +118,16 @@
       "year": "2026",
       "description": "",
       "thumbnail": "vertical/stage-tour-mocap-bts.jpg",
-      "updated": "2026-11-22T06:17:38",
+      "updated": "2026-11-22T13:21:21",
       "videoFile": "https://videos.matthewfregnan.com/vertical/stage-tour-mocap-bts-mwrg27uw.mp4?v=1795328212789",
-      "thumbFocus": "46% 25%"
+      "thumbFocus": "46% 25%",
+      "showStats": true,
+      "statsViews": "13.7K",
+      "statsUpdated": "2026-11-22",
+      "statsLikes": "630",
+      "statsComments": "30",
+      "tiktokId": "7652395048578960654",
+      "tiktokUser": "stagetourgame"
     },
     {
       "id": "redoctane-games-studio-launch-trailer",
@@ -669,10 +689,18 @@
       "year": "2026",
       "description": "",
       "thumbnail": "vertical/stage-tour-goodkid-bts.jpg",
-      "updated": "2026-11-22T06:04:18",
+      "updated": "2026-11-22T13:21:06",
       "instagramId": "DaN045EDNj8",
       "videoFile": "https://videos.matthewfregnan.com/vertical/stage-tour-goodkid-bts-mwrfkkyw.mp4?v=1795327393879",
-      "thumbFocus": "49% 14%"
+      "thumbFocus": "49% 14%",
+      "showStats": true,
+      "statsViews": "15.2K",
+      "statsUpdated": "2026-11-22",
+      "statsLikes": "1096",
+      "statsComments": "25",
+      "statsPlatform": "tiktok",
+      "tiktokId": "7657219612416724238",
+      "tiktokUser": "stagetourgame"
     },
     {
       "id": "crkd-pax-australia-2026",
@@ -684,13 +712,20 @@
       "year": "2026",
       "description": "",
       "thumbnail": "vertical/crkd-pax-australia-2026.jpg",
-      "updated": "2026-11-22T09:58:00",
+      "updated": "2026-11-22T13:22:29",
       "formerAddresses": [
         "vertical/new-project",
         "vertical/crkd-x-pax-australia-2026"
       ],
       "videoFile": "https://videos.matthewfregnan.com/vertical/crkd-pax-australia-2026-mwrnsj9j.mp4?v=1795341212722",
-      "thumbFocus": "53% 37%"
+      "thumbFocus": "53% 37%",
+      "showStats": true,
+      "tiktokId": "7697667564209573133",
+      "tiktokUser": "stagetourgame",
+      "statsViews": "13.6K",
+      "statsUpdated": "2026-11-22",
+      "statsLikes": "501",
+      "statsComments": "21"
     },
     {
       "id": "crkd---casual-ad",
