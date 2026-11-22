@@ -43,9 +43,9 @@
       "tagline": "",
       "projectLayout": "standard",
       "projects": [
-        "vertical/stage-tour-controller-deep-dive",
         "vertical/stage-tour-comic-con",
         "vertical/stage-tour-acai-vs-moose",
+        "vertical/stage-tour-controller-deep-dive",
         "commercial/redoctane-games-studio-launch-trailer",
         "commercial/otropo-hair-salon",
         "commercial/warning-levels",
