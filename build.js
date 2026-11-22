@@ -1079,6 +1079,11 @@ async function buildPages() {
   }
 
   // Client pages
+  // "Keep exploring": every client with a logo, most important first (CLIENT_RANK), one per logo file
+  const rankOf = n => { const i = CLIENT_RANK.findIndex(r => r.toLowerCase() === n.toLowerCase()); return i < 0 ? 999 : i; };
+  const allLogoClients = clientLogos(projects.projects, projects.clients,
+    [...CLIENT_INDEX.values()].map(c => c.name).filter(n => CLIENT_LOGOS.has(n.toLowerCase()))
+      .sort((a, b) => rankOf(a) - rankOf(b) || a.localeCompare(b)));
   let clientPages = 0;
   for (const c of CLIENT_INDEX.values()) {
     if (c.items.length < 2) continue;
@@ -1094,6 +1099,7 @@ async function buildPages() {
       clientLogo: fullLogo && fs.existsSync(path.join(IMAGES_DIR, 'logos', fullLogo))
         ? imageUrl('logos', fullLogo).replace('/images/logos/', '/images/logos-white/') : '',
       groups,
+      otherClients: allLogoClients.filter(o => !(logoFile && o.src.includes(`/${logoFile}?`)) && o.name.toLowerCase() !== c.name.toLowerCase()),
       pageDescription: `${c.name}: ${c.items.length} projects edited by ${siteConfig.title}, Melbourne video editor and colourist.`,
       pageUrl: `/clients/${c.slug}/`,
       pageType: 'website'

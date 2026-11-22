@@ -3,6 +3,15 @@
 <%# A client's page: all their work, grouped by section (build.js "Client pages"). %>
 <section class="py-12">
   <div class="container mx-auto px-4">
+    <%# Back: to wherever they came from on this site (e.g. "Back to Social"), else Home (src/main.js) %>
+    <a href="/" class="inline-flex items-center text-site-text-muted hover:text-site-text mb-6 transition-colors" data-smart-back
+       data-names="<%= JSON.stringify(Object.assign({ '': 'Home', about: 'About', 'my-work': 'All work' }, Object.fromEntries(categories.map(c => [c.slug, c.name])))) %>">
+      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      <span>Home</span>
+    </a>
+
     <div class="client-head">
       <% if (clientLogo) { %><img class="client-head-logo" src="<%= clientLogo %>" alt="<%= client.name %>"><% } %>
       <h1 class="<%= clientLogo ? 'sr-only' : 'text-3xl md:text-4xl font-light' %>"><%= client.name %></h1>
@@ -17,6 +26,20 @@
         <% }) %>
       </div>
     <% }) %>
+
+    <%# Keep exploring: the other clients, so the page leads on rather than ending %>
+    <% if (otherClients.length) { %>
+    <div class="client-more">
+      <h2 class="client-more-title">Keep exploring</h2>
+      <div class="client-more-logos">
+        <% otherClients.forEach(c => { %><% if (c.href) { %><a href="<%= c.href %>" title="<%= c.name %>"><% } else { %><span title="<%= c.name %>"><% } %><img src="<%= c.src %>" alt="<%= c.name %>" loading="lazy" style="height: <%= Math.round(c.height * 0.8) %>px"><% if (c.href) { %></a><% } else { %></span><% } %><% }) %>
+      </div>
+      <a href="/" class="client-home-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+        Back to home
+      </a>
+    </div>
+    <% } %>
   </div>
 </section>
 

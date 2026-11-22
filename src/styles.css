@@ -855,3 +855,14 @@ html:active-view-transition footer { animation: none !important; }
   .about-sheet-actions { display: flex; gap: 10px; }
   @media (prefers-reduced-motion: reduce) { .about-peek-arrow { animation: none; } .about-sheet-panel, .about-sheet-backdrop { transition: none; } }
 }
+
+/* Client pages: other clients to explore, then a way home */
+.client-more { margin-top: 64px; padding-top: 40px; border-top: 1px solid rgba(255, 255, 255, 0.08); text-align: center; }
+.client-more-title { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); font-weight: 400; margin: 0 0 24px; }
+.client-more-logos { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 28px 44px; max-width: 980px; margin: 0 auto; }
+.client-more-logos img { width: auto; max-width: 170px; object-fit: contain; opacity: 0.65; transition: opacity 0.2s ease; }
+.client-more-logos a:hover img { opacity: 1; }
+.client-home-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 40px; color: #a0a0a0; font-size: 0.9rem; }
+.client-home-link svg { width: 16px; height: 16px; }
+.client-home-link:hover { color: #fff; opacity: 1; }
+@media (max-width: 639px) { .client-more-logos { gap: 22px 30px; } .client-more-logos img { zoom: 0.8; } }

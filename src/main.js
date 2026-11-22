@@ -1102,3 +1102,25 @@ document.addEventListener('DOMContentLoaded', () => {
   // Get in touch: close this so the contact panel opens on its own
   sheet.querySelector('[data-contact]')?.addEventListener('click', close);
 });
+
+// Client pages: the back link says where it goes. Came from another page on this site: "Back to Social"
+// (or wherever) and it returns there, scroll position and all. Arrived from outside: "Home".
+document.addEventListener('DOMContentLoaded', () => {
+  const link = document.querySelector('[data-smart-back]');
+  if (!link) return;
+  let from;
+  try { from = new URL(document.referrer); } catch { return; }
+  if (from.origin !== location.origin || from.pathname === location.pathname) return;
+  const names = JSON.parse(link.dataset.names || '{}');
+  const parts = from.pathname.split('/').filter(Boolean);
+  let label = 'Back';
+  if (!parts.length || parts[0] === 'for') label = 'Back to home';
+  else if (parts[0] === 'clients') label = 'Back';
+  else if (parts.length === 1 && names[parts[0]]) label = `Back to ${names[parts[0]]}`;
+  else if (parts.length === 2 && names[parts[0]]) label = 'Back to project';
+  link.querySelector('span').textContent = label;
+  link.setAttribute('href', from.pathname + from.search);
+  link.addEventListener('click', (e) => {
+    if (history.length > 1) { e.preventDefault(); history.back(); }
+  });
+});
