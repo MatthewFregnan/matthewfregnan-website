@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Callable
@@ -30,6 +31,25 @@ class UploadError(Exception):
     pass
 
 
+# Running ffmpeg/wrangler processes, so uploads can be stopped (e.g. when quitting the app)
+_procs: set = set()
+_cancelled = threading.Event()
+
+
+def cancel_all():
+    _cancelled.set()
+    for p in list(_procs):
+        try:
+            p.kill()
+        except OSError:
+            pass
+
+
+def _check_cancelled():
+    if _cancelled.is_set():
+        raise UploadError("Upload stopped.")
+
+
 def _env() -> dict:
     return {**os.environ, "PATH": tool_paths()}
 
@@ -44,9 +64,18 @@ def _which(name: str) -> str:
     return found
 
 
-def _run(args: list[str], **kw) -> subprocess.CompletedProcess:
+def _run(args: list[str], timeout: float | None = None) -> subprocess.CompletedProcess:
+    _check_cancelled()
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-    return subprocess.run(args, capture_output=True, text=True, env=_env(), creationflags=flags, **kw)
+    proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=_env(),
+                            creationflags=flags)
+    _procs.add(proc)
+    try:
+        out, err = proc.communicate(timeout=timeout)
+    finally:
+        _procs.discard(proc)
+    _check_cancelled()
+    return subprocess.CompletedProcess(args, proc.returncode, out, err)
 
 
 def probe(path: Path) -> dict:
@@ -77,8 +106,10 @@ def _ffmpeg(args: list[str], duration: float, progress: Callable[[str], None], l
     """Run ffmpeg, reporting percentage progress."""
     cmd = [_which("ffmpeg"), "-v", "error", "-y", "-progress", "pipe:1", "-nostats", *args]
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    _check_cancelled()
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=_env(),
                             creationflags=flags)
+    _procs.add(proc)
     last = -1
     for line in proc.stdout:
         m = re.match(r"out_time_us=(\d+)", line.strip())
@@ -88,7 +119,10 @@ def _ffmpeg(args: list[str], duration: float, progress: Callable[[str], None], l
                 last = pct
                 progress(f"{label}… {pct}%")
     err = proc.stderr.read()
-    if proc.wait() != 0:
+    code = proc.wait()
+    _procs.discard(proc)
+    _check_cancelled()
+    if code != 0:
         raise UploadError(f"ffmpeg couldn't process the video:\n{err[-400:]}")
 
 

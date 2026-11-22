@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QStackedLayout, QVBoxLayout, QWidget,
 )
 
+import core
 from widgets import run_async
 
 
@@ -232,53 +233,138 @@ class FramePicker(QDialog):
 
 
 class _Relay(QObject):
-    line = Signal(str)
+    line = Signal(object, str)   # job, text  (emitted from the worker thread; delivered on the UI thread)
 
 
-class UploadDialog(QDialog):
-    """Shows progress while a video is prepared and uploaded (the work runs in the background)."""
+class UploadJob:
+    def __init__(self, project: dict, src: Path):
+        self.key = core.project_key(project)          # how to find the project again when it finishes
+        self.snapshot = dict(project)                  # category/id used for the storage address
+        self.title = project.get("title") or "(untitled)"
+        self.src = src
+        self.state = "queued"                          # queued · running · done · failed
+        self.status = "Waiting…"
+        self.log: list[str] = []
 
-    def __init__(self, parent, title: str, work, on_done):
+
+class UploadManager(QObject):
+    """Runs video uploads one at a time in the background, so the app stays usable."""
+    changed = Signal()
+    finished = Signal(object, object)   # job, url (str) or Exception
+
+    def __init__(self, parent=None):
         super().__init__(parent)
-        from upload import UploadError
-        self.setWindowTitle(f"Upload video · {title}")
-        self.resize(560, 300)
-        self.log = QPlainTextEdit(readOnly=True)
-        self.bar = QProgressBar()
-        self.bar.setRange(0, 0)  # busy
-        self.buttons = QDialogButtonBox(QDialogButtonBox.Close)
-        self.buttons.button(QDialogButtonBox.Close).setEnabled(False)
-        self.buttons.rejected.connect(self.reject)
-        lay = QVBoxLayout(self)
-        lay.addWidget(self.log)
-        lay.addWidget(self.bar)
-        lay.addWidget(self.buttons)
-        relay = _Relay(self)
-        relay.line.connect(self._line)
+        self.jobs: list[UploadJob] = []
+        self._relay = _Relay(self)
+        self._relay.line.connect(self._on_line)
 
-        def finished(result):
-            self.bar.setRange(0, 1)
-            self.bar.setValue(1)
-            self.buttons.button(QDialogButtonBox.Close).setEnabled(True)
-            if isinstance(result, Exception):
-                msg = str(result) if isinstance(result, UploadError) else f"Something went wrong: {result}"
-                self._line(f"\n✗ {msg}")
-                return
-            self._line("\n✓ Uploaded and linked to this project. Publish to put it live.")
-            on_done(result)
+    # ------------------------------------------------------------------ queue
+    def enqueue(self, project: dict, src: Path) -> UploadJob:
+        job = UploadJob(project, src)
+        self.jobs.append(job)
+        self.changed.emit()
+        self._next()
+        return job
 
-        run_async(lambda: work(relay.line.emit), finished)
+    def active(self) -> list[UploadJob]:
+        return [j for j in self.jobs if j.state in ("queued", "running")]
 
-    def _line(self, text: str):
-        lines = self.log.toPlainText().splitlines()
-        # Progress updates replace the previous line of the same step instead of piling up
-        if lines and text.split("…")[0] == lines[-1].split("…")[0] and "%" in text:
-            lines[-1] = text
-            self.log.setPlainText("\n".join(lines))
+    def job_for(self, key: str) -> UploadJob | None:
+        return next((j for j in self.jobs if j.key == key and j.state in ("queued", "running")), None)
+
+    def _next(self):
+        if any(j.state == "running" for j in self.jobs):
+            return
+        job = next((j for j in self.jobs if j.state == "queued"), None)
+        if not job:
+            return
+        job.state = "running"
+        job.status = "Starting…"
+        self.changed.emit()
+        from upload import upload_video
+        run_async(lambda: upload_video(job.snapshot, job.src, lambda text: self._relay.line.emit(job, text)),
+                  lambda result: self._done(job, result))
+
+    def _on_line(self, job: UploadJob, text: str):
+        job.status = text
+        if job.log and "%" in text and text.split("…")[0] == job.log[-1].split("…")[0]:
+            job.log[-1] = text    # update the same progress line rather than piling them up
         else:
-            self.log.appendPlainText(text)
-        self.log.verticalScrollBar().setValue(self.log.verticalScrollBar().maximum())
+            job.log.append(text)
+        self.changed.emit()
 
-    def reject(self):
-        if self.buttons.button(QDialogButtonBox.Close).isEnabled():
-            super().reject()
+    def _done(self, job: UploadJob, result):
+        from upload import UploadError
+        if isinstance(result, Exception):
+            job.state = "failed"
+            job.status = str(result) if isinstance(result, UploadError) else f"Something went wrong: {result}"
+            job.log.append(f"✗ {job.status}")
+        else:
+            job.state = "done"
+            job.status = "Uploaded"
+            job.log.append("✓ Uploaded and linked. Publish to put it live.")
+        self.changed.emit()
+        self.finished.emit(job, result)
+        self._next()
+
+
+class UploadStatus(QWidget):
+    """Status-bar summary of uploads, with a Details window."""
+
+    def __init__(self, manager: UploadManager, parent=None):
+        super().__init__(parent)
+        self.manager = manager
+        self.label = QLabel()
+        self.bar = QProgressBar()
+        self.bar.setRange(0, 0)
+        self.bar.setFixedWidth(90)
+        self.bar.setMaximumHeight(12)
+        self.details = QPushButton("Details")
+        self.details.setFlat(True)
+        self.details.clicked.connect(self.show_details)
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(0, 0, 6, 0)
+        lay.addWidget(self.bar)
+        lay.addWidget(self.label)
+        lay.addWidget(self.details)
+        self._dlg = None
+        manager.changed.connect(self.refresh)
+        self.refresh()
+
+    def refresh(self):
+        running = next((j for j in self.manager.jobs if j.state == "running"), None)
+        queued = sum(1 for j in self.manager.jobs if j.state == "queued")
+        self.setVisible(bool(self.manager.jobs))
+        self.bar.setVisible(running is not None)
+        if running:
+            more = f" (+{queued} waiting)" if queued else ""
+            self.label.setText(f"Uploading “{running.title}”: {running.status}{more}")
+        elif self.manager.jobs:
+            last = self.manager.jobs[-1]
+            self.label.setText(f"Upload {'finished' if last.state == 'done' else 'failed'}: “{last.title}”")
+        if self._dlg and self._dlg.isVisible():
+            self._fill()
+
+    def show_details(self):
+        if not self._dlg:
+            self._dlg = QDialog(self.window())
+            self._dlg.setWindowTitle("Uploads")
+            self._dlg.resize(560, 360)
+            self._log = QPlainTextEdit(readOnly=True)
+            bb = QDialogButtonBox(QDialogButtonBox.Close)
+            bb.rejected.connect(self._dlg.close)
+            lay = QVBoxLayout(self._dlg)
+            lay.addWidget(self._log)
+            lay.addWidget(bb)
+        self._fill()
+        self._dlg.show()
+        self._dlg.raise_()
+
+    def _fill(self):
+        icons = {"queued": "…", "running": "▶", "done": "✓", "failed": "✗"}
+        parts = []
+        for j in self.manager.jobs:
+            parts.append(f"{icons[j.state]} {j.title}  ({j.src.name})")
+            parts += [f"    {line}" for line in j.log]
+        self._log.setPlainText("\n".join(parts))
+        self._log.verticalScrollBar().setValue(self._log.verticalScrollBar().maximum())

@@ -193,6 +193,11 @@ class ProjectEditor(QScrollArea):
         vbtns.addWidget(self.btn_upload)
         vbtns.addStretch()
         right.addLayout(vbtns)
+        self.upload_state = QLabel()
+        self.upload_state.setWordWrap(True)
+        self.upload_state.setVisible(False)
+        right.addWidget(self.upload_state)
+        self.uploads = None   # UploadManager, set by the main window
 
         # ---------------- right: thumbnail
         right.addWidget(section("Thumbnail"))
@@ -308,6 +313,8 @@ class ProjectEditor(QScrollArea):
         if gallery != self._gallery_shown:
             self._load_gallery(gallery)
         self._load_home_sets()
+        if self.uploads:
+            self._show_upload_state()
 
     def _load_home_sets(self):
         """One checkbox per home page set: tick to feature this project in that set."""
@@ -485,23 +492,29 @@ class ProjectEditor(QScrollArea):
         if f:
             self.upload_video(Path(f))
 
+    def set_uploads(self, manager):
+        self.uploads = manager
+        manager.changed.connect(self._show_upload_state)
+
     def upload_video(self, src: Path):
+        """Queue an upload; it runs in the background and links itself to the project when done."""
         p = self.p
-        if p is None:
+        if p is None or self.uploads is None:
             return
-        from media import UploadDialog
-        from upload import upload_video
-        self.preview.stop()
+        if self.uploads.job_for(core.project_key(p)):
+            QMessageBox.information(self, "Upload", "This project already has a video uploading.")
+            return
+        self.uploads.enqueue(p, src)
+        self.message.emit(f"Uploading in the background. You can keep working.")
 
-        def done(url: str):
-            if self.p is not p:
-                return
-            ref = core.VideoRef("file", url)
-            self.store.edit(p, "Upload Video", lambda q: core.set_source(q, "file", ref))
-            self.checker.check(ref, force=True)
-            self.load()
-
-        UploadDialog(self, p.get("title", ""), lambda progress: upload_video(p, src, progress), done).exec()
+    def _show_upload_state(self):
+        p = self.p
+        job = self.uploads.job_for(core.project_key(p)) if (p is not None and self.uploads) else None
+        self.btn_upload.setEnabled(job is None)
+        self.upload_state.setVisible(job is not None)
+        if job:
+            self.upload_state.setText(f"{dot('unknown')} {'Uploading' if job.state == 'running' else 'Waiting to upload'} "
+                                      f"{job.src.name}: {job.status}")
 
     def pick_from_video(self):
         p = self.p

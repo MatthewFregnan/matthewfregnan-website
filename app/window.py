@@ -99,6 +99,10 @@ class MainWindow(QMainWindow):
 
         self.sidebar = Sidebar(self.store, self.checker)
         self.editor = ProjectEditor(self.store, self.checker)
+        from media import UploadManager, UploadStatus
+        self.uploads = UploadManager(self)
+        self.uploads.finished.connect(self._upload_finished)
+        self.editor.set_uploads(self.uploads)
         self.empty = QLabel("Select a project, or click “New from Link” to add one.", alignment=Qt.AlignCenter)
         self.stack = QStackedWidget()
         self.stack.addWidget(self.empty)
@@ -125,6 +129,7 @@ class MainWindow(QMainWindow):
             self.split.restoreState(settings.value("splitter"))
         self._on_selected(None)
         self._refresh_changes()
+        self.statusBar().addPermanentWidget(UploadStatus(self.uploads))
         self.statusBar().showMessage(f"{len(self.store.projects)} projects · changes save automatically")
         QTimer.singleShot(300, lambda: self.checker.check_projects(self.store.projects))
         run_async(lambda: tasks.sync_from_github(self.repo), self._synced)
@@ -366,7 +371,35 @@ class MainWindow(QMainWindow):
             self._refresh_changes()))
         self._refresh_changes()
 
+    def _upload_finished(self, job, result):
+        """Link a finished upload to its project (found by address, so switching projects is fine)."""
+        if isinstance(result, Exception):
+            self.statusBar().showMessage(f"Upload failed for “{job.title}”. See Details.", 10000)
+            return
+        p = self.store.project_by_key(job.key)
+        if p is None:
+            QMessageBox.warning(self, "Upload finished",
+                                f"“{job.title}” finished uploading, but that project has been renamed or deleted. "
+                                f"Its video is at:\n{result}\n\nPaste that into the project's Video file box.")
+            return
+        ref = core.VideoRef("file", result)
+        self.store.edit(p, f"Upload Video for “{job.title}”", lambda q: core.set_source(q, "file", ref))
+        self.checker.check(ref, force=True)
+        if self.editor.p is p:
+            self.editor.load()
+        self.statusBar().showMessage(f"Uploaded the video for “{job.title}”. Publish to put it live.", 10000)
+
     def closeEvent(self, e):
+        active = self.uploads.active()
+        if active:
+            names = ", ".join(f"“{j.title}”" for j in active[:3]) + ("…" if len(active) > 3 else "")
+            if QMessageBox.warning(self, "Upload in progress",
+                                   f"{len(active)} upload(s) still going: {names}.\n\nQuit anyway and stop them?",
+                                   QMessageBox.Yes | QMessageBox.Cancel, QMessageBox.Cancel) != QMessageBox.Yes:
+                e.ignore()
+                return
+            import upload
+            upload.cancel_all()
         self.store.flush()
         s = QSettings()
         s.setValue("geometry", self.saveGeometry())
