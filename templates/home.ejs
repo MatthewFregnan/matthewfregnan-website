@@ -33,6 +33,15 @@
       </a>
     </div>
   </div>
+
+  <% if (home.landscape.length || home.vertical.length) { %>
+    <!-- Nudge to scroll: bounces gently, fades out once you scroll -->
+    <a href="#selected-work" class="scroll-cue" aria-label="Scroll to selected work">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 9l6 6 6-6"/>
+      </svg>
+    </a>
+  <% } %>
 </section>
 
 <% if (home.landscape.length || home.vertical.length) { %>

@@ -57,6 +57,24 @@
   .hero { min-height: 78vh; }
   @media (min-width: 768px) { .hero { min-height: max(440px, 62vh); } }
 
+  /* Scroll nudge at the bottom of the hero */
+  .scroll-cue {
+    position: absolute; left: 50%; bottom: 22px; z-index: 10;
+    width: 44px; height: 44px; margin-left: -22px;
+    display: grid; place-items: center; border-radius: 50%;
+    color: rgba(255, 255, 255, 0.85);
+    transition: opacity 0.4s ease, color 0.2s ease, background 0.2s ease;
+    animation: scroll-cue-bounce 2.2s ease-in-out infinite;
+  }
+  .scroll-cue svg { width: 30px; height: 30px; }
+  .scroll-cue:hover { color: #fff; background: rgba(255, 255, 255, 0.08); opacity: 1; }
+  .scroll-cue.is-hidden { opacity: 0; pointer-events: none; }
+  @keyframes scroll-cue-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(8px); }
+  }
+  @media (prefers-reduced-motion: reduce) { .scroll-cue { animation: none; } }
+
   /* Home page selected work: 3 across, or 4 when that fills the rows evenly */
   .portfolio-grid-home {
     @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3;

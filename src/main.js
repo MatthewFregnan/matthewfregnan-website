@@ -435,3 +435,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 });
+
+// Home page scroll nudge: smooth-scroll to the work, and fade the arrow out once the page scrolls.
+document.addEventListener('DOMContentLoaded', () => {
+  const cue = document.querySelector('.scroll-cue');
+  if (!cue) return;
+  const target = document.querySelector(cue.getAttribute('href'));
+  cue.addEventListener('click', (e) => {
+    if (!target) return;
+    e.preventDefault();
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  });
+  const update = () => cue.classList.toggle('is-hidden', window.scrollY > 40);
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+});
