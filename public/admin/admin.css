@@ -620,3 +620,9 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .pv-portrait > .pv-player { flex-shrink: 0; margin: 0; max-width: none; }
 .pv-portrait > div:last-child { flex: 1; min-width: 0; padding-top: 4px; }
 .pv-one .pv-context { grid-template-columns: 1fr; gap: 28px; }
+
+.stats-box { margin: 4px 0 10px; }
+.stats-row { display: grid; grid-template-columns: repeat(3, minmax(70px, 1fr)) minmax(130px, 1.4fr); gap: 8px; }
+.stat-field { display: grid; gap: 3px; }
+@media (max-width: 760px) { .stats-row { grid-template-columns: 1fr 1fr; } }
+.pv-stats { margin: -20px 0 28px; text-align: center; font-size: 14px; color: #a0a0a0; }

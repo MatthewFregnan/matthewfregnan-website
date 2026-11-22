@@ -176,6 +176,7 @@ export function projectPreview(h, opts) {
     ];
   }
 
+  const stats = statsText(p);
   const title = h('div', { class: 'pv-title' }, p.title || '(untitled)');
   const client = p.client ? h('div', { class: 'pv-muted pv-client' }, p.client) : null;
   const empty = !hasVideo && !gallery.length ? h('p', { class: 'pv-muted' }, 'No video or stills yet.') : null;
@@ -188,13 +189,30 @@ export function projectPreview(h, opts) {
     h('div', { class: 'pv-page' },
       h('div', { class: 'pv-back' }, `‹  Back to ${c.name}`),
       portrait
-        ? h('div', { class: 'pv-portrait' }, player,
+        ? h('div', { class: 'pv-portrait' }, h('div', {}, player, stats ? h('div', { class: 'pv-stats', style: 'margin:12px 0 0' }, stats) : null),
           h('div', {}, title, client, h('div', { class: 'pv-one' }, details), gallery.length ? h('div', { class: 'pv-gallery' }, gallery) : null))
-        : [title, client, player, gallery.length ? h('div', { class: 'pv-gallery' }, gallery) : null, details, empty]));
+        : [title, client, player, stats && player ? h('div', { class: 'pv-stats' }, stats) : null, gallery.length ? h('div', { class: 'pv-gallery' }, gallery) : null, details, empty]));
   return scaled(h, frame, SCREENS[screen].width);
 }
 
 /** The project's tile as it appears in lists on the site (category page and home page). */
 export function cardPreview(h, p, thumb) {
   return h('div', { class: 'pv-card-demo' }, tile(h, p, { vertical: p.category === 'vertical', thumb }));
+}
+
+const PLATFORM_NAMES = { youtube: 'YouTube', vimeo: 'Vimeo', instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook', linkedin: 'LinkedIn', x: 'X' };
+
+/** Typed views/likes/comments as the site shows them (live YouTube/Vimeo counts only appear on the site). */
+export function statsText(p) {
+  if (!p.showStats) return '';
+  const num = v => {
+    const m = String(v ?? '').trim().replace(/,/g, '').match(/^(\d+(?:\.\d+)?)\s*([kmb])?$/i);
+    return m ? Math.round(parseFloat(m[1]) * ({ k: 1e3, m: 1e6, b: 1e9 }[(m[2] || '').toLowerCase()] || 1)) : null;
+  };
+  const fmt = new Intl.NumberFormat('en-AU', { notation: 'compact', maximumFractionDigits: 1 });
+  const part = (n, w) => (n ? `${fmt.format(n)} ${w}${n === 1 ? '' : 's'}` : '');
+  const text = [part(num(p.statsViews), 'view'), part(num(p.statsLikes), 'like'), part(num(p.statsComments), 'comment')].filter(Boolean).join(' · ');
+  if (!text) return '';
+  const where = PLATFORM_NAMES[p.statsPlatform ?? (p.instagramId ? 'instagram' : '')];
+  return where ? `${text} on ${where}` : text;
 }

@@ -643,11 +643,12 @@ function renderVideo() {
     refs.length ? h('div', { class: 'vrow-tools' },
       h('label', { class: 'check' }, h('input', {
         type: 'checkbox', checked: !!p.showStats,
-        onchange: e => mutate(() => { if (e.target.checked) p.showStats = true; else delete p.showStats; }),
-      }), 'Show view count on the project page'),
+        onchange: e => { mutate(() => { if (e.target.checked) p.showStats = true; else delete p.showStats; }); renderVideo(); },
+      }), 'Show views, likes & comments on the project page'),
       h('button', {
         class: 'btn', onclick: useVideoDetails, disabled: !refs.some(r => r.kind !== 'file' && V.status(r)?.ok),
       }, 'Use Video’s Title, Year & Thumbnail')) :'',
+    refs.length && p.showStats ? statsFields(p) : '',
     h('div', { class: 'vrow-tools' },
       h('button', {
         class: 'btn', disabled: !!job || !uploadConfig(),
@@ -748,6 +749,28 @@ function renderUploads() {
   } else if (!!job !== !!line) {
     renderVideo();
   }
+}
+
+const STATS_PLATFORMS = [['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['youtube', 'YouTube'], ['facebook', 'Facebook'],
+  ['linkedin', 'LinkedIn'], ['vimeo', 'Vimeo'], ['x', 'X'], ['', 'Don’t say (across platforms)']];
+
+/** Views / likes / comments typed by hand (e.g. from a client's Instagram post). */
+function statsFields(p) {
+  const field = (key, label, placeholder) => h('label', { class: 'stat-field' }, h('span', { class: 'muted small' }, label),
+    h('input', { value: p[key] || '', placeholder, inputmode: 'decimal', onchange: e => {
+      const v = e.target.value.trim();
+      mutate(() => { if (v) p[key] = v; else delete p[key]; });
+    } }));
+  const where = p.statsPlatform ?? (p.instagramId ? 'instagram' : '');
+  return h('div', { class: 'stats-box' },
+    h('div', { class: 'stats-row' },
+      field('statsViews', 'Views', 'e.g. 1.2M'),
+      field('statsLikes', 'Likes', 'e.g. 45K'),
+      field('statsComments', 'Comments', 'e.g. 320'),
+      h('label', { class: 'stat-field' }, h('span', { class: 'muted small' }, 'Counted on'),
+        h('select', { onchange: e => mutate(() => { p.statsPlatform = e.target.value; }) },
+          STATS_PLATFORMS.map(([v, n]) => h('option', { value: v, selected: v === where }, n))))),
+    h('p', { class: 'hint' }, 'Type the numbers from the post (1.2M, 45K or 45000). Leave them all empty to use YouTube’s or Vimeo’s live count instead. Shown like “1.2M views · 45K likes · 320 comments on Instagram”.'));
 }
 
 function videoStateText(p) {

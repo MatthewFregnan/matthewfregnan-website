@@ -45,6 +45,10 @@ def link_button(text: str) -> QPushButton:
     return b
 
 
+STATS_PLATFORMS = [("instagram", "Instagram"), ("tiktok", "TikTok"), ("youtube", "YouTube"), ("facebook", "Facebook"),
+                   ("linkedin", "LinkedIn"), ("vimeo", "Vimeo"), ("x", "X"), ("", "Don't say (across platforms)")]
+
+
 class ProjectEditor(QScrollArea):
     message = Signal(str)
 
@@ -184,11 +188,35 @@ class ProjectEditor(QScrollArea):
         self.video_state = QLabel()
         self.video_state.setWordWrap(True)
         right.addWidget(self.video_state)
-        self.show_stats = QCheckBox("Show view count on the project page")
-        self.show_stats.setToolTip("Views (and likes on YouTube) are fetched when the site builds. "
-                                   "Needs API keys in GitHub; see app/README.md.")
+        self.show_stats = QCheckBox("Show views, likes && comments on the project page")
+        self.show_stats.setToolTip("Type the numbers below (e.g. from a client's Instagram post), or leave them empty "
+                                   "to use YouTube's or Vimeo's live count (needs API keys in GitHub; see app/README.md).")
         self.show_stats.toggled.connect(self._set_stats)
         right.addWidget(self.show_stats)
+        # Typed numbers (any platform)
+        self.stats_box = QWidget()
+        sg = QGridLayout(self.stats_box)
+        sg.setContentsMargins(22, 0, 0, 0)
+        self.stat_fields: dict[str, QLineEdit] = {}
+        for col, (key, label, ph) in enumerate((("statsViews", "Views", "e.g. 1.2M"), ("statsLikes", "Likes", "e.g. 45K"),
+                                               ("statsComments", "Comments", "e.g. 320"))):
+            e = QLineEdit(placeholderText=ph)
+            e.editingFinished.connect(lambda key=key, e=e: self._set_stat(key, e.text()))
+            self.stat_fields[key] = e
+            sg.addWidget(QLabel(label), 0, col)
+            sg.addWidget(e, 1, col)
+        self.stats_platform = QComboBox()
+        for v, n in STATS_PLATFORMS:
+            self.stats_platform.addItem(n, v)
+        self.stats_platform.activated.connect(self._set_stats_platform)
+        sg.addWidget(QLabel("Counted on"), 0, 3)
+        sg.addWidget(self.stats_platform, 1, 3)
+        hint = QLabel("Type the numbers from the post (1.2M, 45K or 45000). Leave them all empty to use YouTube's "
+                      "or Vimeo's live count instead.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: palette(placeholder-text); font-size: 11px;")
+        sg.addWidget(hint, 2, 0, 1, 4)
+        right.addWidget(self.stats_box)
         self.btn_fetch = QPushButton("Use Video's Title, Year && Thumbnail")
         self.btn_fetch.clicked.connect(self.use_video_details)
         vbtns = QHBoxLayout()
@@ -304,6 +332,12 @@ class ProjectEditor(QScrollArea):
         self.show_stats.blockSignals(True)
         self.show_stats.setChecked(bool(p.get("showStats")))
         self.show_stats.blockSignals(False)
+        for key, e in self.stat_fields.items():
+            set_text_quietly(e, str(p.get(key, "")))
+        where = p["statsPlatform"] if "statsPlatform" in p else ("instagram" if p.get("instagramId") else "")
+        self.stats_platform.blockSignals(True)
+        self.stats_platform.setCurrentIndex(max(0, self.stats_platform.findData(where)))
+        self.stats_platform.blockSignals(False)
         self._show_video_state()
         focus = parse_focus(p.get("thumbFocus"))
         self.thumb.show_path(self.store.repo.thumb_path(p), focus)
@@ -431,8 +465,20 @@ class ProjectEditor(QScrollArea):
     def _set_stats(self, on: bool):
         if self.p is None:
             return
-        self.store.edit(self.p, "Show View Count" if on else "Hide View Count",
+        self.store.edit(self.p, "Show Stats" if on else "Hide Stats",
                         lambda p: p.__setitem__("showStats", True) if on else p.pop("showStats", None))
+        self.stats_box.setVisible(on)
+
+    def _set_stat(self, key: str, text: str):
+        v = text.strip()
+        if self.p is None or v == str(self.p.get(key, "")):
+            return
+        self.store.edit(self.p, "Change Stats", lambda p: p.__setitem__(key, v) if v else p.pop(key, None))
+
+    def _set_stats_platform(self):
+        v = self.stats_platform.currentData()
+        if self.p is not None and v != self.p.get("statsPlatform"):
+            self.store.edit(self.p, "Change Stats", lambda p: p.__setitem__("statsPlatform", v))
 
     def _open_source(self, kind: str):
         ref = core.project_sources(self.p or {}).get(kind)
@@ -467,6 +513,7 @@ class ProjectEditor(QScrollArea):
         self.primary.blockSignals(False)
         self.primary_row.setVisible(len(ordered) > 1)
         self.show_stats.setVisible(bool(ordered))
+        self.stats_box.setVisible(bool(ordered) and bool(self.p and self.p.get("showStats")))
         self.btn_fetch.setVisible(bool(ordered))
         self.btn_fetch.setEnabled(any((s := self.checker.get(r)) and s.ok and r.kind != "file" for r in ordered))
         self.btn_fetch.setVisible(any(r.kind != "file" for r in ordered))

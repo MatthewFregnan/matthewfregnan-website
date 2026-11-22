@@ -254,12 +254,35 @@ async function fetchStats(projects) {
     console.warn('  VIMEO_TOKEN not set: skipping Vimeo view counts');
   }
 
+  // Numbers typed in the editor (any platform, e.g. a client's Instagram post) win over live counts
+  for (const p of projects) {
+    if (!p.showStats) continue;
+    const typed = { views: parseCount(p.statsViews), likes: parseCount(p.statsLikes), comments: parseCount(p.statsComments) };
+    if (typed.views == null && typed.likes == null && typed.comments == null) continue;
+    p._stats = { kind: p.statsPlatform ?? (p.instagramId ? 'instagram' : ''), ...typed, typed: true };
+  }
+
   for (const p of projects) {
     if (!p._stats) continue;
     const s = p._stats;
-    s.text = `${compact.format(s.views)} view${s.views === 1 ? '' : 's'}` +
-      (s.likes ? ` · ${compact.format(s.likes)} like${s.likes === 1 ? '' : 's'}` : '');
+    const part = (n, word) => (n ? `${compact.format(n)} ${word}${n === 1 ? '' : 's'}` : '');
+    s.text = [part(s.views, 'view'), part(s.likes, 'like'), part(s.comments, 'comment')].filter(Boolean).join(' · ');
+    s.where = STATS_PLATFORMS[s.kind] || '';
+    if (!s.text) delete p._stats;
   }
+}
+
+const STATS_PLATFORMS = {
+  youtube: 'YouTube', vimeo: 'Vimeo', instagram: 'Instagram', tiktok: 'TikTok',
+  facebook: 'Facebook', linkedin: 'LinkedIn', x: 'X',
+};
+
+/** "1.2M", "45K", "45,000", "320" -> a number (null if empty or not a number). */
+function parseCount(v) {
+  const m = String(v ?? '').trim().replace(/,/g, '').match(/^(\d+(?:\.\d+)?)\s*([kmb])?$/i);
+  if (!m) return null;
+  const mult = { k: 1e3, m: 1e6, b: 1e9 }[(m[2] || '').toLowerCase()] || 1;
+  return Math.round(parseFloat(m[1]) * mult);
 }
 
 function buildVideoSchema(project, category, siteConfig) {
@@ -281,7 +304,7 @@ function buildVideoSchema(project, category, siteConfig) {
       "@type": "Person",
       "name": siteConfig.title
     },
-    ...(project._stats && {
+    ...(project._stats && project._stats.views && {
       "interactionStatistic": {
         "@type": "InteractionCounter",
         "interactionType": { "@type": "WatchAction" },

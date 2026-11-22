@@ -72,6 +72,10 @@ Each project can have a **Video file**, **Vimeo**, **YouTube** and **Instagram**
 
 ## View counts
 
+**Typed numbers (any platform):** tick *Show views, likes & comments* in a project's Video section and type the numbers from the post, e.g. from a client's Instagram or TikTok (1.2M, 45K or 45000), and choose where they were counted. The page shows “1.2M views · 45K likes · 320 comments on Instagram”. Instagram and TikTok only share these numbers with the account that posted, so they can't be fetched automatically for client posts. Typed numbers win over live counts.
+
+**Live counts (YouTube and Vimeo only):**
+
 Tick **Show view count on the project page** for a project to show views (and likes) under its video. The counts come from whichever video is playing (YouTube or Vimeo; Instagram doesn't offer them) and are fetched each time the site builds. The site rebuilds automatically every morning.
 
 This only works after you add your keys to GitHub, under the repo's **Settings → Secrets and variables → Actions → New repository secret**:

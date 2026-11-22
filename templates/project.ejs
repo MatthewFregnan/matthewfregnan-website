@@ -54,8 +54,8 @@
           </div>
         </div>
         <% if (project._stats) { %>
-          <p class="video-stats" data-kind="<%= project._stats.kind %>">
-            <%= project._stats.text %> on <%= project._stats.kind === 'youtube' ? 'YouTube' : 'Vimeo' %>
+          <p class="video-stats" data-kind="<%= project._stats.kind %>"<% if (project._stats.typed) { %> data-typed<% } %>>
+            <%= project._stats.text %><% if (project._stats.where) { %> on <%= project._stats.where %><% } %>
           </p>
         <% } %>
       </div>

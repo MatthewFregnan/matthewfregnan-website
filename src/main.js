@@ -120,7 +120,8 @@ class VideoPlayer {
     }
     this.teardown();
     const stats = this.root.querySelector('.video-stats');
-    if (stats && stats.dataset.kind !== src.kind) stats.remove();
+    // Live counts belong to one source; numbers typed in the editor stay whichever video plays
+    if (stats && !stats.hasAttribute('data-typed') && stats.dataset.kind !== src.kind) stats.remove();
     if (src.kind === 'file') {
       const v = document.createElement('video');
       v.src = src.embed;
