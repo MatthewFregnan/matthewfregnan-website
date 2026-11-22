@@ -552,8 +552,58 @@ const Previews = (() => {
     if (!tile) return;
     tile.classList.remove('is-previewing');
     const v = tile.querySelector('video.vp-preview');
-    if (v) setTimeout(() => { if (!tile.classList.contains('is-previewing') && current !== tile) release(v); }, 350);
+    if (v) setTimeout(() => { if (!tile.classList.contains('is-previewing') && current !== tile) release(v); }, 500);   // after the fade
     if (current === tile) current = null;
+  };
+  // Sound: previews start silent; the speaker button on the playing tile turns sound on for this visit
+  // (browsers only allow sound after you've tapped something, which the button is).
+  let soundOn = false;
+  const ICON_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="m22 9-6 6M16 9l6 6"/></svg>';
+  const ICON_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg>';
+  const soundButton = (tile) => {
+    let b = tile.querySelector('.vp-sound');
+    if (!b) {
+      b = document.createElement('span');
+      b.className = 'vp-sound';
+      b.setAttribute('role', 'button');
+      b.tabIndex = 0;
+      const toggle = (e) => {
+        e.preventDefault();
+        e.stopPropagation();   // the tile is a link; this mustn't open the project
+        const v = tile.querySelector('video.vp-preview');
+        soundOn = !soundOn;
+        if (v) {
+          v.muted = !soundOn;
+          if (soundOn) v.play().catch(() => { soundOn = false; v.muted = true; showSound(tile); });
+        }
+        showSound(tile);
+      };
+      b.addEventListener('click', toggle);
+      b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') toggle(e); });
+      tile.append(b);
+    }
+    return b;
+  };
+  const showSound = (tile) => {
+    const b = soundButton(tile);
+    b.innerHTML = soundOn ? ICON_ON : ICON_OFF;
+    b.setAttribute('aria-label', soundOn ? 'Mute' : 'Turn sound on');
+    b.classList.toggle('is-on', soundOn);
+  };
+  // Start a preview. If the browser refuses (a phone still letting go of the last video, or sound not
+  // allowed yet), try again a few times, falling back to silent, so a preview always gets going.
+  const start = (tile, v, tries = 0) => {
+    if (current !== tile) return;
+    v.muted = !soundOn;
+    v.play().then(() => {
+      if (current !== tile) return;
+      tile.classList.add('is-previewing');
+      showSound(tile);
+    }).catch(() => {
+      if (current !== tile || tries >= 4) return;
+      if (!v.muted) { soundOn = false; }   // sound wasn't allowed: carry on silently
+      setTimeout(() => start(tile, v, tries + 1), 250 * (tries + 1));
+    });
   };
   const play = (tile, restart = true) => {
     if (current === tile) return;
@@ -561,14 +611,11 @@ const Previews = (() => {
     current = tile;
     const v = videoFor(tile);
     if (restart) v.currentTime = 0;
-    v.play().then(() => { if (current === tile) tile.classList.add('is-previewing'); }).catch(() => {
-      // couldn't start (e.g. the phone is still letting go of the last one): try once more shortly
-      setTimeout(() => { if (current === tile) v.play().then(() => { if (current === tile) tile.classList.add('is-previewing'); }).catch(() => {}); }, 400);
-    });
+    start(tile, v);
   };
   // Safety net: if a browser still held a preview back, start it on the first touch.
   const unlock = () => {
-    if (current) { const v = current.querySelector('video.vp-preview'); if (v && v.paused) v.play().then(() => current?.classList.add('is-previewing')).catch(() => {}); }
+    if (current) { const v = current.querySelector('video.vp-preview'); if (v && v.paused) start(current, v); }
   };
   window.addEventListener('touchstart', unlock, { passive: true, once: true });
   return { play, stop, get current() { return current; } };
@@ -638,6 +685,19 @@ document.addEventListener('DOMContentLoaded', () => {
   let swipedRow = null;
   let swipedAt = 0;
   rows.forEach(r => r.addEventListener('touchstart', () => { swipedRow = r; swipedAt = performance.now(); }, { passive: true }));
+  // Phones: once a swipe has settled (the row stops moving), the tile in the middle plays straight away
+  rows.forEach(r => r.addEventListener('touchend', () => {
+    let last = r.scrollLeft;
+    let still = 0;
+    const settle = () => {
+      if (r.scrollLeft === last) still += 1; else { still = 0; last = r.scrollLeft; }
+      if (still < 3) { setTimeout(settle, 60); return; }
+      swipedRow = r; swipedAt = performance.now();
+      pickFromScroll();
+      if (scrollPick && Previews.current !== scrollPick) pickTile(scrollPick, true);
+    };
+    setTimeout(settle, 60);
+  }, { passive: true }));
   const fullyIn = (t, row) => {
     const box = row.getBoundingClientRect();
     const r = t.getBoundingClientRect();

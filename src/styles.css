@@ -343,13 +343,13 @@
 /* Short-form hover previews (see src/main.js) */
 .portfolio-item .vp-preview, .portfolio-item-vertical .vp-preview {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  opacity: 0; transition: opacity 0.35s ease; pointer-events: none;
+  opacity: 0; transition: opacity 0.45s ease; pointer-events: none;
 }
 .portfolio-item.is-previewing .vp-preview, .portfolio-item-vertical.is-previewing .vp-preview { opacity: 1; }
 /* once the video is showing, hide the thumbnail under it so it can't peek out around the video */
 .portfolio-item .vp-preview, .portfolio-item-vertical .vp-preview { z-index: 0; transform: translateZ(0); }
-.portfolio-item > img:not(.card-logo), .portfolio-item-vertical > img:not(.card-logo) { transition: transform 0.3s, opacity 0s; }
-.portfolio-item.is-previewing > img:not(.card-logo), .portfolio-item-vertical.is-previewing > img:not(.card-logo) { opacity: 0; transition: transform 0.3s, opacity 0s linear 0.35s; }
+.portfolio-item > img:not(.card-logo), .portfolio-item-vertical > img:not(.card-logo) { transition: transform 0.3s, opacity 0.45s ease; }   /* thumbnail fades back in, no flash */
+.portfolio-item.is-previewing > img:not(.card-logo), .portfolio-item-vertical.is-previewing > img:not(.card-logo) { opacity: 0; transition: transform 0.3s, opacity 0s linear 0.45s; }
 .portfolio-item .portfolio-item-title, .portfolio-item-vertical .portfolio-item-title { z-index: 1; }
 
 /* ----------------------------------------------------------------------------------------
@@ -518,7 +518,7 @@
 .portfolio-item .card-logo, .portfolio-item-vertical .card-logo {
   position: absolute; top: 12px; left: 12px; z-index: 2; height: 24px; width: auto; max-width: 45%; transform: none;
   object-fit: contain; object-position: left top; pointer-events: none;
-  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.55)); opacity: 0.82; transition: opacity 0.25s ease;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.55)); opacity: 0.82; transition: opacity 0.5s ease;
 }
 .portfolio-item-vertical .card-logo { height: 24px; top: 12px; left: 12px; }
 .portfolio-item:hover .card-logo, .portfolio-item-vertical:hover .card-logo { transform: none; }
@@ -528,7 +528,7 @@
 .portfolio-item.has-corner-logo::before, .portfolio-item-vertical.has-corner-logo::before {
   content: ''; position: absolute; top: 0; left: 0; z-index: 1; width: 70%; height: 45%; pointer-events: none;
   background: radial-gradient(ellipse at top left, rgba(0, 0, 0, 0.32), transparent 65%);
-  transition: opacity 0.25s ease;
+  transition: opacity 0.5s ease;
 }
 .portfolio-item.is-previewing.has-corner-logo::before, .portfolio-item-vertical.is-previewing.has-corner-logo::before { opacity: 0; }
 /* Logo beside the title (logoPosition "title-right", "title-right-faint" or "title-left") */
@@ -763,9 +763,9 @@ footer { animation: page-fade 0.35s ease-out 0.1s backwards; }
 /* Phones: once a tile's preview has played for a moment, its title fades out so our text doesn't sit on
    top of text in the video (it was read during the pause before playing); back as soon as it stops. */
 @media (hover: none) {
-  .portfolio-item .portfolio-item-title, .portfolio-item-vertical .portfolio-item-title { transition: opacity 0.25s ease; }
+  .portfolio-item .portfolio-item-title, .portfolio-item-vertical .portfolio-item-title { transition: opacity 0.5s ease; }
   .portfolio-item.is-previewing .portfolio-item-title, .portfolio-item-vertical.is-previewing .portfolio-item-title {
-    opacity: 0; transition: opacity 0.5s ease 1.2s;
+    opacity: 0; transition: opacity 0.8s ease 1.2s;
   }
 }
 
@@ -893,3 +893,17 @@ html:active-view-transition footer { animation: none !important; }
   .row-track .portfolio-item-vertical .portfolio-item-title h2 { font-size: 0.875rem; }
   .row-track .portfolio-item-title p { font-size: 0.75rem; }
 }
+
+/* Preview sound button: top right of the playing tile */
+.vp-sound {
+  position: absolute; top: 10px; right: 10px; z-index: 3; width: 34px; height: 34px; display: grid; place-items: center;
+  border-radius: 50%; color: #fff; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); cursor: pointer;
+  opacity: 0; transform: scale(0.9); transition: opacity 0.3s ease, transform 0.3s ease, background 0.2s;
+  pointer-events: none;
+}
+.vp-sound svg { width: 17px; height: 17px; }
+.is-previewing > .vp-sound { opacity: 1; transform: none; pointer-events: auto; }
+.vp-sound:hover { background: rgba(0, 0, 0, 0.75); }
+.vp-sound.is-on { background: rgba(255, 255, 255, 0.92); color: #111; }
+@media (max-width: 639px) { .vp-sound { width: 38px; height: 38px; } }   /* easier to tap */
