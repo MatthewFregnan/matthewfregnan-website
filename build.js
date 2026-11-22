@@ -806,6 +806,7 @@ const SITE_TEXT = {
   homeAboutTitle: 'Hi, I’m Matthew!',
   homeAboutText: 'A Melbourne-based video editor & colourist. More about me, and how to get in touch.',
   homeAboutButton: 'More about me',
+  aboutPeekHint: 'Swipe up to say hi',
   clientsLabel: 'Clients include',
   ctaHeading: 'Have a project in mind?',
   ctaText: 'I edit and colour commercials, branded content and social. Let’s make something together.',

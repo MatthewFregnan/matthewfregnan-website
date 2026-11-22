@@ -2219,6 +2219,7 @@ const SITE_TEXT = [
     ['homeAboutTitle', 'About card: heading', 'Hi, I’m Matthew!'],
     ['homeAboutText', 'About card: line under it', 'A Melbourne-based video editor & colourist. More about me, and how to get in touch.'],
     ['homeAboutButton', 'About card: button', 'More about me'],
+    ['aboutPeekHint', 'Phones: line on the swipe-up bar', 'Swipe up to say hi', 'Under “Hi, I’m Matthew!” on the bar at the end of the home page on phones.'],
     ['clientsLabel', 'Label over the client logos', 'Clients include', 'Type - (a dash) to hide it.'],
   ]],
   ['Contact', [
