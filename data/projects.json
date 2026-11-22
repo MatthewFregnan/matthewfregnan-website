@@ -23,6 +23,27 @@
   ],
   "projects": [
     {
+      "id": "stage-tour-controller-deep-dive",
+      "title": "Stage Tour Controller Hardware Deep Dive",
+      "category": "vertical",
+      "client": "RedOctane Games",
+      "role": "Editor",
+      "production": "",
+      "year": "2026",
+      "description": "",
+      "thumbnail": "vertical/stage-tour-controller-deep-dive.jpg",
+      "updated": "2026-11-22T08:42:16",
+      "videoFile": "https://videos.matthewfregnan.com/vertical/stage-tour-controller-deep-dive-mwrl5q5a.mp4?v=1795336776393",
+      "thumbFocus": "37% 16%",
+      "tiktokId": "7678758534145772814",
+      "tiktokUser": "stagetourgame",
+      "showStats": true,
+      "statsViews": "493.2K",
+      "statsUpdated": "2026-11-22",
+      "statsLikes": "23.5K",
+      "statsComments": "696"
+    },
+    {
       "id": "stage-tour-comic-con",
       "title": "Stage Tour @ Comic-Con",
       "category": "vertical",
@@ -32,8 +53,16 @@
       "year": "2026",
       "description": "",
       "thumbnail": "vertical/stage-tour-comic-con.jpg",
-      "updated": "2026-11-22T08:30:11",
-      "videoFile": "https://videos.matthewfregnan.com/vertical/stage-tour-comic-con-mwrksuoc.mp4?v=1795336173791"
+      "updated": "2026-11-22T08:43:41",
+      "videoFile": "https://videos.matthewfregnan.com/vertical/stage-tour-comic-con-mwrksuoc.mp4?v=1795336173791",
+      "thumbFocus": "51% 62%",
+      "tiktokId": "7665413671719357710",
+      "tiktokUser": "stagetourgame",
+      "showStats": true,
+      "statsLikes": "2553",
+      "statsUpdated": "2026-11-22",
+      "statsComments": "80",
+      "statsViews": "56.8K"
     },
     {
       "id": "stage-tour-acai-vs-moose",
