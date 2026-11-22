@@ -11,6 +11,12 @@ The first launch installs what the app needs (about a minute). After that it ope
 
 **Preview Site** also needs Node.js. **Publish** needs Git with access to the GitHub repo.
 
+## Traffic (who's visiting)
+
+The **Traffic** page (web admin and desktop app) shows visitors per day, the most viewed pages and projects, where visitors came from (LinkedIn, Google, SEEK, direct…), the first page they saw, common paths through the site (e.g. Home → Social → KIA EV9), pages and time per visit, countries and devices. The Overview has a 7-day summary.
+
+It's anonymous and needs no cookie banner: no cookies, no IP addresses, and a visit is one browser tab session (a random ID that resets after 30 idle minutes). Visitors with Do Not Track / Global Privacy Control switched on aren't counted, and neither are bots. The footer says "Anonymous visit stats, no cookies." Data is kept for about a year, in a free Cloudflare database (`matthewfregnan-stats`) behind the upload service. Visits to the admin itself aren't counted.
+
 ## Finding your way around
 
 Both the app and the web admin have the same left menu:

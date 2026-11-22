@@ -15,3 +15,9 @@ bucket_name = "matthewfregnan-videos"
 
 [vars]
 REPO = "MatthewFregnan/matthewfregnan-website"
+
+# Anonymous visit stats for the admin's Traffic page (schema.sql)
+[[d1_databases]]
+binding = "STATS"
+database_name = "matthewfregnan-stats"
+database_id = "f34f23ec-4560-4bb7-ba71-6474aac27396"

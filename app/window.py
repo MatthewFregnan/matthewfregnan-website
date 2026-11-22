@@ -179,13 +179,19 @@ class MainWindow(QMainWindow):
             sig.connect(lambda *_: self._overview_timer.start())
         self.store.projectChanged.connect(lambda *_: self._overview_timer.start())
 
+        # Traffic page (loads when first opened)
+        from pages import TrafficPage
+        self.traffic_page = TrafficPage(self.store)
+        self.traffic_page.open_path.connect(self._open_path)
+        self._traffic_loaded = False
+
         self.pages = QStackedWidget()
         self.page_widgets = {"overview": self.overview, "projects": self.split, "home": home_wrap,
-                             "storage": self.storage_wrap}
+                             "traffic": self.traffic_page, "storage": self.storage_wrap}
         for w in self.page_widgets.values():
             self.pages.addWidget(w)
         self.rail = Rail([("overview", "Overview"), ("projects", "Projects"), ("home", "Home Page"),
-                          ("storage", "Storage")])
+                          ("traffic", "Traffic"), ("storage", "Storage")])
         self.rail.currentRowChanged.connect(lambda _r: self._show_page(self.rail.key()))
         central = QWidget()
         cl = QHBoxLayout(central)
@@ -427,10 +433,20 @@ class MainWindow(QMainWindow):
                 self.storage_page.reload()
         elif page == "home":
             self.home_preview.refresh()
+        elif page == "traffic" and not self._traffic_loaded:
+            self._traffic_loaded = True
+            self.traffic_page.load(self.traffic_page.days)
 
     def _refresh_overview(self):
         if self.pages.currentWidget() is self.overview:
             self.overview.refresh()
+
+    def _open_path(self, path: str):
+        p = next((x for x in self.store.projects if self.store.page_path(x) == path), None)
+        if p is not None:
+            self.open_project(p)
+        else:
+            QDesktopServices.openUrl(QUrl("https://matthewfregnan.com" + path))
 
     def _open_key(self, key: str):
         p = self.store.project_by_key(key)

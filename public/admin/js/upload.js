@@ -96,6 +96,11 @@ export async function upload(blob, key, { token, endpoint = UPLOAD_ENDPOINT, onP
   }
 }
 
+/** Anonymous page views for the last `days` days: { days, rows } (see traffic.js). */
+export async function stats({ token, endpoint = UPLOAD_ENDPOINT }, days) {
+  return call(endpoint, token, 'GET', `/stats?days=${days}`);
+}
+
 /** Everything in video storage: { objects: [{ key, size, uploaded }], total }. */
 export async function usage({ token, endpoint = UPLOAD_ENDPOINT }) {
   return call(endpoint, token, 'GET', '/usage');

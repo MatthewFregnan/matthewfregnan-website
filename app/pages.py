@@ -551,3 +551,155 @@ class ProjectPreviewPanel(QWidget):
         if layout == "detailed" and not p.get("description"):
             notes += ["", "<span style='color:#f0a020'>No description: the Detailed layout looks best with a sentence or two.</span>"]
         self.side_text.setText("<br>".join(notes))
+
+
+# ---------------------------------------------------------------------------- traffic
+
+_TRAFFIC_PAGE = """<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="admin.css">
+<style>
+  html, body {{ margin: 0; background: transparent; }}
+  body {{ padding: 2px 4px 24px; font: 13px -apple-system, system-ui, sans-serif; }}
+  a {{ color: var(--accent); }}
+</style></head>
+<body><div id="out" class="muted">Loading visits…</div>
+<script>
+{js}
+function h(tag, attrs = {{}}, ...children) {{
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {{}})) {{
+    if (v == null || v === false) continue;
+    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'class') el.className = v;
+    else if (k in el && k !== 'list' && k !== 'form') el[k] = v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }}
+  for (const c of children.flat()) {{
+    if (c == null || c === false) continue;
+    el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }}
+  return el;
+}}
+window.render = (d) => {{
+  const out = document.getElementById('out');
+  if (d.error) {{ out.textContent = d.error; return; }}
+  const titles = d.titles;
+  const sum = summarise(d.rows, d.days);
+  out.className = '';
+  out.replaceChildren(renderTraffic(h, sum, {{
+    titleOf: p => titles[p] || p,
+    onPath: p => {{ document.title = 'open:' + p + ':' + Date.now(); }},
+  }}));
+}};
+</script></body></html>"""
+
+
+def stats_rows(repo: core.Repo, days: int) -> list:
+    """Anonymous page views from the stats database (via Wrangler, signed in once on this computer)."""
+    import os
+    import shutil
+    import subprocess
+    import sys
+    import time
+    from tasks import tool_paths
+    npx = shutil.which("npx", path=tool_paths())
+    if not npx:
+        raise RuntimeError("Couldn't find Node.js (npx) on this computer.")
+    since = int((time.time() - days * 86400) * 1000)
+    sql = ("SELECT ts, visit, seq, path, source, country, device, secs FROM views "
+           f"WHERE ts >= {since} ORDER BY ts LIMIT 200000")
+    flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    r = subprocess.run([npx, "-y", "wrangler@3", "d1", "execute", "matthewfregnan-stats", "--remote", "--json",
+                        "--command", sql], capture_output=True, text=True, timeout=180,
+                       cwd=str(repo.root / "upload-worker"), env={**os.environ, "PATH": tool_paths()},
+                       creationflags=flags)
+    out = r.stdout.strip()
+    start = out.find("[")
+    if r.returncode != 0 or start < 0:
+        if re.search(r"not (be )?(logged|authenticated)|login", r.stdout + r.stderr, re.I):
+            raise RuntimeError("Wrangler isn't signed in to Cloudflare on this computer.\n"
+                               "In Terminal, run:  npx wrangler@3 login   then try again.")
+        raise RuntimeError("Couldn't read the visit stats from Cloudflare.")
+    results = json.loads(out[start:])[0].get("results", [])
+    return [[x["ts"], x["visit"], x["seq"], x["path"], x["source"], x["country"], x["device"], x["secs"]]
+            for x in results]
+
+
+class TrafficPage(QWidget):
+    """Visitors per day, most viewed pages, where visitors came from and their paths through the site."""
+    open_path = Signal(str)
+
+    def __init__(self, store: Store):
+        super().__init__()
+        self.store = store
+        self.days = 30
+        self.cache: dict[int, tuple[float, list]] = {}
+        self.view = QWebEngineView()
+        self.view.page().setBackgroundColor(Qt.transparent)
+        self.view.setContextMenuPolicy(Qt.NoContextMenu)
+        self._ready = False
+        self._pending = None
+        admin = store.repo.root / "public" / "admin"
+        js = re.sub(r"^export\s+", "", (admin / "js" / "traffic.js").read_text(encoding="utf-8"), flags=re.M)
+        self.view.loadFinished.connect(self._loaded)
+        self.view.titleChanged.connect(self._title)
+        self.view.setHtml(_TRAFFIC_PAGE.format(js=js), QUrl.fromLocalFile(str(admin) + "/"))
+        head = QLabel("<span style='font-size:22px; font-weight:600'>Traffic</span>")
+        sub = _muted("Who's looking at your site: visitors per day, what they watch, where they came from and how "
+                     "they move around. Anonymous: no cookies, no IP addresses.")
+        self.ranges = _segmented([("7", "Last 7 days"), ("30", "30 days"), ("90", "90 days"), ("365", "Year")],
+                                 "30", lambda v: self.load(int(v)))
+        refresh = QPushButton("Refresh")
+        refresh.clicked.connect(lambda: self.load(self.days, force=True))
+        bar = QHBoxLayout()
+        bar.addWidget(self.ranges)
+        bar.addWidget(refresh)
+        bar.addStretch()
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(22, 18, 22, 8)
+        lay.addWidget(head)
+        lay.addWidget(sub)
+        lay.addLayout(bar)
+        lay.addWidget(self.view, 1)
+
+    def _loaded(self, ok: bool):
+        self._ready = ok
+        if self._pending:
+            self._send(self._pending)
+
+    def _title(self, title: str):
+        m = re.match(r"open:(.+):\d+$", title or "")
+        if m:
+            self.open_path.emit(m.group(1))
+
+    def _send(self, data: dict):
+        self._pending = data
+        if self._ready:
+            self.view.page().runJavaScript(f"window.render({json.dumps(data)})")
+
+    def titles(self) -> dict:
+        t = {"/": "Home", "/about/": "About", "/contact/": "Contact", "/my-work/": "All work"}
+        for c in self.store.data["categories"]:
+            t[f"/{c['slug']}/"] = f"{c['name']} (section)"
+        for p in self.store.projects:
+            t[self.store.page_path(p)] = p.get("title") or p["id"]
+        return t
+
+    def load(self, days: int, force: bool = False):
+        import time
+        from widgets import run_async
+        self.days = days
+        cached = self.cache.get(days)
+        if cached and not force and time.time() - cached[0] < 300:
+            self._send({"days": days, "rows": cached[1], "titles": self.titles()})
+            return
+        self.view.page().runJavaScript("document.getElementById('out').className='muted';"
+                                       "document.getElementById('out').textContent='Loading visits…'")
+
+        def done(res):
+            if isinstance(res, Exception):
+                self._send({"error": str(res)})
+                return
+            self.cache[days] = (time.time(), res)
+            self._send({"days": days, "rows": res, "titles": self.titles()})
+        run_async(lambda: stats_rows(self.store.repo, days), done)

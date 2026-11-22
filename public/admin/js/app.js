@@ -6,6 +6,7 @@ import * as V from './video.js';
 import * as I from './images.js';
 import * as U from './upload.js';
 import * as P from './preview.js';
+import * as T from './traffic.js';
 import { ConflictError, DEFAULT_HOME, DemoBackend, GitHubBackend } from './github.js';
 
 const SITE = 'https://matthewfregnan.com';
@@ -32,9 +33,11 @@ const S = {
   screen: 'desktop',   // preview screen size
   previewLayout: null, // project page layout to preview (null = the live set's)
   storage: null,       // last storage report { data, at }
+  traffic: {},         // stats by number of days { data, at }
+  trafficDays: 30,
 };
 
-const PAGES = ['overview', 'projects', 'home', 'storage'];
+const PAGES = ['overview', 'projects', 'home', 'traffic', 'storage'];
 
 /** Switch the main area to one of the pages in the left menu. */
 function go(page, { push = true } = {}) {
@@ -48,6 +51,7 @@ function go(page, { push = true } = {}) {
   if (page === 'overview') renderOverview();
   if (page === 'home') renderHomeDialog();
   if (page === 'storage' && changedPage) renderStoragePage();
+  if (page === 'traffic' && changedPage) renderTrafficPage();
   if (page === 'projects' && changedPage) { renderList({ scroll: true }); renderEditor(); }
   renderToolbar();
 }
@@ -1603,6 +1607,9 @@ function renderOverview() {
   const fc = parseInt(set?.featuredCount, 10) || 0;
 
   const storageBox = h('div', {}, h('p', { class: 'muted small' }, uploadConfig() ? 'Checking…' : 'Sign in to see storage.'));
+  const trafficBox = h('div', {}, h('p', { class: 'muted small' }, 'Loading…'));
+  const trafficCard = card('Visitors', trafficBox,
+    h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: () => go('traffic') }, 'View Traffic')));
   const storageCard = card('Video storage', storageBox,
     h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: () => go('storage'), disabled: !uploadConfig() }, 'View Storage')));
   const checking = projects().some(p => V.state(p) === 'unknown');
@@ -1622,7 +1629,7 @@ function renderOverview() {
           issues.length > 8 ? h('p', { class: 'muted small' }, `…and ${issues.length - 8} more`) : null)
           : h('p', { class: 'muted' }, checking ? 'Checking videos…' : [h('span', { class: 'dot ok' }), ' Nothing to fix. Every video plays.']),
         h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: checkVideos }, 'Check Videos Now'))),
-      storageCard), h('div', { class: 'ov-col' },
+      trafficCard, storageCard), h('div', { class: 'ov-col' },
       card('Home page',
         h('p', {}, h('strong', {}, set?.name || '—'), h('span', { class: 'muted' }, ' is on the site')),
         h('p', { class: 'muted small' }, `${fc && fc < land ? `${fc} of ${land} landscape${set.shuffle ? ', shuffled' : ''}` : `${land} landscape`} · ${soc} social · ${LAYOUTS.find(l => l.id === liveLayout())?.name} project pages`),
@@ -1636,6 +1643,7 @@ function renderOverview() {
         h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: newFromLink }, 'New from Link'),
           h('button', { class: 'btn', onclick: () => newFromFile() }, 'New from Video File')))))));
   fillStorageSummary(storageBox);
+  fillTrafficSummary(trafficBox);
 }
 
 async function loadStorage(force = false) {
@@ -1724,6 +1732,71 @@ function storageKeyOf(url) {
 }
 
 function openStorage() { go('storage'); }
+
+// ---------------------------------------------------------------- traffic (anonymous visit stats)
+
+/** "Home", "About", "Social", or a project's title for a page address. */
+function titleOfPath(path) {
+  if (path === '/') return 'Home';
+  const [slug, id] = path.split('/').filter(Boolean);
+  const cat = S.data.categories.find(c => c.slug === slug);
+  if (!cat) return slug === 'about' ? 'About' : slug === 'contact' ? 'Contact' : slug === 'my-work' ? 'All work' : path;
+  if (!id) return `${cat.name} (section)`;
+  const p = projects().find(x => x.category === cat.id && x.id === id);
+  return p ? p.title : `${id} (removed)`;
+}
+
+function openPath(path) {
+  const [slug, id] = path.split('/').filter(Boolean);
+  const cat = S.data.categories.find(c => c.slug === slug);
+  const p = cat && id && projects().find(x => x.category === cat.id && x.id === id);
+  if (p) { clearSearchFor(p); select(p); } else window.open(SITE + path, '_blank', 'noopener');
+}
+
+async function loadTraffic(days, force = false) {
+  const c = S.traffic[days];
+  if (!force && c && Date.now() - c.at < 5 * 60 * 1000) return c.data;
+  const raw = await U.stats(uploadConfig(), days);
+  const data = T.summarise(raw.rows, days);
+  S.traffic[days] = { data, at: Date.now() };
+  return data;
+}
+
+async function renderTrafficPage(force = false) {
+  const page = $('#page-traffic');
+  const body = h('div', {}, h('p', { class: 'muted' }, 'Loading visits…'));
+  const seg = (d, label) => h('button', { class: `seg${S.trafficDays === d ? ' on' : ''}`, onclick: () => { S.trafficDays = d; renderTrafficPage(); } }, label);
+  page.replaceChildren(h('div', { class: 'page-inner' },
+    h('div', { class: 'page-head' }, h('h2', {}, 'Traffic'),
+      h('p', { class: 'muted' }, 'Who’s looking at your site: visitors per day, what they watch, where they came from and how they move around.')),
+    h('div', { class: 'preview-bar' },
+      h('div', { class: 'segs' }, seg(7, 'Last 7 days'), seg(30, '30 days'), seg(90, '90 days'), seg(365, 'Year')),
+      h('button', { class: 'btn', onclick: () => renderTrafficPage(true) }, 'Refresh')),
+    body));
+  if (!uploadConfig()) { body.replaceChildren(h('p', { class: 'muted' }, 'Sign in to see traffic.')); return; }
+  try {
+    const sum = await loadTraffic(S.trafficDays, force);
+    body.replaceChildren(T.renderTraffic(h, sum, { titleOf: titleOfPath, onPath: openPath }));
+  } catch (e) {
+    body.replaceChildren(h('p', { class: 'error' }, e.message));
+  }
+}
+
+async function fillTrafficSummary(box) {
+  if (!uploadConfig()) { box.replaceChildren(h('p', { class: 'muted small' }, 'Sign in to see traffic.')); return; }
+  try {
+    const sum = await loadTraffic(7);
+    const top = sum.pages.find(p => p.path !== '/');
+    box.replaceChildren(
+      h('p', {}, h('strong', {}, String(sum.totals.visitors)), ` visitor${sum.totals.visitors === 1 ? '' : 's'} in the last 7 days · ${sum.totals.views} page views`),
+      T.sparkline(h, sum.daily),
+      h('p', { class: 'muted small' }, sum.totals.views
+        ? `Top source: ${sum.sources[0]?.name || '—'}${top ? ` · Most viewed: ${titleOfPath(top.path)}` : ''}`
+        : 'No visits recorded yet.'));
+  } catch (e) {
+    box.replaceChildren(h('p', { class: 'muted small' }, e.message));
+  }
+}
 
 async function renderStoragePage(force = false) {
   const page = $('#page-storage');

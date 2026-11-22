@@ -10,6 +10,10 @@
 //   POST   /uploads/<uploadId>/complete?key=...            (body = { parts: [...] }) -> { url }
 //   DELETE /uploads/<uploadId>?key=...                     -> aborts
 //   GET    /usage                                          -> { objects: [{ key, size, uploaded }], total }
+//
+// Visit stats (anonymous, no cookies; see schema.sql):
+//   POST   /hit       (from the site, no sign-in)  body = {t:'view'|'leave', v, s, p, r, secs}
+//   GET    /stats?days=30   (signed in)            -> { rows: [[ts, visit, seq, path, source, country, device, secs]] }
 
 const ALLOWED_ORIGINS = ['https://matthewfregnan.com', 'https://www.matthewfregnan.com'];
 const KEY_PATTERN = /^(commercial|branded|vertical|colour-grading|home)\/[a-z0-9][a-z0-9-]{0,120}\.mp4$/;
@@ -66,16 +70,87 @@ async function authorised(request, env) {
   return true;
 }
 
+// ---------------------------------------------------------------------------- visit stats
+
+const SITE_ORIGIN = /^https:\/\/(www\.)?matthewfregnan\.com$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const BOTS = /bot|crawl|spider|slurp|headless|lighthouse|preview|facebookexternalhit|embedly|python|curl|wget/i;
+const SOURCES = [
+  [/(^|\.)linkedin\.com$|(^|\.)lnkd\.in$/, 'LinkedIn'], [/(^|\.)google\./, 'Google'], [/(^|\.)bing\.com$/, 'Bing'],
+  [/(^|\.)duckduckgo\.com$/, 'DuckDuckGo'], [/(^|\.)instagram\.com$/, 'Instagram'], [/(^|\.)facebook\.com$|(^|\.)fb\.com$/, 'Facebook'],
+  [/(^|\.)t\.co$|(^|\.)x\.com$|(^|\.)twitter\.com$/, 'X'], [/(^|\.)tiktok\.com$/, 'TikTok'], [/(^|\.)vimeo\.com$/, 'Vimeo'],
+  [/(^|\.)youtube\.com$/, 'YouTube'], [/(^|\.)seek\.com\.au$/, 'SEEK'], [/mail\.|outlook\.|(^|\.)gmail\./, 'Email'],
+];
+
+function sourceOf(referrer) {
+  if (!referrer) return 'Direct';
+  let host;
+  try { host = new URL(referrer).hostname.replace(/^www\./, ''); } catch { return 'Direct'; }
+  if (/(^|\.)matthewfregnan\.com$/.test(host)) return 'Direct';
+  const hit = SOURCES.find(([re]) => re.test(host));
+  return hit ? hit[1] : host.slice(0, 60);
+}
+
+function deviceOf(ua) {
+  if (/iPad|Tablet|Android(?!.*Mobile)/i.test(ua)) return 'tablet';
+  if (/Mobi|iPhone|Android/i.test(ua)) return 'phone';
+  return 'computer';
+}
+
+async function recordHit(request, env) {
+  const ok = new Response(null, { status: 204 });
+  if (!SITE_ORIGIN.test(request.headers.get('Origin') || '')) return ok;
+  const ua = request.headers.get('User-Agent') || '';
+  if (!ua || BOTS.test(ua)) return ok;
+  let b;
+  try { b = JSON.parse(await request.text()); } catch { return ok; }
+  const visit = String(b.v || '');
+  const seq = Number(b.s);
+  if (!/^[a-z0-9]{8,32}$/.test(visit) || !Number.isInteger(seq) || seq < 1 || seq > 300) return ok;
+  if (b.t === 'leave') {
+    const secs = Math.round(Number(b.secs));
+    if (secs > 0 && secs < 6 * 3600) {
+      await env.STATS.prepare('UPDATE views SET secs = ? WHERE visit = ? AND seq = ?').bind(secs, visit, seq).run();
+    }
+    return ok;
+  }
+  const path = String(b.p || '');
+  if (!/^\/[a-z0-9\-/]{0,200}$/.test(path) || path.startsWith('/admin')) return ok;
+  await env.STATS.prepare('INSERT INTO views (ts, visit, seq, path, source, country, device) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .bind(Date.now(), visit, seq, path, seq === 1 ? sourceOf(String(b.r || '')) : null,
+      (request.cf && request.cf.country) || null, deviceOf(ua))
+    .run();
+  return ok;
+}
+
+async function stats(request, env, url) {
+  const days = Math.min(400, Math.max(1, parseInt(url.searchParams.get('days'), 10) || 30));
+  const since = Date.now() - days * 86400000;
+  // keep about a year
+  await env.STATS.prepare('DELETE FROM views WHERE ts < ?').bind(Date.now() - 400 * 86400000).run();
+  const { results } = await env.STATS.prepare(
+    'SELECT ts, visit, seq, path, source, country, device, secs FROM views WHERE ts >= ? ORDER BY ts LIMIT 200000',
+  ).bind(since).all();
+  return json(request, { days, rows: results.map(r => [r.ts, r.visit, r.seq, r.path, r.source, r.country, r.device, r.secs]) });
+}
+
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+    // Page views come from the public site (no sign-in), sent with navigator.sendBeacon
+    if (url.pathname === '/hit') {
+      if (request.method !== 'POST') return new Response(null, { status: 405 });
+      try { return await recordHit(request, env); } catch { return new Response(null, { status: 204 }); }
+    }
+
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(request) });
 
-    const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean); // ['uploads', id?, part|'complete'?]
-    if (parts[0] !== 'uploads' && parts[0] !== 'usage') return json(request, { error: 'Not found' }, 404);
+    if (!['uploads', 'usage', 'stats'].includes(parts[0])) return json(request, { error: 'Not found' }, 404);
     if (!(await authorised(request, env))) {
       return json(request, { error: 'Not signed in, or this GitHub token can’t write to the website repo.' }, 401);
     }
+
+    if (parts[0] === 'stats' && request.method === 'GET') return stats(request, env, url);
 
     // What's in storage (for the admin's Storage view)
     if (parts[0] === 'usage' && request.method === 'GET') {

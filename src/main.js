@@ -526,3 +526,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }, (STEP / tiles.length) * (Number(tile.dataset.cycleOffset) || i));
   });
 });
+
+// Anonymous visit stats for the admin's Traffic page. No cookies and nothing that identifies a
+// person: a random visit ID lives in this tab only (sessionStorage) and resets after 30 idle minutes.
+// Skipped when the browser asks not to be tracked (Global Privacy Control / Do Not Track).
+(() => {
+  try {
+    if (navigator.globalPrivacyControl || navigator.doNotTrack === '1') return;
+    const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+    const testEndpoint = new URLSearchParams(location.search).get('track');
+    if (local && testEndpoint) sessionStorage.setItem('mf_track', testEndpoint);
+    const endpoint = local ? sessionStorage.getItem('mf_track') : 'https://upload.matthewfregnan.com';
+    if (!endpoint) return;
+    const now = Date.now();
+    let visit = sessionStorage.getItem('mf_v');
+    if (!visit || now - Number(sessionStorage.getItem('mf_t') || 0) > 30 * 60 * 1000) {
+      visit = Math.random().toString(36).slice(2, 12) + now.toString(36);
+      sessionStorage.setItem('mf_s', '0');
+    }
+    const seq = Number(sessionStorage.getItem('mf_s') || 0) + 1;
+    sessionStorage.setItem('mf_v', visit);
+    sessionStorage.setItem('mf_s', String(seq));
+    sessionStorage.setItem('mf_t', String(now));
+    const send = body => {
+      const data = JSON.stringify(body);
+      if (!(navigator.sendBeacon && navigator.sendBeacon(`${endpoint}/hit`, data))) {
+        fetch(`${endpoint}/hit`, { method: 'POST', body: data, keepalive: true, mode: 'no-cors' }).catch(() => {});
+      }
+    };
+    send({ t: 'view', v: visit, s: seq, p: location.pathname, r: seq === 1 ? document.referrer : '' });
+    // Time on page (only while the tab is visible), sent when they leave or switch away
+    let shown = document.visibilityState === 'visible' ? performance.now() : null;
+    let total = 0;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        if (shown != null) { total += performance.now() - shown; shown = null; }
+        sessionStorage.setItem('mf_t', String(Date.now()));
+        if (total > 1000) send({ t: 'leave', v: visit, s: seq, secs: Math.round(total / 1000) });
+      } else {
+        shown = performance.now();
+      }
+    });
+  } catch { /* stats are optional */ }
+})();
