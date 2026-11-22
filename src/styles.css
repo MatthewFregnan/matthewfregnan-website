@@ -602,7 +602,7 @@
 .hero-clients-set { display: flex; align-items: center; gap: 64px; padding-right: 64px; }
 .hero-clients img { width: auto; max-width: 210px; object-fit: contain; opacity: 0.65; }
 .hero-clients-label { margin: 64px 0 0; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
-@keyframes clients-drift { to { transform: translateX(-50%); } }
+@keyframes clients-drift { to { transform: translateX(calc(-100% / 3)); } }   /* one copy's width (there are three) */
 @media (max-width: 639px) {
   .hero-clients img { zoom: 0.78; } .hero-clients-set { gap: 44px; padding-right: 44px; }
   .hero-clients-label { margin-top: 48px; font-size: 10px; }

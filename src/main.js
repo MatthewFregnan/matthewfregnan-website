@@ -1009,31 +1009,44 @@ document.addEventListener('DOMContentLoaded', () => {
   if (start && box.querySelector(`[data-chip="${CSS.escape(start)}"]`)) apply(start);
 });
 
-// Home hero logos on phones: swipe them to see more clients faster. They keep drifting on their own
-// (by scrolling, so a swipe just carries on from wherever it is), pause while touched, and loop.
+// Home hero logos on phones: swipe them to see more clients faster, in either direction, forever. They
+// keep drifting on their own (by scrolling, so a swipe carries on from wherever it is) and pause while
+// touched. The logos are there three times; we start in the middle copy and quietly jump by one copy's
+// width when you get near either end, so there's always more on both sides.
 document.addEventListener('DOMContentLoaded', () => {
   const strip = document.querySelector('.hero-clients');
   const track = strip?.querySelector('.hero-clients-track');
-  if (!strip || !track || !window.matchMedia('(hover: none)').matches) return;
+  const sets = track ? track.querySelectorAll('.hero-clients-set') : [];
+  if (!strip || sets.length < 3 || !window.matchMedia('(hover: none)').matches) return;
   strip.classList.add('is-swipe');
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const setW = () => sets[1].offsetLeft - sets[0].offsetLeft;
+  const base = () => sets[1].offsetLeft;
   let held = false;
   let resumeAt = 0;
   let last = performance.now();
-  let pos = strip.scrollLeft;
+  // start with the middle copy's first logo just inside the soft left edge
+  let pos = base() - strip.clientWidth * 0.11;
+  strip.scrollLeft = pos;
   const SPEED = 22;   // pixels per second, about the same pace as the desktop drift
-  const half = () => track.scrollWidth / 2;   // the logos are in there twice, so looping is seamless
+  const wrap = () => {
+    const w = setW();
+    if (!w) return;
+    if (pos >= base() + w * 0.5) pos -= w;
+    else if (pos < base() - w * 0.5) pos += w;
+    else return;
+    strip.scrollLeft = pos;
+  };
   const tick = (now) => {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     if (!held && now > resumeAt && !reduce) {
       pos += SPEED * dt;
-      if (pos >= half()) pos -= half();
       strip.scrollLeft = pos;
     } else {
       pos = strip.scrollLeft;
-      if (pos >= half()) { pos -= half(); strip.scrollLeft = pos; }
     }
+    if (!held) wrap();   // never jump under a finger
     requestAnimationFrame(tick);
   };
   strip.addEventListener('touchstart', () => { held = true; }, { passive: true });

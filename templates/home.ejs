@@ -42,7 +42,8 @@
       <% if (text.clientsLabel) { %><p class="hero-clients-label"><%= text.clientsLabel %></p><% } %>
       <div class="hero-clients" aria-label="<%= text.clientsLabel || 'Clients' %>">
         <div class="hero-clients-rise"><div class="hero-clients-track">
-          <% [0, 1].forEach(copy => { %>
+          <%# three copies, so the strip can loop endlessly in either direction %>
+        <% [0, 1, 2].forEach(copy => { %>
             <div class="hero-clients-set"<% if (copy) { %> aria-hidden="true"<% } %>>
               <% clientStrip.forEach(c => { %><% if (c.href) { %><a href="<%= c.href %>"<% if (copy) { %> tabindex="-1"<% } %> class="hero-client" title="<%= c.name %>"><% } %><img src="<%= c.src %>" alt="<%= copy ? '' : c.name %>" decoding="async" style="height: <%= c.height %>px"><% if (c.href) { %></a><% } %><% }) %>
             </div>
