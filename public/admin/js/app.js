@@ -37,7 +37,7 @@ const S = {
   trafficDays: 30,
 };
 
-const PAGES = ['overview', 'projects', 'home', 'traffic', 'storage'];
+const PAGES = ['overview', 'projects', 'home', 'sections', 'traffic', 'storage'];
 
 /** Switch the main area to one of the pages in the left menu. */
 function go(page, { push = true } = {}) {
@@ -52,6 +52,7 @@ function go(page, { push = true } = {}) {
   if (page === 'home') renderHomeDialog();
   if (page === 'storage' && changedPage) renderStoragePage();
   if (page === 'traffic' && changedPage) renderTrafficPage();
+  if (page === 'sections') renderSectionsPage();
   if (page === 'projects' && changedPage) { renderList({ scroll: true }); renderEditor(); }
   renderToolbar();
 }
@@ -1791,6 +1792,128 @@ function storageKeyOf(url) {
 }
 
 function openStorage() { go('storage'); }
+
+// ---------------------------------------------------------------- section page layouts (presets)
+// Saved in home.json as sections: { <categoryId>: { active, presets: [{ id, name, order: [projectIds] }] } }.
+// "Standard" (no preset) is the normal project order, the same as the Projects list.
+
+const SP = { cat: null, preset: null, drag: null };
+
+function sectionLayout(catId) {
+  return S.home.sections?.[catId] || { active: '', presets: [] };
+}
+
+function presetOrder(catId, preset) {
+  const list = projects().filter(p => p.category === catId);
+  if (!preset) return list;
+  const rank = new Map((preset.order || []).map((id, i) => [id, i]));
+  return [...list.filter(p => rank.has(p.id)).sort((a, b) => rank.get(a.id) - rank.get(b.id)), ...list.filter(p => !rank.has(p.id))];
+}
+
+function editSections(catId, fn) {
+  mutate(() => {
+    S.home.sections ||= {};
+    const lay = S.home.sections[catId] ||= { active: '', presets: [] };
+    fn(lay);
+    if (!lay.presets.length && !lay.active) delete S.home.sections[catId];
+    if (!Object.keys(S.home.sections).length) delete S.home.sections;
+  });
+  renderSectionsPage();
+}
+
+function renderSectionsPage() {
+  const page = $('#page-sections');
+  if (S.page !== 'sections' || !S.data) return;
+  SP.cat ||= S.data.categories.find(c => c.id === 'vertical')?.id || S.data.categories[0].id;
+  const cat = category(SP.cat);
+  const lay = sectionLayout(SP.cat);
+  if (SP.preset && !lay.presets.some(p => p.id === SP.preset)) SP.preset = null;
+  if (SP.preset === null && SP._for !== SP.cat) { SP.preset = lay.active || ''; }
+  SP._for = SP.cat;
+  const preset = lay.presets.find(p => p.id === SP.preset) || null;
+  const items = presetOrder(SP.cat, preset);
+  const vertical = SP.cat === 'vertical';
+  const scroll = page.scrollTop;
+
+  const uniqueId = name => { const base = slugify(name) || 'layout'; let id = base; for (let n = 2; lay.presets.some(p => p.id === id); n++) id = `${base}-${n}`; return id; };
+  const newPreset = (name, order) => {
+    const id = uniqueId(name);
+    editSections(SP.cat, l => { l.presets.push({ id, name, order }); });
+    SP.preset = id;
+    renderSectionsPage();
+  };
+  const chip = (id, name) => h('button', { class: `chip${SP.preset === id ? ' on' : ''}`, onclick: () => { SP.preset = id; renderSectionsPage(); } },
+    (lay.active || '') === id ? h('span', { class: 'dot ok', title: 'On the site' }) : null, ` ${name}`);
+
+  const reorder = (from, to) => {
+    if (!preset) {   // Standard: the real project order (same as dragging in the Projects list)
+      const p = items[from];
+      move(p, from < to ? to - 1 : to);
+      renderSectionsPage();
+      return;
+    }
+    editSections(SP.cat, l => {
+      const pr = l.presets.find(x => x.id === preset.id);
+      const order = items.map(p => p.id);
+      const [m] = order.splice(from, 1);
+      order.splice(from < to ? to - 1 : to, 0, m);
+      pr.order = order;
+    });
+  };
+  const tiles = items.map((p, i) => {
+    const el = h('div', { class: `sp-tile${vertical ? ' v' : ''}`, draggable: true, title: `${p.title} · drag to move` },
+      thumbFor(p),
+      h('span', { class: 'sp-num' }, String(i + 1)),
+      h('div', { class: 'sp-title' }, h('b', {}, p.title || '(untitled)'), p.client ? h('small', {}, p.client) : null),
+      h('div', { class: 'sp-tools' },
+        i > 0 ? h('button', { class: 'btn', title: 'Move to the top', onclick: e => { e.stopPropagation(); reorder(i, 0); } }, '↑ Top') : null,
+        h('button', { class: 'btn', title: 'Edit this project', onclick: e => { e.stopPropagation(); clearSearchFor(p); select(p); } }, 'Edit')));
+    el.addEventListener('dragstart', e => { SP.drag = i; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    el.addEventListener('dragend', () => { SP.drag = null; el.classList.remove('dragging'); });
+    el.addEventListener('dragover', e => { if (SP.drag !== null && SP.drag !== i) { e.preventDefault(); el.classList.add('drop-before'); } });
+    el.addEventListener('dragleave', () => el.classList.remove('drop-before'));
+    el.addEventListener('drop', e => { e.preventDefault(); el.classList.remove('drop-before'); if (SP.drag !== null) { const f = SP.drag; SP.drag = null; reorder(f, i); } });
+    return el;
+  });
+  const endDrop = h('div', { class: `sp-tile sp-end${vertical ? ' v' : ''}` }, h('span', { class: 'muted small' }, 'Drop here to move to the end'));
+  endDrop.addEventListener('dragover', e => { if (SP.drag !== null) { e.preventDefault(); endDrop.classList.add('drop-before'); } });
+  endDrop.addEventListener('dragleave', () => endDrop.classList.remove('drop-before'));
+  endDrop.addEventListener('drop', e => { e.preventDefault(); endDrop.classList.remove('drop-before'); if (SP.drag !== null) { const f = SP.drag; SP.drag = null; reorder(f, items.length); } });
+
+  const live = (lay.active || '') === (SP.preset || '');
+  page.replaceChildren(h('div', { class: 'page-inner wide' },
+    h('div', { class: 'page-head' }, h('h2', {}, 'Pages'),
+      h('p', { class: 'muted' }, 'Arrange each section page and save the arrangement as a layout you can switch to, e.g. a gaming-first Social page.')),
+    h('div', { class: 'preview-bar' },
+      h('div', { class: 'segs' }, S.data.categories.map(c => h('button', { class: `seg${c.id === SP.cat ? ' on' : ''}`,
+        onclick: () => { SP.cat = c.id; SP.preset = null; SP._for = null; renderSectionsPage(); } }, c.name)))),
+    h('div', { class: 'sp-presets' },
+      h('span', { class: 'muted small' }, 'Layouts:'),
+      chip('', 'Standard order'),
+      lay.presets.map(p => chip(p.id, p.name)),
+      h('button', { class: 'btn', onclick: () => {
+        const name = prompt('Name for the new layout (e.g. Gaming first):', preset ? `${preset.name} (copy)` : 'New layout');
+        if (name && name.trim()) newPreset(name.trim(), items.map(p => p.id));
+      } }, preset ? 'Duplicate…' : '+ Save as New Layout…'),
+      preset ? h('button', { class: 'btn', onclick: () => {
+        const name = prompt('Rename layout:', preset.name);
+        if (name && name.trim()) editSections(SP.cat, l => { l.presets.find(x => x.id === preset.id).name = name.trim(); });
+      } }, 'Rename…') : null,
+      preset ? h('button', { class: 'btn danger', onclick: async () => {
+        if (!(await confirmDialog('Delete layout?', `Delete “${preset.name}”? (You can undo this.)`, 'Delete', true))) return;
+        editSections(SP.cat, l => { l.presets = l.presets.filter(x => x.id !== preset.id); if (l.active === preset.id) l.active = ''; });
+        SP.preset = '';
+        renderSectionsPage();
+      } }, 'Delete') : null,
+      h('span', { class: 'tb-spacer' }),
+      h('button', { class: 'btn primary', disabled: live, onclick: () => editSections(SP.cat, l => { l.active = SP.preset || ''; }) },
+        live ? `This is on the ${cat.name} page` : `Put on the ${cat.name} page`)),
+    h('p', { class: 'muted small' }, preset
+      ? `Editing “${preset.name}”. Drag tiles (or use ↑ Top) to arrange it. New ${cat.name} projects are added at the end.`
+      : `Standard order is the normal project order (the same as the Projects list). Drag to change it, or save it as a new layout first.`),
+    h('div', { class: `sp-grid${vertical ? ' v' : ''}` }, tiles, endDrop)));
+  page.scrollTop = scroll;
+}
 
 // ---------------------------------------------------------------- traffic (anonymous visit stats)
 

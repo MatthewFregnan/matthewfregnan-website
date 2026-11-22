@@ -636,6 +636,25 @@ function categoryTiles(projects, set) {
 
 // The home page shows whichever set of projects is marked "active" in data/home.json.
 // Sets are chosen and edited in the desktop app or the web admin.
+// Section page layouts (data/home.json "sections"): saved orders (presets) for a section's page,
+// e.g. a gaming-first Social page. { vertical: { active: 'gaming', presets: [{ id, name, order: [ids] }] } }
+// No active preset = the normal project order.
+function readSectionLayouts() {
+  const file = path.join(DATA_DIR, 'home.json');
+  if (!fs.existsSync(file)) return {};
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')).sections || {}; } catch { return {}; }
+}
+
+function orderForSection(list, layout) {
+  const preset = layout && (layout.presets || []).find(p => p.id === layout.active);
+  if (!preset) return list;
+  const rank = new Map((preset.order || []).map((id, i) => [id, i]));
+  // projects the preset doesn't mention (added later) go after, in their normal order
+  const placed = list.filter(p => rank.has(p.id)).sort((a, b) => rank.get(a.id) - rank.get(b.id));
+  console.log(`  ${list[0]?.category || ''} page: "${preset.name}" layout`);
+  return [...placed, ...list.filter(p => !rank.has(p.id))];
+}
+
 function resolveHome(projects) {
   const file = path.join(DATA_DIR, 'home.json');
   const empty = { tagline: '', projectLayout: 'standard', landscape: [], vertical: [], categoryTiles: categoryTiles(projects, null) };
@@ -762,8 +781,9 @@ async function buildPages() {
   await fs.outputFile(path.join(DIST_DIR, 'my-work', 'index.html'), myWorkHtml);
 
   // Build gallery pages and project pages for each category
+  const sectionLayouts = readSectionLayouts();
   for (const category of projects.categories) {
-    const categoryProjects = projects.projects.filter(p => p.category === category.id);
+    const categoryProjects = orderForSection(projects.projects.filter(p => p.category === category.id), sectionLayouts[category.id]);
 
     // Build gallery index page with ItemList schema
     console.log(`Building ${category.name} gallery...`);
