@@ -23,6 +23,19 @@
   ],
   "projects": [
     {
+      "id": "stage-tour-mocap-bts",
+      "title": "Stage Tour Motion Capture BTS",
+      "category": "vertical",
+      "client": "RedOctane Games",
+      "role": "Editor",
+      "production": "",
+      "year": "2026",
+      "description": "",
+      "thumbnail": "",
+      "updated": "2026-11-22T06:08:53",
+      "videoFile": "https://videos.matthewfregnan.com/vertical/new-project-mwrfpj9q.mp4?v=1795327621649"
+    },
+    {
       "id": "redoctane-games-studio-launch-trailer",
       "title": "RedOctane Games Studio Launch Trailer",
       "category": "commercial",
@@ -581,9 +594,11 @@
       "production": "",
       "year": "2026",
       "description": "",
-      "thumbnail": "",
-      "updated": "2026-11-22T05:43:18",
-      "instagramId": "DaN045EDNj8"
+      "thumbnail": "vertical/stage-tour-goodkid-bts.jpg",
+      "updated": "2026-11-22T06:04:18",
+      "instagramId": "DaN045EDNj8",
+      "videoFile": "https://videos.matthewfregnan.com/vertical/stage-tour-goodkid-bts-mwrfkkyw.mp4?v=1795327393879",
+      "thumbFocus": "49% 14%"
     },
     {
       "id": "stage-tour-chart-guessing-game",
@@ -601,40 +616,6 @@
       "showStats": true,
       "videoFile": "https://videos.matthewfregnan.com/vertical/stagetour-chart-guessing-game.mp4?v=1795325410",
       "thumbFocus": "54% 85%"
-    },
-    {
-      "id": "stage-tour-chart-guessing-game-copy",
-      "title": "Stage Tour Acai VS Moose Battle",
-      "category": "vertical",
-      "client": "RedOctane Games",
-      "role": "Editor",
-      "production": "",
-      "year": "2026",
-      "description": "",
-      "thumbnail": "vertical/stage-tour-chart-guessing-game.jpg",
-      "updated": "2026-11-22T05:41:34",
-      "platform": "Social",
-      "showStats": true,
-      "videoFile": "https://videos.matthewfregnan.com/vertical/stagetour-chart-guessing-game.mp4?v=1795325410",
-      "thumbFocus": "54% 85%",
-      "instagramId": "Ddb0j_ADVwK"
-    },
-    {
-      "id": "stage-tour-mocap-bts",
-      "title": "Stage Tour Motion Capture BTS",
-      "category": "vertical",
-      "client": "RedOctane Games",
-      "role": "Editor",
-      "production": "",
-      "year": "2026",
-      "description": "",
-      "thumbnail": "vertical/stage-tour-chart-guessing-game.jpg",
-      "updated": "2026-11-22T05:42:13",
-      "platform": "Social",
-      "showStats": true,
-      "videoFile": "https://videos.matthewfregnan.com/vertical/stagetour-chart-guessing-game.mp4?v=1795325410",
-      "thumbFocus": "54% 85%",
-      "instagramId": "DZsWZXsAKPj"
     },
     {
       "id": "stage-tour-acai-rapid-fire",
