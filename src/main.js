@@ -817,22 +817,47 @@ document.addEventListener('DOMContentLoaded', () => {
   } catch { /* stats are optional */ }
 })();
 
-// Phones and tablets: while a video plays and the title has scrolled away, a small "Info" button
-// brings the details back (the video glided to the centre when play was pressed).
+// Phones and tablets, once the video has been played: a small pill under the menu bar.
+//   scrolled past the video  -> "Back to video" (glides the player back to the middle of the screen)
+//   video on screen, title scrolled away -> "Info" (back to the title and details)
 document.addEventListener('DOMContentLoaded', () => {
   const title = document.querySelector('.pp-title, section h1');
-  if (!title || !document.querySelector('.video-player')) return;
+  const shell = document.querySelector('.video-player .player-shell') || document.querySelector('.video-player');
+  if (!title || !shell) return;
+  const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>';
   const pill = document.createElement('button');
   pill.type = 'button';
   pill.className = 'info-pill';
-  pill.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>Info';
-  pill.setAttribute('aria-label', 'Show the project info');
-  pill.addEventListener('click', () => glideTo(0, 700));
   document.body.append(pill);
+  let mode = '';
+  const navH = () => document.querySelector('header')?.offsetHeight || 64;
+  const set = (m) => {
+    if (m === mode) return;
+    mode = m;
+    if (m) {
+      pill.innerHTML = `${arrow}<span>${m === 'video' ? 'Back to video' : 'Info'}</span>`;
+      pill.setAttribute('aria-label', m === 'video' ? 'Scroll back to the video' : 'Show the project info');
+    }
+    pill.classList.toggle('is-shown', !!m);
+  };
+  pill.addEventListener('click', () => {
+    if (mode === 'video') {
+      const r = shell.getBoundingClientRect();
+      const room = window.innerHeight - navH();
+      const offset = r.height < room ? (room - r.height) / 2 : 0;
+      glideTo(Math.max(0, r.top + window.scrollY - navH() - offset), 700);
+    } else {
+      glideTo(0, 700);
+    }
+  });
   const update = () => {
-    const navH = document.querySelector('header')?.offsetHeight || 64;
-    const hidden = title.getBoundingClientRect().bottom < navH;   // title scrolled under the nav bar
-    pill.classList.toggle('is-shown', hidden && document.body.classList.contains('video-playing') && window.innerWidth < 1024);
+    if (window.innerWidth >= 1024 || !document.body.classList.contains('video-playing')) return set('');
+    const top = navH();
+    document.documentElement.style.setProperty('--nav-h', `${top}px`);   // the pill sits just under the bar
+    const v = shell.getBoundingClientRect();
+    if (v.bottom < top + v.height * 0.35) return set('video');   // most of the video is above the screen
+    if (title.getBoundingClientRect().bottom < top) return set('info');
+    set('');
   };
   window.addEventListener('scroll', update, { passive: true });
   window.addEventListener('resize', update);

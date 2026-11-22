@@ -500,16 +500,18 @@
 /* Views line in the project info */
 .stats-fact .stats-link { color: inherit; text-decoration: underline; text-decoration-color: rgba(255, 255, 255, 0.35); text-underline-offset: 3px; }
 .stats-fact .stats-link:hover { text-decoration-color: #fff; opacity: 1; }
-/* "Info" button on phones/tablets while a video plays */
+/* Phones/tablets after the video has played: "Back to video" / "Info" pill just under the menu bar */
 .info-pill {
-  position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 40;
-  transform: translate(-50%, 140%); transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1);
-  display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px 9px 12px; border-radius: 999px;
+  position: fixed; left: 50%; top: calc(var(--nav-h, 64px) + 10px); z-index: 40;
+  transform: translate(-50%, -12px); opacity: 0; pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px 8px 12px; border-radius: 999px;
   background: rgba(20, 20, 20, 0.85); color: #fff; border: 1px solid rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(8px); font-size: 14px; cursor: pointer;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  font-size: 14px; cursor: pointer;
 }
-.info-pill svg { width: 18px; height: 18px; }
-.info-pill.is-shown { transform: translate(-50%, 0); }
+.info-pill svg { width: 16px; height: 16px; }
+.info-pill.is-shown { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
 @media (min-width: 1024px) { .info-pill { display: none; } }
 
 /* Client logo on a tile (optional, per client): small, white, top-left, readable on any picture */
