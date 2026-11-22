@@ -620,6 +620,13 @@
 .hero { align-items: flex-end; }
 .hero-content { margin-bottom: max(88px, calc(41vh - 281px)); }
 @media (max-height: 640px) { .hero { align-items: center; } .hero-content { margin-bottom: 0; } }
+/* Phones: a shorter hero so "Featured Work" and the top of the first video show above Safari's
+   floating bottom bar (iOS draws it over the page), with the same even gaps around the arrow */
+@media (max-width: 639px) and (min-height: 641px) {
+  .hero { height: max(420px, 68svh); }
+  .hero-content { margin-bottom: 76px; }
+  .scroll-cue { bottom: -28px; }
+}
 
 /* Page load: a quick, punchy fade. Everything is in within 0.5s. Opacity only on whole sections (a
    transform there would break the fixed backgrounds inside); the hero text also rises a few pixels,
