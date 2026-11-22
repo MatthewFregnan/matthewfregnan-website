@@ -498,14 +498,25 @@ function renderEditor() {
     ed._for = p;
     return;
   }
+  const f = detailsForm(p);
+  const portrait = p.category === 'vertical';
+  const group = (title, hint, ...body) => h('section', { class: 'pe-group' },
+    h('div', { class: 'pe-group-head' }, h('h4', {}, title), hint ? h('span', { class: 'muted small' }, hint) : null), ...body);
+  const info = group('Project info', liveLayout() === 'detailed'
+    ? 'Shown with the video (Detailed layout)' : 'Client, production, role and year show with the video; the rest needs the Detailed layout', f.info);
+  const video = h('section', { class: 'card', id: 'video-card' });
+  const stills = h('section', { class: 'card', id: 'gallery-card' });
+  // Laid out like the real page: Social projects have the video on the left and the details beside it
+  const page = portrait
+    ? h('div', { class: 'pe-page portrait' },
+      h('div', { class: 'pe-media' }, video),
+      h('div', { class: 'pe-side' }, f.header, info, stills))
+    : h('div', { class: 'pe-page' }, f.header, video, info, stills);
   ed.replaceChildren(h('div', { class: 'editor-inner' },
     head,
-    h('div', { class: 'cols' },
-      h('div', {}, detailsForm(p)),
-      h('div', {},
-        h('section', { class: 'card', id: 'video-card' }),
-        h('section', { class: 'card', id: 'thumb-card' }),
-        h('section', { class: 'card', id: 'gallery-card' })))));
+    page,
+    group('Around the site', 'How it’s listed: the thumbnail on tiles, its section and address, and home page sets',
+      h('div', { class: 'pe-site' }, h('section', { class: 'card', id: 'thumb-card' }), f.site))));
   renderVideo();
   renderThumb();
   renderGallery();
@@ -576,24 +587,30 @@ function detailsForm(p) {
         if (!setAddress(title)) toast('The page address already matches the title.');
       },
     }, 'From Title'));
-  return h('div', { class: 'form' },
-    lists,
-    h('label', { for: 'f-title' }, 'Title'), textField(p, 'title'),
-    h('label', { for: 'f-category' }, 'Category'), cat,
-    h('label', { for: 'f-client' }, 'Client'), textField(p, 'client', { list: true, placeholder: 'e.g. Deakin University' }),
-    h('label', {}, 'Client logo'), h('div', { id: 'client-logo' }, clientLogoRow(p)),
+  // Grouped like the project page: header (title, client), info under/next to the video, and the
+  // things that only matter around the site (section, address, home page sets).
+  const title = textField(p, 'title', { placeholder: 'Project title' });
+  title.classList.add('pe-title-input');
+  const client = textField(p, 'client', { list: true, placeholder: 'Client (e.g. Deakin University)' });
+  client.classList.add('pe-client-input');
+  return {
+    header: h('div', { class: 'pe-header' }, lists, title, client,
+      h('div', { class: 'pe-logo' }, h('span', { class: 'muted small' }, 'Client logo'), h('div', { id: 'client-logo' }, clientLogoRow(p)))),
+    info: h('div', { class: 'form' },
     h('label', { for: 'f-role' }, 'Role'), textField(p, 'role', { list: true, placeholder: 'e.g. Editor' }),
     h('label', { for: 'f-production' }, 'Production'), textField(p, 'production', { list: true, placeholder: 'e.g. ThinkHQ' }),
     h('label', { for: 'f-agency' }, 'Agency'), textField(p, 'agency', { list: true, placeholder: 'If you worked through an agency' }),
     h('label', { for: 'f-year' }, 'Year'), textField(p, 'year', { class: 'year', placeholder: 'YYYY', inputmode: 'numeric', digits: true }),
     h('label', { for: 'f-platform' }, 'Made for'), textField(p, 'platform', { list: true, placeholder: 'e.g. TV, YouTube, Social' }),
     h('label', { for: 'f-deliverables' }, 'Deliverables'), textField(p, 'deliverables', { placeholder: 'e.g. 30s TVC, 15s and 6s cutdowns, 9:16 versions' }),
-    h('span'), h('div', { class: 'muted small' }, 'Agency, Made for, Deliverables and Description show on project pages when the live home page set uses the Detailed layout.'),
     h('label', { for: 'f-description', class: 'top' }, 'Description'),
-    textField(p, 'description', { multiline: true, placeholder: 'A sentence or two about the project (helps Google too)' }),
+    textField(p, 'description', { multiline: true, placeholder: 'A sentence or two about the project (helps Google too)' })),
+    site: h('div', { class: 'form' },
+    h('label', { for: 'f-category' }, 'Section'), cat,
     h('label', { for: 'f-id' }, 'Page address'), slug,
     h('span'), h('div', { class: 'url', id: 'url' }, `matthewfregnan.com${pagePath(p)}`),
-    h('label', { class: 'top' }, 'Home page'), h('div', { id: 'home-sets', class: 'home-sets' }, homeCheckboxes(p)));
+    h('label', { class: 'top' }, 'Home page'), h('div', { id: 'home-sets', class: 'home-sets' }, homeCheckboxes(p))),
+  };
 }
 
 /** One checkbox per home page set: tick to feature this project in that set. */

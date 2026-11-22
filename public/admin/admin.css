@@ -703,3 +703,25 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .logo-chip img { max-height: 24px; max-width: 120px; filter: brightness(0) invert(1); }
 .pv-logo { position: absolute; top: 10px; left: 10px; z-index: 1; height: 22px; max-width: 40%; object-fit: contain; object-position: left top; filter: brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0,0,0,.6)); opacity: .92; }
 .pv-tile.v .pv-logo { height: 18px; }
+
+/* ---------------------------------------------------------------- project editor laid out like the page */
+.pe-page { display: grid; gap: 18px; max-width: 1000px; }
+.pe-page.portrait { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 28px; align-items: start; max-width: 1100px; }
+.pe-page.portrait .pe-media { position: sticky; top: 0; }
+.pe-page.portrait .player.vertical { max-width: none; }
+.pe-side { display: grid; gap: 18px; min-width: 0; }
+.pe-header { display: grid; gap: 4px; }
+.pe-title-input { font-size: 26px !important; font-weight: 300; padding: 6px 8px !important; border-color: transparent !important; background: transparent !important; }
+.pe-client-input { font-size: 15px !important; color: var(--muted); border-color: transparent !important; background: transparent !important; }
+.pe-title-input:hover, .pe-client-input:hover { border-color: var(--border) !important; }
+.pe-title-input:focus, .pe-client-input:focus { border-color: var(--accent) !important; background: var(--field) !important; color: var(--text); }
+.pe-logo { display: flex; align-items: center; gap: 10px; padding: 2px 8px; }
+.pe-group { border-top: 1px solid var(--border); padding-top: 14px; display: grid; gap: 10px; }
+.pe-group-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pe-group-head h4 { margin: 0; font-size: 14px; }
+.editor-inner > .pe-group { margin-top: 22px; max-width: 1100px; }
+.pe-site { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 24px; align-items: start; }
+@media (max-width: 1050px) {
+  .pe-page.portrait, .pe-site { grid-template-columns: 1fr; }
+  .pe-page.portrait .pe-media { position: static; }
+}
