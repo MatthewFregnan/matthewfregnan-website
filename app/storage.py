@@ -79,9 +79,12 @@ class _Relay(QObject):
 
 
 class StorageDialog(QDialog):
-    def __init__(self, parent, store: Store):
+    def __init__(self, parent, store: Store, embedded: bool = False):
         super().__init__(parent)
+        if embedded:
+            self.setWindowFlags(Qt.Widget)
         self.store = store
+        self.loaded_at = 0.0
         self.setWindowTitle("Video Storage")
         self.resize(620, 640)
         self.body = QVBoxLayout()
@@ -94,17 +97,38 @@ class StorageDialog(QDialog):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
         scroll.setWidget(inner)
-        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons = QDialogButtonBox(QDialogButtonBox.NoButton if embedded else QDialogButtonBox.Close)
         buttons.rejected.connect(self.reject)
         dash = QPushButton("Open in Cloudflare")
         dash.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(DASHBOARD)))
         buttons.addButton(dash, QDialogButtonBox.ActionRole)
+        refresh = QPushButton("Refresh")
+        refresh.clicked.connect(self.reload)
+        buttons.addButton(refresh, QDialogButtonBox.ActionRole)
         lay = QVBoxLayout(self)
+        if embedded:
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.addWidget(QLabel("<span style='font-size:22px; font-weight:600'>Video Storage</span>"))
+            sub = QLabel("Your videos are stored on Cloudflare (videos.matthewfregnan.com). The free plan includes 10 GB.")
+            sub.setStyleSheet("color: palette(placeholder-text);")
+            lay.addWidget(sub)
+            lay.addWidget(buttons)
         lay.addWidget(scroll, 1)
-        lay.addWidget(buttons)
+        if not embedded:
+            lay.addWidget(buttons)
 
         self._relay = _Relay()
         self._relay.done.connect(self._show)
+        self.reload()
+
+    def reload(self):
+        import time
+        self.loaded_at = time.time()
+        self._clear()
+        self.status = QLabel("Looking at your video storage…")
+        self.body.addWidget(self.status)
+        self.body.addStretch()
+        store = self.store
         files = []
         for p in store.projects:
             key = storage_key(p.get("videoFile", ""))

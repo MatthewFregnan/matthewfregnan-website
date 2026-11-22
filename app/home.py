@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import re
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QAbstractItemView, QCheckBox, QComboBox, QDialog, QFormLayout, QGroupBox, QDialogButtonBox, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QListWidget,
@@ -97,8 +97,12 @@ def featured_plan(store: Store, s: dict) -> dict:
 
 
 class HomeDialog(QDialog):
-    def __init__(self, parent, store: Store):
+    shown = Signal(str)   # the set being shown (for the live preview)
+
+    def __init__(self, parent, store: Store, embedded: bool = False):
         super().__init__(parent)
+        if embedded:
+            self.setWindowFlags(Qt.Widget)
         self.store = store
         self.setWindowTitle("Home Page")
         self.resize(900, 620)
@@ -224,12 +228,22 @@ class HomeDialog(QDialog):
         cols = QHBoxLayout()
         cols.addWidget(left, 2)
         cols.addWidget(right, 3)
-        close = QDialogButtonBox(QDialogButtonBox.Close)
-        close.rejected.connect(self.reject)
         lay = QVBoxLayout(self)
+        if embedded:
+            lay.setContentsMargins(0, 0, 0, 0)
+            head = QLabel("<span style='font-size:22px; font-weight:600'>Home Page</span>")
+            lay.addWidget(head)
+            sub = QLabel("Sets are different versions of the home page. Pick one to put on the site, "
+                         "e.g. one per kind of job you apply for. Changes go live when you Publish.")
+            sub.setWordWrap(True)
+            sub.setStyleSheet("color: palette(placeholder-text);")
+            lay.addWidget(sub)
         lay.addLayout(cols)
-        lay.addWidget(QLabel("Changes save automatically and go live when you Publish."))
-        lay.addWidget(close)
+        if not embedded:
+            close = QDialogButtonBox(QDialogButtonBox.Close)
+            close.rejected.connect(self.reject)
+            lay.addWidget(QLabel("Changes save automatically and go live when you Publish."))
+            lay.addWidget(close)
 
         store.homeChanged.connect(self.refresh)
         self.refresh()
@@ -330,6 +344,7 @@ class HomeDialog(QDialog):
             self.items.addItem(item)
         self.items.blockSignals(False)
         self._update_lock_button()
+        self.shown.emit(self.current or "")
 
     # ------------------------------------------------------------------ actions
     def _edit_current(self, label, fn):

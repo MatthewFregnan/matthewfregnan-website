@@ -11,6 +11,15 @@ The first launch installs what the app needs (about a minute). After that it ope
 
 **Preview Site** also needs Node.js. **Publish** needs Git with access to the GitHub repo.
 
+## Finding your way around
+
+Both the app and the web admin have the same left menu:
+
+- **Overview** (opens first): unpublished changes, anything that needs fixing (videos not playing, missing thumbnails), which home page set is live with a small preview, your projects, and video storage.
+- **Projects**: the project list and editor. The **Page Preview** tab shows the project page as it will look (laptop or phone, Standard or Detailed layout) and its tile in lists.
+- **Home Page**: your sets and their settings, with a live preview of the home page beside them. **Shuffle Again** shows another random mix when shuffle is on; click any project in the preview to edit it.
+- **Storage**: how much of the free 10 GB of video storage is used.
+
 ## Day to day
 
 - **New from Link** (⌘N / Ctrl+N): paste a Vimeo, YouTube or Instagram link. The app looks the video up, fills in the title, year and thumbnail, and picks Vertical for portrait videos. You add the client and production.

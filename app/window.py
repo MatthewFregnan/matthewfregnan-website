@@ -7,8 +7,8 @@ import shutil
 from PySide6.QtCore import QSettings, QStandardPaths, Qt, QTimer, QUrl
 from PySide6.QtGui import QAction, QDesktopServices, QKeySequence
 from PySide6.QtWidgets import (
-    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QSplitter,
-    QStackedWidget, QToolBar, QVBoxLayout,
+    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox,
+    QSplitter, QStackedWidget, QTabWidget, QToolBar, QVBoxLayout, QWidget,
 )
 from pathlib import Path
 
@@ -83,6 +83,31 @@ class NewFromLinkDialog(QDialog):
             self.info.setText(f"{dot('bad')} {st.message}. You can still create the project and fix the link later.")
 
 
+class _OverviewActions:
+    """What the Overview page's buttons do."""
+    def __init__(self, w):
+        self.w = w
+
+    def open_project(self, p):
+        self.w.open_project(p)
+
+    def go(self, page, category=None):
+        self.w.go(page, category)
+
+    def publish(self):
+        self.w.publish()
+
+    def check_videos(self):
+        self.w.check_videos()
+
+    def new_from_link(self):
+        self.w.go("projects")
+        self.w.new_from_link()
+
+    def changes(self):
+        return list(self.w.changes)
+
+
 class MainWindow(QMainWindow):
     def __init__(self, repo: core.Repo):
         super().__init__()
@@ -104,15 +129,68 @@ class MainWindow(QMainWindow):
         self.uploads.finished.connect(self._upload_finished)
         self.editor.set_uploads(self.uploads)
         self.empty = QLabel("Select a project, or click “New from Link” to add one.", alignment=Qt.AlignCenter)
+        # Projects page: the list, and Details / Page Preview tabs for the chosen project
+        from pages import HomePreviewPanel, OverviewPage, ProjectPreviewPanel, Rail
+        self.project_preview = ProjectPreviewPanel(self.store)
+        self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True)
+        self.tabs.addTab(self.editor, "Details")
+        self.tabs.addTab(self.project_preview, "Page Preview")
         self.stack = QStackedWidget()
         self.stack.addWidget(self.empty)
-        self.stack.addWidget(self.editor)
+        self.stack.addWidget(self.tabs)
         self.split = QSplitter()
         self.split.addWidget(self.sidebar)
         self.split.addWidget(self.stack)
         self.split.setStretchFactor(1, 1)
         self.split.setSizes([300, 980])
-        self.setCentralWidget(self.split)
+
+        # Home Page page: sets and settings, with a live preview beside them
+        from home import HomeDialog
+        self.home_page = HomeDialog(self, self.store, embedded=True)
+        self.home_preview = HomePreviewPanel(self.store)
+        self.home_page.shown.connect(self.home_preview.show_set)
+        self.home_preview.picked.connect(self._open_key)
+        home_split = QSplitter()
+        home_split.addWidget(self.home_page)
+        home_split.addWidget(self.home_preview)
+        home_split.setStretchFactor(0, 3)
+        home_split.setStretchFactor(1, 2)
+        home_wrap = QWidget()
+        hl = QVBoxLayout(home_wrap)
+        hl.setContentsMargins(22, 18, 22, 12)
+        hl.addWidget(home_split)
+        self.home_preview.show_set(self.home_page.current)
+
+        # Storage page (loads when first opened)
+        self.storage_page = None
+        self.storage_wrap = QWidget()
+        self.storage_lay = QVBoxLayout(self.storage_wrap)
+        self.storage_lay.setContentsMargins(22, 18, 22, 12)
+
+        # Overview page (opens first)
+        self.overview = OverviewPage(self.store, self.checker, _OverviewActions(self))
+        self._overview_timer = QTimer(self, singleShot=True, interval=400)
+        self._overview_timer.timeout.connect(self._refresh_overview)
+        for sig in (self.store.listChanged, self.store.homeChanged, self.checker.batchDone):
+            sig.connect(lambda *_: self._overview_timer.start())
+        self.store.projectChanged.connect(lambda *_: self._overview_timer.start())
+
+        self.pages = QStackedWidget()
+        self.page_widgets = {"overview": self.overview, "projects": self.split, "home": home_wrap,
+                             "storage": self.storage_wrap}
+        for w in self.page_widgets.values():
+            self.pages.addWidget(w)
+        self.rail = Rail([("overview", "Overview"), ("projects", "Projects"), ("home", "Home Page"),
+                          ("storage", "Storage")])
+        self.rail.currentRowChanged.connect(lambda _r: self._show_page(self.rail.key()))
+        central = QWidget()
+        cl = QHBoxLayout(central)
+        cl.setContentsMargins(0, 0, 0, 0)
+        cl.setSpacing(0)
+        cl.addWidget(self.rail)
+        cl.addWidget(self.pages, 1)
+        self.setCentralWidget(central)
 
         self._build_actions()
         self.sidebar.selected.connect(self._on_selected)
@@ -128,7 +206,9 @@ class MainWindow(QMainWindow):
         if settings.value("splitter"):
             self.split.restoreState(settings.value("splitter"))
         self._on_selected(None)
+        self.rail.select("overview")
         self._refresh_changes()
+        self._load_storage_summary()
         self.statusBar().addPermanentWidget(UploadStatus(self.uploads))
         self.statusBar().showMessage(f"{len(self.store.projects)} projects · changes save automatically")
         QTimer.singleShot(300, lambda: self.checker.check_projects(self.store.projects))
@@ -212,7 +292,8 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ selection
     def _on_selected(self, p: dict | None):
         self.editor.set_project(p)
-        self.stack.setCurrentWidget(self.editor if p is not None else self.empty)
+        self.stack.setCurrentWidget(self.tabs if p is not None else self.empty)
+        self.project_preview.set_project(p)
         self._update_actions()
 
     def _current_category(self) -> str:
@@ -286,12 +367,65 @@ class MainWindow(QMainWindow):
 
     # ------------------------------------------------------------------ home page
     def open_home(self):
-        from home import HomeDialog
-        HomeDialog(self, self.store).exec()
+        self.go("home")
+
+    # ------------------------------------------------------------------ pages
+    def go(self, page: str, category: str | None = None):
+        self.rail.select(page)
+        if category is not None:
+            i = self.sidebar.filter.findData(category)
+            if i >= 0:
+                self.sidebar.search.clear()
+                self.sidebar.filter.setCurrentIndex(i)
+
+    def _show_page(self, page: str):
+        self.pages.setCurrentWidget(self.page_widgets[page])
+        is_projects = page == "projects"
+        for a in (self.act_dup, self.act_del, self.act_up, self.act_down, self.act_view):
+            a.setVisible(is_projects)
+        if page == "overview":
+            self._refresh_overview()
+        elif page == "storage":
+            import time
+            from storage import StorageDialog
+            if self.storage_page is None:
+                self.storage_page = StorageDialog(self, self.store, embedded=True)
+                self.storage_lay.addWidget(self.storage_page)
+            elif time.time() - self.storage_page.loaded_at > 300:
+                self.storage_page.reload()
+        elif page == "home":
+            self.home_preview.refresh()
+
+    def _refresh_overview(self):
+        if self.pages.currentWidget() is self.overview:
+            self.overview.refresh()
+
+    def _open_key(self, key: str):
+        p = self.store.project_by_key(key)
+        if p is not None:
+            self.open_project(p)
+
+    def open_project(self, p: dict):
+        self.go("projects")
+        self.sidebar.search.clear()
+        self.sidebar.filter.setCurrentIndex(0)
+        self.sidebar.select(p)
+        self.tabs.setCurrentWidget(self.editor)
+
+    def _load_storage_summary(self):
+        from storage import LIMIT, bucket_totals, fmt_bytes
+
+        def done(res):
+            if isinstance(res, Exception):
+                self.overview.set_storage(str(res).split("\n")[0], None)
+                return
+            count, total = res
+            pct = min(100.0, total / LIMIT * 100)
+            self.overview.set_storage(f"<b>{fmt_bytes(total)}</b> of 10 GB used ({pct:.0f}%) · {count} files", pct)
+        run_async(bucket_totals, done)
 
     def open_storage(self):
-        from storage import StorageDialog
-        StorageDialog(self, self.store).exec()
+        self.go("storage")
 
     # ------------------------------------------------------------------ videos
     def check_videos(self):
@@ -327,6 +461,7 @@ class MainWindow(QMainWindow):
 
     def _set_changes(self, changes):
         self.changes = changes if isinstance(changes, list) else []
+        self._overview_timer.start()
         n = len(self.changes)
         self.act_publish.setText(f"Publish ({n})" if n else "Publish")
         self.act_publish.setToolTip("\n".join(self.changes) if n else "Everything is live")
