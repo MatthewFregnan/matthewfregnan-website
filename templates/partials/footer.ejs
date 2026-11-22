@@ -1,3 +1,15 @@
+  <%# Closing call to action on every page except About (which has its own "Get in touch") %>
+  <% if (activePage !== 'about') { %>
+  <section class="closing-cta">
+    <div class="container mx-auto px-4">
+      <h2 class="closing-cta-title"><%= text.ctaHeading %></h2>
+      <p class="closing-cta-text"><%= text.ctaText %></p>
+      <a href="mailto:<%= site.email %>" class="closing-cta-btn" data-contact><%= text.ctaButton %>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </section>
+  <% } %>
   </main>
 
   <!-- Footer -->
@@ -7,13 +19,33 @@
         <div class="text-center md:text-left">
           <p class="footer-facts">
             <span class="with-icon"><%- include('icon-globe') %><%= site.location %></span>
-            <a href="mailto:<%= site.email %>" class="hover:text-site-text with-icon"><%- include('icon-mail') %><%= site.email %></a>
+            <a href="mailto:<%= site.email %>" class="hover:text-site-text with-icon" data-contact><%- include('icon-mail') %><%= site.email %></a>
           </p>
         </div>
         <p class="mt-2 md:mt-0">&copy; <%= currentYear %> <%= site.title %>. All rights reserved.</p>
       </div>
     </div>
   </footer>
+
+  <%# Contact panel: opened by any link marked data-contact (the links still work as plain email links
+      without JavaScript). Copy the address, open your mail app, or go to LinkedIn. %>
+  <dialog id="contact-panel" class="contact-panel" aria-labelledby="contact-title">
+    <button type="button" class="contact-close" aria-label="Close" data-close>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <h2 id="contact-title" class="contact-title"><%= text.contactHeading %></h2>
+    <% if (text.availability) { %><p class="contact-availability"><span class="contact-dot" aria-hidden="true"></span><%= text.availability %></p><% } %>
+    <p class="contact-text"><%= text.contactText %></p>
+    <div class="contact-email">
+      <span class="with-icon"><%- include('icon-mail') %><span data-email><%= site.email %></span></span>
+      <button type="button" class="contact-copy" data-copy>Copy</button>
+    </div>
+    <div class="contact-actions">
+      <a href="mailto:<%= site.email %>" class="contact-btn primary">Open in Mail</a>
+      <% if (site.social && site.social.linkedin) { %><a href="<%= site.social.linkedin %>" class="contact-btn" target="_blank" rel="noopener">LinkedIn</a><% } %>
+    </div>
+    <p class="contact-where with-icon"><%- include('icon-globe') %><%= site.location %></p>
+  </dialog>
 
   <script src="/js/main.js?v=<%= assetVersion.js %>"></script>
 </body>

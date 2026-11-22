@@ -762,6 +762,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
     send({ t: 'view', v: visit, s: seq, p: location.pathname, r: seq === 1 ? document.referrer : '' });
+    // Moments worth counting that aren't page loads (e.g. opening the contact panel): recorded as a
+    // visit to a made-up address like "/contact/", so they show on the Traffic page as their own row.
+    window.mfTrack = (path) => {
+      const n = Number(sessionStorage.getItem('mf_s') || seq) + 1;
+      sessionStorage.setItem('mf_s', String(n));
+      send({ t: 'view', v: visit, s: n, p: path, r: '' });
+    };
     // Time on page (only while the tab is visible), sent when they leave or switch away
     let shown = document.visibilityState === 'visible' ? performance.now() : null;
     let total = 0;
@@ -796,4 +803,37 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   window.addEventListener('scroll', update, { passive: true });
   window.addEventListener('resize', update);
+});
+
+// Contact panel (partials/footer.ejs): links marked data-contact open it instead of jumping straight to a
+// mail app, which does nothing for people without one set up. Copy the address, open Mail, or LinkedIn.
+document.addEventListener('DOMContentLoaded', () => {
+  const panel = document.getElementById('contact-panel');
+  if (!panel || typeof panel.showModal !== 'function') return;   // old browsers: the links stay email links
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[data-contact]');
+    if (!link || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    e.preventDefault();
+    // close the phone menu first, if it's open
+    const menu = document.getElementById('mobile-menu');
+    if (menu && !menu.classList.contains('hidden')) document.getElementById('menu-toggle')?.click();
+    panel.showModal();
+    window.mfTrack?.('/contact/');   // counted on the admin's Traffic page
+  });
+  panel.addEventListener('click', (e) => {
+    if (e.target === panel || e.target.closest('[data-close]')) panel.close();   // backdrop or ×
+  });
+  const copy = panel.querySelector('[data-copy]');
+  copy?.addEventListener('click', async () => {
+    const email = panel.querySelector('[data-email]').textContent.trim();
+    try {
+      await navigator.clipboard.writeText(email);
+    } catch {
+      const r = document.createRange(); r.selectNodeContents(panel.querySelector('[data-email]'));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); document.execCommand('copy');
+    }
+    copy.textContent = 'Copied';
+    copy.classList.add('is-done');
+    setTimeout(() => { copy.textContent = 'Copy'; copy.classList.remove('is-done'); }, 1800);
+  });
 });

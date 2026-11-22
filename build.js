@@ -762,6 +762,12 @@ const SITE_TEXT = {
   homeAboutText: 'A Melbourne-based video editor & colourist. More about me, and how to get in touch.',
   homeAboutButton: 'More about me',
   clientsLabel: 'Clients include',
+  ctaHeading: 'Have a project in mind?',
+  ctaText: 'I edit and colour commercials, branded content and social. Let’s make something together.',
+  ctaButton: 'Get in touch',
+  contactHeading: 'Let’s work together',
+  contactText: 'Tell me a bit about the project: what it is, when it’s due and where it’ll live.',
+  availability: '',
 };
 function readHomeFile() {
   try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'home.json'), 'utf8')); } catch { return {}; }

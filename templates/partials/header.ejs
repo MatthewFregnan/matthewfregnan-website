@@ -41,7 +41,7 @@
           <a href="/about/" class="nav-link nav-gap <%= activePage === 'about' ? 'active' : '' %>">
             About
           </a>
-          <a href="mailto:<%= site.email %>" class="nav-link nav-cta">
+          <a href="mailto:<%= site.email %>" class="nav-link nav-cta" data-contact>
             Contact
           </a>
         </div>
@@ -74,7 +74,7 @@
       <a href="/about/" class="text-2xl nav-link <%= activePage === 'about' ? 'active' : '' %>">
         About
       </a>
-      <a href="mailto:<%= site.email %>" class="text-2xl nav-link">
+      <a href="mailto:<%= site.email %>" class="text-2xl nav-link" data-contact>
         Contact
       </a>
     </nav>

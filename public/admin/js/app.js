@@ -2201,6 +2201,14 @@ const SITE_TEXT = [
     ['homeAboutButton', 'About card: button', 'More about me'],
     ['clientsLabel', 'Label over the client logos', 'Clients include', 'Type - (a dash) to hide it.'],
   ]],
+  ['Contact', [
+    ['availability', 'Availability (optional)', '', 'Shown with a green dot in the contact panel, e.g. “Taking on work from January”. Leave empty to hide.'],
+    ['contactHeading', 'Contact panel: heading', 'Let’s work together'],
+    ['contactText', 'Contact panel: line under it', 'Tell me a bit about the project: what it is, when it’s due and where it’ll live.'],
+    ['ctaHeading', 'Closing band: heading', 'Have a project in mind?', 'The band at the bottom of every page except About.'],
+    ['ctaText', 'Closing band: line', 'I edit and colour commercials, branded content and social. Let’s make something together.'],
+    ['ctaButton', 'Closing band: button', 'Get in touch'],
+  ]],
   ['About page', [
     ['aboutHeading', 'Heading', 'Hi, I’m Matthew!'],
     ['aboutBody', 'About text', "I'm a post-production professional with over 5 years of experience based in Melbourne, Australia. I specialize in editing diverse content types, from commercial campaigns to branded videos and social media content.\n\nMy portfolio includes work with major brands such as KIA, Redoctane Games, CRKD, Deakin University, Ladbrokes, Oporto, and Australian government agencies. I focus on creating content that tells a story with clarity, energy, and style.", 'Leave a blank line between paragraphs.', 8],
@@ -2230,7 +2238,7 @@ function renderTextPage() {
   };
   page.replaceChildren(h('div', { class: 'page-inner' },
     h('div', { class: 'page-head' }, h('h2', {}, 'Site Text'),
-      h('p', { class: 'muted' }, 'Words on the home and About pages. Changes go live when you publish. The tagline and “Featured Work” heading are on the Home Page screen, per set.')),
+      h('p', { class: 'muted' }, 'Words on the home page, About page and contact panel. Changes go live when you publish. The tagline and “Featured Work” heading are on the Home Page screen, per set.')),
     SITE_TEXT.map(([group, fields]) => h('section', { class: 'ov-card text-card' }, h('h3', {}, group), fields.map(field)))));
 }
 
@@ -2241,7 +2249,7 @@ function titleOfPath(path) {
   if (path === '/') return 'Home';
   const [slug, id] = path.split('/').filter(Boolean);
   const cat = S.data.categories.find(c => c.slug === slug);
-  if (!cat) return slug === 'about' ? 'About' : slug === 'contact' ? 'Contact' : slug === 'my-work' ? 'All work' : path;
+  if (!cat) return slug === 'about' ? 'About' : slug === 'contact' ? 'Contact panel opened' : slug === 'my-work' ? 'All work' : path;
   if (!id) return `${cat.name} (section)`;
   const p = projects().find(x => x.category === cat.id && x.id === id);
   return p ? p.title : `${id} (removed)`;
