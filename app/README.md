@@ -53,18 +53,19 @@ Run it on each OS to get a `.app` (Mac) or `.exe` (Windows) in `dist/`. Keep the
 
 ## Web admin (edit from any browser)
 
-Open **https://matthewfregnan.com/admin/** to edit projects from your phone or any computer. It edits the same `data/projects.json` as this app, and every save goes live a minute or two later.
+Open **https://matthewfregnan.com/admin/** to edit from your phone or any computer. It looks and works like this app: the project list on the left, details on the left of the editor, and the video player, thumbnail and stills on the right.
 
-**Signing in.** Only someone who can write to the GitHub repo can save anything, so the page is safe even though anyone can open it. To sign in, use **Sign In Using Access Token**:
+- **New from Link**, the coloured status dots, **Check Videos**, backup links, **Show first**, view counts, drag to reorder, and undo/redo all work the same as here.
+- Images you add are resized and converted to WebP in the browser.
+- **Edits stay in this browser until you press Publish**, which saves everything to GitHub in one go. The site updates 1–2 minutes later. Unpublished edits (and new images) survive closing the tab.
+- **Try it without signing in:** https://matthewfregnan.com/admin/?demo loads the real projects, but nothing is saved.
 
-1. On GitHub: your profile picture → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+**Signing in.** Only someone who can write to the GitHub repo can save, so the page is safe even though anyone can open it. Nothing secret is stored in the site itself. The first time on each device, paste a GitHub token:
+
+1. Go to github.com → your profile picture → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
 2. Name it "Portfolio admin" and set an expiry (a year is fine).
 3. Under **Repository access**, choose *Only select repositories* → `matthewfregnan-website`.
 4. Under **Permissions → Repository permissions**, set **Contents** to *Read and write*.
-5. Generate it, copy it, and paste it into the admin page. The browser remembers it, so you only do this once per device.
+5. Generate it, copy it, and paste it into the admin page. The browser remembers it. Use **⋯ → Sign Out** on shared computers.
 
-The **Sign In with GitHub** button needs a small extra login service (Sveltia's Cloudflare Worker), which isn't set up, so use the token button instead. In Chrome or Edge on this computer you can also use **Work with Local Repository** and pick this folder, which needs no token; you'd then publish with this app.
-
-**Using both.** When this app opens, it downloads any edits made on the web (unless you have unpublished changes). Publishing from the app also pulls web edits in first. If the same project was edited in both places, Publish stops and shows the conflict rather than overwriting anything.
-
-**Web admin vs this app:** the web admin can edit text, swap video links, and upload images (converted to WebP). It can't check whether links play, look videos up from a link, or show the coloured status dots. Use this app for those.
+**Using both.** When this app opens, it downloads any edits published from the web (unless you have unpublished changes here). Publishing from the app pulls web edits in first. If the project list was changed in both places, the web admin won't overwrite it: it asks you to reload first.

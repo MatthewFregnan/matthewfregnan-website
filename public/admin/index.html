@@ -2,13 +2,77 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
-  <title>Portfolio Admin</title>
+  <meta name="theme-color" content="#1c1d20" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f4f5" media="(prefers-color-scheme: light)">
+  <title>Portfolio Manager</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="admin.css">
+  <script type="module" src="js/app.js"></script>
 </head>
 <body>
-  <!-- Sveltia CMS: edits data/projects.json and images in the GitHub repo.
-       Only people with write access to the repo can sign in and save. -->
-  <script src="https://unpkg.com/@sveltia/cms@0.262.1/dist/sveltia-cms.js"></script>
+  <!-- Sign in -->
+  <div id="signin" class="signin" hidden>
+    <form class="signin-card" id="signin-form">
+      <h1>Portfolio Manager</h1>
+      <p class="muted">Edit the projects on matthewfregnan.com. Changes go live a minute or two after you publish.</p>
+      <label for="token">GitHub access token</label>
+      <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" required>
+      <p id="signin-error" class="error" hidden></p>
+      <button class="btn primary" type="submit">Sign In</button>
+      <details>
+        <summary>How do I get a token?</summary>
+        <ol>
+          <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → New fine-grained token</a>.</li>
+          <li>Name it “Portfolio admin” and pick an expiry (a year is fine).</li>
+          <li>Repository access: <b>Only select repositories</b> → <code>matthewfregnan-website</code>.</li>
+          <li>Permissions → Repository → <b>Contents: Read and write</b>.</li>
+          <li>Generate, copy, and paste it above. This browser remembers it.</li>
+        </ol>
+        <p class="muted">Only someone with write access to the repo can create a token that saves, so this page is safe even though anyone can open it.</p>
+      </details>
+      <p class="muted small"><a href="?demo">Try it without signing in</a> (nothing is saved).</p>
+    </form>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="app" hidden>
+    <header class="toolbar" role="toolbar">
+      <button class="btn icon mobile-only" id="back" aria-label="Back to list">‹ Projects</button>
+      <div class="tb-group">
+        <button class="btn" id="new-link" title="New project from a video link (N)">New from Link</button>
+        <button class="btn desk-only" id="new-blank">New Blank</button>
+        <button class="btn desk-only" id="duplicate">Duplicate</button>
+        <button class="btn" id="delete">Delete</button>
+      </div>
+      <div class="tb-group">
+        <button class="btn" id="undo" title="Undo (⌘Z / Ctrl+Z)">Undo</button>
+        <button class="btn" id="redo" title="Redo (⇧⌘Z / Ctrl+Y)">Redo</button>
+      </div>
+      <div class="tb-group">
+        <button class="btn desk-only" id="check" title="Check every video link still plays">Check Videos</button>
+        <button class="btn desk-only" id="view" title="Open this project on the live site">View on Site</button>
+      </div>
+      <div class="tb-spacer"></div>
+      <span id="demo-badge" class="badge" hidden>Demo: nothing is saved</span>
+      <button class="btn primary" id="publish">Publish</button>
+      <button class="btn icon" id="menu" aria-label="Account">⋯</button>
+    </header>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-tools">
+          <input id="search" type="search" placeholder="Search title, client, production…" autocomplete="off">
+          <select id="filter" aria-label="Category"></select>
+        </div>
+        <nav id="list" class="list" aria-label="Projects"></nav>
+      </aside>
+      <main id="editor" class="editor"></main>
+    </div>
+    <div id="toast" class="toast" role="status" hidden></div>
+  </div>
+
+  <div id="loading" class="loading">Loading…</div>
+  <dialog id="dialog"></dialog>
 </body>
 </html>
