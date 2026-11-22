@@ -53,6 +53,11 @@
     @apply absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent;
   }
 
+  /* Home page short-form row: smaller portrait tiles, more per row */
+  .portfolio-grid-shortform {
+    @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4;
+  }
+
   /* Vertical portfolio grid (for portrait videos) */
   .portfolio-grid-vertical {
     @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
@@ -238,3 +243,30 @@
   .vp-sep, .vp-dur { display: none; }
   .vp-bar { gap: 6px; padding-left: 8px; padding-right: 8px; }
 }
+
+/* Short-form hover previews (see src/main.js) */
+.portfolio-item-vertical .vp-preview {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; transition: opacity 0.35s ease; pointer-events: none;
+}
+.portfolio-item-vertical.is-previewing .vp-preview { opacity: 1; }
+.portfolio-item-vertical .portfolio-item-title { z-index: 1; }
+
+/* ----------------------------------------------------------------------------------------
+   Project context (project pages): description, what I did, platform, credits
+   ---------------------------------------------------------------------------------------- */
+.project-context {
+  display: grid; gap: 32px; margin-top: 8px; padding-top: 28px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+@media (min-width: 768px) { .project-context { grid-template-columns: 3fr 2fr; gap: 48px; } }
+.ctx-description { color: rgba(255, 255, 255, 0.85); font-size: 1.0625rem; line-height: 1.7; margin: 0 0 24px; }
+.ctx-group + .ctx-group { margin-top: 18px; }
+.ctx-label { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: #a0a0a0; margin: 0 0 8px; font-weight: 500; }
+.ctx-chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 0; }
+.ctx-chips li { font-size: 0.875rem; padding: 5px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); color: #fff; }
+.ctx-chips.is-quiet li { background: none; border: 1px solid rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.85); }
+.ctx-facts { margin: 0; display: grid; gap: 14px; align-content: start; }
+.ctx-facts div { display: grid; grid-template-columns: 110px 1fr; gap: 12px; font-size: 0.9375rem; }
+.ctx-facts dt { color: #a0a0a0; }
+.ctx-facts dd { margin: 0; }

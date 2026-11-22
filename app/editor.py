@@ -110,6 +110,11 @@ class ProjectEditor(QScrollArea):
         form.addRow("Description", self.f["description"])
         form.addRow("Page address", self.slug)
         form.addRow("", self.url_label)
+        self.home_box = QWidget()
+        self.home_lay = QVBoxLayout(self.home_box)
+        self.home_lay.setContentsMargins(0, 4, 0, 0)
+        self.home_lay.setSpacing(2)
+        form.addRow("Home page", self.home_box)
         form_box = QWidget()
         form_box.setLayout(form)
         form_box.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
@@ -204,6 +209,7 @@ class ProjectEditor(QScrollArea):
         right.addStretch()
 
         store.projectChanged.connect(lambda p: p is self.p and self.load())
+        store.homeChanged.connect(self._load_home_sets)
         checker.checked.connect(self._on_checked)
 
     # ------------------------------------------------------------------ loading
@@ -246,6 +252,28 @@ class ProjectEditor(QScrollArea):
         self.add_stills.setVisible(not show_gallery)
         if gallery != self._gallery_shown:
             self._load_gallery(gallery)
+        self._load_home_sets()
+
+    def _load_home_sets(self):
+        """One checkbox per home page set: tick to feature this project in that set."""
+        if self.p is None:
+            return
+        while self.home_lay.count():
+            w = self.home_lay.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        member = self.store.sets_containing(self.p)
+        active = self.store.home.get("active")
+        for s in self.store.home.get("sets", []):
+            label = s["name"] + ("  (on the site now)" if s["id"] == active else "")
+            cb = QCheckBox(label)
+            cb.setChecked(s["id"] in member)
+            cb.toggled.connect(functools.partial(self._toggle_home_set, s["id"]))
+            self.home_lay.addWidget(cb)
+
+    def _toggle_home_set(self, set_id: str, on: bool):
+        if self.p is not None:
+            self.store.set_in_home_set(self.p, set_id, on)
 
     def _load_gallery(self, gallery: list[str]):
         self._gallery_shown = list(gallery)

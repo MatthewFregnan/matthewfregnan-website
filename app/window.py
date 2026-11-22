@@ -166,6 +166,7 @@ class MainWindow(QMainWindow):
         self.act_find = act("Find", lambda: (self.sidebar.search.setFocus(), self.sidebar.search.selectAll()),
                             QKeySequence.Find)
         self.act_check = act("Check Videos", self.check_videos, "Ctrl+K", "Check every video link still plays")
+        self.act_home = act("Home Page…", self.open_home, "Ctrl+H", "Choose which projects are on the home page")
         self.act_preview = act("Preview Site", self.preview, "Ctrl+R", "Build the site and open it in your browser")
         self.act_publish = act("Publish", self.publish, "Ctrl+Shift+P", "Put your changes live")
 
@@ -173,7 +174,7 @@ class MainWindow(QMainWindow):
         tb.setMovable(False)
         tb.setToolButtonStyle(Qt.ToolButtonTextOnly)
         for a in (self.act_new_link, self.act_new, self.act_dup, self.act_del, None, self.act_undo, self.act_redo,
-                  None, self.act_check, self.act_preview, self.act_publish):
+                  None, self.act_home, self.act_check, self.act_preview, self.act_publish):
             tb.addSeparator() if a is None else tb.addAction(a)
         self.addToolBar(tb)
 
@@ -181,7 +182,7 @@ class MainWindow(QMainWindow):
         for title, items in (
             ("&File", (self.act_new_link, self.act_new, self.act_dup, None, self.act_preview, self.act_publish)),
             ("&Edit", (self.act_undo, self.act_redo, None, self.act_find, self.act_up, self.act_down, None, self.act_del)),
-            ("&Tools", (self.act_check,)),
+            ("&Tools", (self.act_home, self.act_check)),
         ):
             m = mb.addMenu(title)
             for a in items:
@@ -271,6 +272,11 @@ class MainWindow(QMainWindow):
             row, _n = self.store.row_in_category(p)
             self.store.move(p, row + step)
             self._update_actions()
+
+    # ------------------------------------------------------------------ home page
+    def open_home(self):
+        from home import HomeDialog
+        HomeDialog(self, self.store).exec()
 
     # ------------------------------------------------------------------ videos
     def check_videos(self):

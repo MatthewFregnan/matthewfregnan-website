@@ -493,6 +493,30 @@ async function fingerprintAdmin() {
     .replace('src="js/app.js"', `src="js/app.js?v=${v}"`));
 }
 
+// The home page shows whichever set of projects is marked "active" in data/home.json.
+// Sets are chosen and edited in the desktop app or the web admin.
+function resolveHome(projects) {
+  const file = path.join(DATA_DIR, 'home.json');
+  const empty = { tagline: '', landscape: [], vertical: [] };
+  if (!fs.existsSync(file)) return empty;
+  const home = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const set = (home.sets || []).find(s => s.id === home.active) || (home.sets || [])[0];
+  if (!set) return empty;
+  const byKey = new Map(projects.projects.map(p => [`${p.category}/${p.id}`, p]));
+  const out = { tagline: set.tagline || '', landscape: [], vertical: [] };
+  for (const key of set.projects || []) {
+    const project = byKey.get(key);
+    if (!project) {
+      console.warn(`  Home page: "${key}" isn't a project any more, skipping`);
+      continue;
+    }
+    const category = projects.categories.find(c => c.id === project.category);
+    (category.slug === 'vertical' ? out.vertical : out.landscape).push({ project, category });
+  }
+  console.log(`  Home page set: ${set.name} (${out.landscape.length + out.vertical.length} projects)`);
+  return out;
+}
+
 // Build pages
 async function buildPages() {
   const { projects, siteConfig } = loadData();
@@ -521,6 +545,7 @@ async function buildPages() {
   ];
   const homeHtml = await renderTemplate('home', {
     ...commonData,
+    home: resolveHome(projects),
     title: `${siteConfig.title} | Melbourne Video Editor & Colourist`,
     activePage: 'home',
     pageDescription: `${siteConfig.title} - Melbourne video editor and colourist. View my portfolio of commercial, branded, and colour grading work for clients like KIA, Deakin University, and Australian government agencies.`,

@@ -4,7 +4,7 @@
 
 import * as V from './video.js';
 import * as I from './images.js';
-import { ConflictError, DemoBackend, GitHubBackend } from './github.js';
+import { ConflictError, DEFAULT_HOME, DemoBackend, GitHubBackend } from './github.js';
 
 const SITE = 'https://matthewfregnan.com';
 const DRAFT_KEY = 'pm-draft';
@@ -14,6 +14,8 @@ const S = {
   backend: null,
   data: null,          // { categories, projects } being edited
   baseText: '',        // projects.json as last published
+  home: null,          // { active, sets: [{ id, name, tagline, projects: ['category/id'] }] }
+  baseHomeText: '',    // home.json as last published
   baseSha: '',         // commit it came from
   current: null,       // selected project (object identity)
   undo: [],
@@ -98,11 +100,13 @@ function confirmDialog(title, text, okLabel = 'OK', danger = false) {
 // =========================================================================== editing model
 
 function snapshot() {
-  return { text: JSON.stringify(S.data), cur: S.current ? projects().indexOf(S.current) : -1 };
+  return { text: JSON.stringify(S.data), home: JSON.stringify(S.home), cur: S.current ? projects().indexOf(S.current) : -1 };
 }
 
 function restore(snap) {
   S.data = JSON.parse(snap.text);
+  S.home = JSON.parse(snap.home);
+  if ($('#dialog').open && $('#dialog')._home) renderHomeDialog();
   S.current = projects()[snap.cur] || null;
   S.mergeKey = null;
   changed({ list: true, editor: true });
@@ -156,8 +160,13 @@ function usedImagePaths() {
 function saveDraft() {
   try {
     const text = JSON.stringify(S.data);
-    if (text === JSON.stringify(JSON.parse(S.baseText))) localStorage.removeItem(DRAFT_KEY);
-    else localStorage.setItem(DRAFT_KEY, JSON.stringify({ text, baseText: S.baseText, baseSha: S.baseSha, demo: S.backend.demo }));
+    const homeText = JSON.stringify(S.home);
+    if (text === JSON.stringify(JSON.parse(S.baseText)) && homeText === JSON.stringify(JSON.parse(S.baseHomeText))) {
+      localStorage.removeItem(DRAFT_KEY);
+    } else {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ text, homeText, baseText: S.baseText,
+        baseHomeText: S.baseHomeText, baseSha: S.baseSha, demo: S.backend.demo }));
+    }
   } catch { /* storage unavailable: draft just isn't kept across reloads */ }
 }
 
@@ -175,8 +184,21 @@ function changes() {
   const common = a => a.map(key).filter(k => oldBy.has(k) && newBy.has(k)).join('|');
   if (common(base) !== common(projects())) out.push('Reordered projects');
   if (JSON.stringify(S.data.categories) !== JSON.stringify(JSON.parse(S.baseText).categories)) out.push('Changed categories');
+  if (JSON.stringify(S.home) !== JSON.stringify(JSON.parse(S.baseHomeText))) out.push('Changed home page');
   if (!out.length && I.pending.size) out.push('Updated images');
   return out;
+}
+
+// =========================================================================== home page sets
+
+const keyOf = p => `${p.category}/${p.id}`;
+const homeSet = id => S.home.sets.find(s => s.id === id);
+
+/** Keep home page sets pointing at a project after its address/category changes (or it's deleted). */
+function renameRefs(oldKey, newKey) {
+  for (const s of S.home.sets) {
+    s.projects = (s.projects || []).flatMap(k => (k === oldKey ? (newKey ? [newKey] : []) : [k]));
+  }
 }
 
 // =========================================================================== project actions
@@ -235,6 +257,7 @@ function remove() {
   const i = list.indexOf(p);
   mutate(() => {
     list.splice(i, 1);
+    renameRefs(keyOf(p), null);
     S.current = null;
   }, { list: true, editor: true });
   document.querySelector('.app').classList.remove('show-editor');
@@ -412,7 +435,9 @@ function detailsForm(p) {
     id: 'f-category',
     onchange: e => mutate(() => {
       p.category = e.target.value;
+      const oldKey = keyOf(p);
       p.id = uniqueId(p.id, p.category, p);
+      renameRefs(oldKey, keyOf(p));
     }, { list: true, editor: true }),
   }, S.data.categories.map(c => h('option', { value: c.id, selected: c.id === p.category }, c.name)));
 
@@ -423,7 +448,11 @@ function detailsForm(p) {
       const id = uniqueId(slugify(e.target.value), p.category, p);
       e.target.value = id;
       if (id !== p.id) {
-        mutate(() => { p.id = id; });
+        mutate(() => {
+          const oldKey = keyOf(p);
+          p.id = id;
+          renameRefs(oldKey, keyOf(p));
+        });
         $('#url').textContent = `matthewfregnan.com${pagePath(p)}`;
         toast('Page address changed. Links to the old address will stop working.');
       }
@@ -440,7 +469,26 @@ function detailsForm(p) {
     h('label', { for: 'f-description', class: 'top' }, 'Description'),
     textField(p, 'description', { multiline: true, placeholder: 'A sentence or two about the project (helps Google too)' }),
     h('label', { for: 'f-id' }, 'Page address'), slug,
-    h('span'), h('div', { class: 'url', id: 'url' }, `matthewfregnan.com${pagePath(p)}`));
+    h('span'), h('div', { class: 'url', id: 'url' }, `matthewfregnan.com${pagePath(p)}`),
+    h('label', { class: 'top' }, 'Home page'), h('div', { id: 'home-sets', class: 'home-sets' }, homeCheckboxes(p)));
+}
+
+/** One checkbox per home page set: tick to feature this project in that set. */
+function homeCheckboxes(p) {
+  return S.home.sets.map(s => h('label', { class: 'check' },
+    h('input', {
+      type: 'checkbox',
+      checked: (s.projects || []).includes(keyOf(p)),
+      onchange: e => {
+        const on = e.target.checked;
+        mutate(() => {
+          const set = homeSet(s.id);
+          set.projects = (set.projects || []).filter(k => k !== keyOf(p));
+          if (on) set.projects.push(keyOf(p));
+        });
+      },
+    }),
+    s.name, s.id === S.home.active ? h('span', { class: 'muted small' }, ' (on the site now)') : null));
 }
 
 // ---------------------------------------------------------------- video
@@ -838,11 +886,13 @@ function publish() {
       go.textContent = 'Publishing…';
       err.hidden = true;
       const text = `${JSON.stringify(S.data, null, 2)}\n`;
+      const homeText = `${JSON.stringify(S.home, null, 2)}\n`;
       const used = usedImagePaths();
       const images = new Map([...I.pending].filter(([path]) => used.has(path)));
       try {
-        const sha = await S.backend.save({ text, images, message: `${msg.value.trim() || 'Update portfolio'} (web)`, baseSha: S.baseSha });
+        const sha = await S.backend.save({ text, homeText, images, message: `${msg.value.trim() || 'Update portfolio'} (web)`, baseSha: S.baseSha });
         S.baseText = text;
+        S.baseHomeText = homeText;
         S.baseSha = sha;
         I.markPublished();
         saveDraft();
@@ -867,6 +917,165 @@ function publish() {
       h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: close }, 'Cancel'), go),
     ];
   });
+}
+
+// ---------------------------------------------------------------- Home Page editor
+
+const HD = { current: null, adding: false, confirmDelete: false, q: '' };
+
+function openHomeDialog() {
+  HD.current = S.home.active;
+  HD.adding = false;
+  HD.confirmDelete = false;
+  const d = $('#dialog');
+  d.classList.add('wide');
+  d._home = true;
+  d.addEventListener('close', () => { d._home = false; d.classList.remove('wide'); }, { once: true });
+  renderHomeDialog();
+  if (!d.open) d.showModal();
+}
+
+function editHome(fn) {
+  mutate(fn);
+  renderHomeDialog();
+  if (S.current) {
+    const box = $('#home-sets');
+    if (box) box.replaceChildren(...homeCheckboxes(S.current));
+  }
+}
+
+function newSetId(name) {
+  const base = slugify(name) || 'set';
+  let id = base;
+  for (let n = 2; homeSet(id); n++) id = `${base}-${n}`;
+  return id;
+}
+
+function thumbFor(p) {
+  return p?.thumbnail
+    ? I.withFallback(h('img', { src: I.src('thumbnails', p.thumbnail), alt: '' }), 'thumbnails', p.thumbnail)
+    : h('span', { class: 'noimg' });
+}
+
+function renderHomeDialog() {
+  const d = $('#dialog');
+  if (!d._home) return;
+  if (!homeSet(HD.current)) HD.current = S.home.active || S.home.sets[0]?.id;
+  const set = homeSet(HD.current);
+  const byKey = new Map(projects().map(p => [keyOf(p), p]));
+  const close = () => d.close();
+
+  const setRows = S.home.sets.map(s => h('button', {
+    class: `row set-row${s.id === HD.current ? ' selected' : ''}`,
+    onclick: () => { HD.current = s.id; HD.adding = false; HD.confirmDelete = false; renderHomeDialog(); },
+  }, h('span', { class: `dot ${s.id === S.home.active ? 'ok' : 'none'}` }),
+  h('span', { class: 'row-text' }, h('span', { class: 'row-title' }, s.name),
+    h('span', { class: 'row-sub' }, `${(s.projects || []).length} projects${s.id === S.home.active ? ' · on the site' : ''}`))));
+
+  const setTools = h('div', { class: 'vrow-tools' },
+    h('button', { class: 'btn', onclick: () => {
+      const id = newSetId('new-set');
+      editHome(() => S.home.sets.push({ id, name: 'New set', tagline: '', projects: [] }));
+      HD.current = id; renderHomeDialog(); $('#hd-name')?.select();
+    } }, 'New Set'),
+    h('button', { class: 'btn', disabled: !set, onclick: () => {
+      const id = newSetId(`${set.name} copy`);
+      editHome(() => S.home.sets.push({ ...JSON.parse(JSON.stringify(set)), id, name: `${set.name} (copy)` }));
+      HD.current = id; renderHomeDialog();
+    } }, 'Duplicate'),
+    h('button', { class: 'btn danger', disabled: !set || S.home.sets.length < 2, onclick: () => {
+      if (!HD.confirmDelete) { HD.confirmDelete = true; renderHomeDialog(); return; }
+      const id = set.id;
+      editHome(() => {
+        S.home.sets = S.home.sets.filter(x => x.id !== id);
+        if (S.home.active === id) S.home.active = S.home.sets[0].id;
+      });
+      HD.confirmDelete = false; HD.current = S.home.active; renderHomeDialog();
+    } }, HD.confirmDelete ? 'Click again to delete' : 'Delete'));
+
+  let right;
+  if (!set) {
+    right = h('p', { class: 'muted' }, 'No sets yet.');
+  } else if (HD.adding) {
+    const search = h('input', { type: 'search', placeholder: 'Search projects…', value: HD.q,
+      oninput: e => { HD.q = e.target.value; filter(); } });
+    const picks = new Set();
+    const items = projects().filter(p => !(set.projects || []).includes(keyOf(p))).map(p => {
+      const cb = h('input', { type: 'checkbox', onchange: e => (e.target.checked ? picks.add(keyOf(p)) : picks.delete(keyOf(p))) });
+      const el = h('label', { class: 'row pick' }, cb, thumbFor(p),
+        h('span', { class: 'row-text' }, h('span', { class: 'row-title' }, p.title), h('span', { class: 'row-sub' }, `${category(p.category).name} · ${p.client || ''}`)));
+      el._hay = `${p.title} ${p.client} ${category(p.category).name}`.toLowerCase();
+      return el;
+    });
+    const list = h('div', { class: 'home-list' }, items);
+    function filter() { const q = HD.q.toLowerCase(); items.forEach(el => { el.hidden = q && !el._hay.includes(q); }); }
+    filter();
+    right = h('div', { class: 'home-right' },
+      h('h4', {}, `Add to “${set.name}”`), search, list,
+      h('div', { class: 'vrow-tools' },
+        h('button', { class: 'btn', onclick: () => { HD.adding = false; renderHomeDialog(); } }, 'Back'),
+        h('button', { class: 'btn primary', onclick: () => {
+          const keys = projects().map(keyOf).filter(k => picks.has(k));
+          if (keys.length) editHome(() => { homeSet(set.id).projects.push(...keys); });
+          HD.adding = false; renderHomeDialog();
+        } }, 'Add Selected')));
+  } else {
+    let dragFrom = null;
+    const rows = (set.projects || []).map((key, i) => {
+      const p = byKey.get(key);
+      const el = h('div', { class: 'row home-item', draggable: true },
+        h('span', { class: 'grip', 'aria-hidden': 'true' }, '⋮⋮'), thumbFor(p),
+        h('span', { class: 'row-text' }, h('span', { class: 'row-title' }, p ? p.title : `(missing: ${key})`),
+          h('span', { class: 'row-sub' }, p ? category(p.category).name : '')),
+        h('button', { class: 'btn link danger', title: 'Remove', onclick: () => editHome(() => {
+          const s2 = homeSet(set.id); s2.projects = s2.projects.filter(k => k !== key);
+        }) }, 'Remove'));
+      el.addEventListener('dragstart', e => { dragFrom = i; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+      el.addEventListener('dragend', () => el.classList.remove('dragging'));
+      el.addEventListener('dragover', e => { if (dragFrom !== null && dragFrom !== i) { e.preventDefault(); el.classList.add('drop-above'); } });
+      el.addEventListener('dragleave', () => el.classList.remove('drop-above'));
+      el.addEventListener('drop', e => {
+        e.preventDefault();
+        el.classList.remove('drop-above');
+        if (dragFrom === null) return;
+        const from = dragFrom; dragFrom = null;
+        editHome(() => {
+          const arr = homeSet(set.id).projects;
+          const [moved] = arr.splice(from, 1);
+          arr.splice(from < i ? i - 1 : i, 0, moved);
+        });
+      });
+      return el;
+    });
+    const live = set.id === S.home.active;
+    right = h('div', { class: 'home-right' },
+      h('div', { class: 'field' }, h('label', {}, 'Set name'),
+        h('input', { id: 'hd-name', value: set.name, onchange: e => {
+          const v = e.target.value.trim();
+          if (v && v !== set.name) editHome(() => { homeSet(set.id).name = v; });
+        } })),
+      h('div', { class: 'field' }, h('label', {}, 'Line under your name (optional)'),
+        h('input', { value: set.tagline || '', placeholder: S.home && 'Leave empty for your usual tagline', onchange: e => {
+          const v = e.target.value.trim();
+          if (v !== (set.tagline || '')) editHome(() => { homeSet(set.id).tagline = v; });
+        } })),
+      h('div', { class: 'vrow-tools' },
+        h('button', { class: 'btn primary', disabled: live,
+          onclick: () => editHome(() => { S.home.active = set.id; }) }, live ? 'This set is on the site' : 'Show This on the Site'),
+        h('button', { class: 'btn', onclick: () => { HD.adding = true; HD.q = ''; renderHomeDialog(); } }, 'Add Projects…')),
+      h('div', { class: 'home-list' }, rows.length ? rows : h('p', { class: 'muted' }, 'No projects yet. Use “Add Projects…”.')),
+      h('p', { class: 'hint' }, 'Drag to reorder. Landscape projects show first on the site, then short-form in its own row.'));
+  }
+
+  d.replaceChildren(
+    h('h3', {}, 'Home Page'),
+    h('div', { class: 'home-dialog' },
+      h('div', { class: 'home-left' }, h('p', { class: 'muted small' }, 'The set with the green dot is on the site.'),
+        h('div', { class: 'home-list' }, setRows), setTools),
+      right),
+    h('div', { class: 'actions' },
+      h('span', { class: 'muted small', style: 'margin-right:auto' }, 'Changes go live when you Publish.'),
+      h('button', { class: 'btn primary', onclick: close }, 'Done')));
 }
 
 function accountMenu() {
@@ -904,16 +1113,20 @@ function accountMenu() {
 async function start(backend) {
   S.backend = backend;
   $('#loading').hidden = false;
-  const { text, sha } = await backend.load();
+  const { text, homeText, sha } = await backend.load();
   S.baseText = text;
+  S.baseHomeText = homeText || DEFAULT_HOME;
   S.baseSha = sha;
   S.data = JSON.parse(text);
+  S.home = JSON.parse(S.baseHomeText);
 
   // Bring back unpublished edits from last time (and their new images)
   try {
     const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
     if (draft && !!draft.demo === !!backend.demo) {
       S.data = JSON.parse(draft.text);
+      S.home = JSON.parse(draft.homeText || S.baseHomeText);
+      S.baseHomeText = draft.baseHomeText || S.baseHomeText;
       S.baseText = draft.baseText;
       S.baseSha = draft.baseSha;
       await I.restorePending();
@@ -962,6 +1175,7 @@ function wire() {
   $('#undo').onclick = undo;
   $('#redo').onclick = redo;
   $('#check').onclick = checkVideos;
+  $('#home').onclick = openHomeDialog;
   $('#view').onclick = () => S.current && window.open(SITE + pagePath(S.current), '_blank', 'noopener');
   $('#publish').onclick = publish;
   $('#menu').onclick = accountMenu;

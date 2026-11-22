@@ -403,3 +403,35 @@ document.addEventListener('DOMContentLoaded', () => {
   apply();
   reduce.addEventListener?.('change', apply);
 });
+
+// Hover previews: short-form tiles with a hosted video play it silently while the mouse is over
+// them (desktop only; on phones a tap just opens the project). The video only loads on hover.
+document.addEventListener('DOMContentLoaded', () => {
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.querySelectorAll('[data-preview]').forEach((tile) => {
+    let video = null;
+    let timer = null;
+    tile.addEventListener('mouseenter', () => {
+      timer = setTimeout(() => {
+        if (!video) {
+          video = document.createElement('video');
+          video.className = 'vp-preview';
+          video.muted = true;
+          video.loop = true;
+          video.playsInline = true;
+          video.preload = 'auto';
+          video.src = tile.dataset.preview;
+          tile.insertBefore(video, tile.querySelector('.portfolio-item-title'));
+        }
+        video.currentTime = 0;
+        video.play().then(() => tile.classList.add('is-previewing')).catch(() => {});
+      }, 150); // ignore the mouse just passing over
+    });
+    tile.addEventListener('mouseleave', () => {
+      clearTimeout(timer);
+      tile.classList.remove('is-previewing');
+      if (video) setTimeout(() => { if (!tile.classList.contains('is-previewing')) video.pause(); }, 350);
+    });
+  });
+});

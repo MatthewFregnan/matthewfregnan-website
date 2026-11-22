@@ -35,6 +35,7 @@ class Repo:
     def __init__(self, root: Path):
         self.root = root
         self.projects_json = root / "data" / "projects.json"
+        self.home_json = root / "data" / "home.json"
         self.thumbs_dir = root / "images" / "thumbnails"
         self.gallery_dir = root / "images" / "gallery"
 
@@ -48,6 +49,22 @@ class Repo:
             json.dump(data, f, indent=2, ensure_ascii=False)
             f.write("\n")
         tmp.replace(self.projects_json)  # atomic: never leaves a half-written file
+
+    def load_home(self) -> dict:
+        """Home page sets: which projects show on the home page (data/home.json)."""
+        try:
+            with open(self.home_json, encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return {"active": "balanced", "sets": [{"id": "balanced", "name": "Balanced (default)",
+                                                     "tagline": "", "projects": []}]}
+
+    def save_home(self, home: dict) -> None:
+        tmp = self.home_json.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(home, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        tmp.replace(self.home_json)
 
     def thumb_path(self, project: dict) -> Path | None:
         t = project.get("thumbnail")
@@ -73,6 +90,11 @@ def unique_id(data: dict, base: str, category: str, ignore: dict | None = None) 
     while cand in taken:
         cand, n = f"{base}-{n}", n + 1
     return cand
+
+
+def project_key(project: dict) -> str:
+    """How home page sets refer to a project: "category/id"."""
+    return f"{project.get('category')}/{project.get('id')}"
 
 
 def touch(project: dict) -> None:

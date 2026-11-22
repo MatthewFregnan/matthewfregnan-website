@@ -6,6 +6,8 @@ export const REPO = 'MatthewFregnan/matthewfregnan-website';
 export const BRANCH = 'main';
 export const RAW = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/`;
 const DATA_PATH = 'data/projects.json';
+const HOME_PATH = 'data/home.json';
+export const DEFAULT_HOME = JSON.stringify({ active: 'balanced', sets: [{ id: 'balanced', name: 'Balanced (default)', tagline: '', projects: [] }] }, null, 2) + '\n';
 const TOKEN_KEY = 'pm-github-token';
 
 export class ConflictError extends Error {}
@@ -82,11 +84,20 @@ export class GitHubBackend {
   async load() {
     const sha = await this.head();
     const file = await this.api(`/contents/${DATA_PATH}?ref=${sha}`);
-    return { text: b64ToText(file.content), sha };
+    return { text: b64ToText(file.content), homeText: await this.readHome(sha), sha };
   }
 
-  /** One commit containing the new projects.json and any new images. */
-  async save({ text, images, message, baseSha }) {
+  async readHome(ref) {
+    try {
+      return b64ToText((await this.api(`/contents/${HOME_PATH}?ref=${ref}`)).content);
+    } catch (e) {
+      if (e.status === 404) return DEFAULT_HOME;
+      throw e;
+    }
+  }
+
+  /** One commit containing the new projects.json, home.json and any new images. */
+  async save({ text, homeText, images, message, baseSha }) {
     let head = await this.head();
     if (head !== baseSha) {
       // Someone (e.g. the desktop app) published since this page loaded. That's fine if they
@@ -94,6 +105,9 @@ export class GitHubBackend {
       const theirs = b64ToText((await this.api(`/contents/${DATA_PATH}?ref=${head}`)).content);
       const ours = b64ToText((await this.api(`/contents/${DATA_PATH}?ref=${baseSha}`)).content);
       if (theirs !== ours) throw new ConflictError('The project list was changed somewhere else since you opened this page.');
+      if ((await this.readHome(head)) !== (await this.readHome(baseSha))) {
+        throw new ConflictError('The home page was changed somewhere else since you opened this page.');
+      }
     }
     const baseTree = (await this.api(`/git/commits/${head}`)).tree.sha;
     const entries = [];
@@ -104,6 +118,7 @@ export class GitHubBackend {
       entries.push({ path, mode: '100644', type: 'blob', sha: await blob(bytesToB64(new Uint8Array(await data.arrayBuffer()))) });
     }
     entries.push({ path: DATA_PATH, mode: '100644', type: 'blob', sha: await blob(textToB64(text)) });
+    if (homeText) entries.push({ path: HOME_PATH, mode: '100644', type: 'blob', sha: await blob(textToB64(homeText)) });
     const tree = await this.api('/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: baseTree, tree: entries }) });
     const commit = await this.api('/git/commits', {
       method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [head] }),
@@ -125,7 +140,8 @@ export class DemoBackend {
   async load() {
     const res = await fetch(this.dataUrl, { cache: 'no-store' });
     if (!res.ok) throw new Error(`Couldn't load the project list (${res.status})`);
-    return { text: await res.text(), sha: 'demo' };
+    const home = await fetch(this.dataUrl.replace('projects.json', 'home.json'), { cache: 'no-store' });
+    return { text: await res.text(), homeText: home.ok ? await home.text() : DEFAULT_HOME, sha: 'demo' };
   }
 
   async save({ images }) {

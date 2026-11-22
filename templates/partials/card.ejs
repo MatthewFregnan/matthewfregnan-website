@@ -1,0 +1,17 @@
+<%# One project tile. Expects: project, category, vertical (bool). Short-form tiles with a hosted
+    video play a silent preview on hover (see "Hover previews" in src/main.js). %>
+<a href="/<%= category.slug %>/<%= project.id %>/"
+   class="<%= vertical ? 'portfolio-item-vertical' : 'portfolio-item' %> group"
+   <% if (vertical && project.videoFile) { %>data-preview="<%= project.videoFile %>"<% } %>>
+  <img
+    src="/images/thumbnails/<%= project.thumbnail %>"
+    alt="<%= project.title %>"
+    loading="lazy"
+  >
+  <div class="portfolio-item-title">
+    <h2 class="text-lg font-medium"><%= project.title %></h2>
+    <% if (project.client) { %>
+      <p class="text-sm text-site-text-muted"><%= project.client %></p>
+    <% } %>
+  </div>
+</a>

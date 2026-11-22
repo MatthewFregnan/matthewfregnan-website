@@ -66,6 +66,10 @@ def unpublished_changes(repo: core.Repo) -> list[str]:
     same = [k for k in new_by if k in old_by]
     if [k for k in (key(p) for p in old) if k in new_by] != [k for k in (key(p) for p in new) if k in old_by] and same:
         out.append("Reordered projects")
+    head_home = git(repo, "show", "HEAD:data/home.json")
+    old_home = json.loads(head_home.stdout) if head_home.returncode == 0 else None
+    if old_home != repo.load_home() and repo.home_json.exists():
+        out.append("Changed home page")
     if not out:
         out.append("Updated images")
     return out

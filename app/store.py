@@ -21,6 +21,7 @@ AUTOSAVE_MS = 600
 
 class Store(QObject):
     projectChanged = Signal(object)   # a project's fields changed (the dict itself)
+    homeChanged = Signal()            # home page sets changed
     listChanged = Signal()            # projects added, removed or reordered
     saved = Signal()
     saveFailed = Signal(str)
@@ -29,6 +30,7 @@ class Store(QObject):
         super().__init__()
         self.repo = repo
         self.data = repo.load()
+        self.home = repo.load_home()
         self.undo_stack = QUndoStack(self)
         self._timer = QTimer(self, singleShot=True, interval=AUTOSAVE_MS)
         self._timer.timeout.connect(self.save)
@@ -37,8 +39,10 @@ class Store(QObject):
     def reload(self):
         """Re-read the file (after pulling changes made in the web admin)."""
         self.data = self.repo.load()
+        self.home = self.repo.load_home()
         self.undo_stack.clear()
         self.listChanged.emit()
+        self.homeChanged.emit()
 
     # ------------------------------------------------------------------ reading
     @property
@@ -66,6 +70,7 @@ class Store(QObject):
         self._timer.stop()
         try:
             self.repo.save(self.data)
+            self.repo.save_home(self.home)
         except OSError as e:
             self.saveFailed.emit(str(e))
             return
@@ -94,7 +99,15 @@ class Store(QObject):
         if p == before:
             return
         core.touch(p)
+        old_key, new_key = core.project_key(before), core.project_key(p)
+        if old_key == new_key:
+            self.undo_stack.push(_EditProject(self, p, before, copy.deepcopy(p), label))
+            return
+        # Page address or category changed: keep the home page sets pointing at it
+        self.undo_stack.beginMacro(label)
         self.undo_stack.push(_EditProject(self, p, before, copy.deepcopy(p), label))
+        self.edit_home(label, lambda h: _rename_refs(h, old_key, new_key))
+        self.undo_stack.endMacro()
 
     def _set_list(self, new: list[dict], label: str):
         self.undo_stack.push(_SetList(self, list(self.projects), new, label))
@@ -110,7 +123,42 @@ class Store(QObject):
         self._set_list(new, f"Add “{p.get('title', '')}”")
 
     def remove(self, p: dict):
-        self._set_list([x for x in self.projects if x is not p], f"Delete “{p.get('title', '')}”")
+        label = f"Delete “{p.get('title', '')}”"
+        key = core.project_key(p)
+        self.undo_stack.beginMacro(label)
+        self._set_list([x for x in self.projects if x is not p], label)
+        self.edit_home(label, lambda h: _rename_refs(h, key, None))
+        self.undo_stack.endMacro()
+
+    # ------------------------------------------------------------------ home page sets
+    def edit_home(self, label: str, fn: Callable[[dict], None]):
+        before = copy.deepcopy(self.home)
+        fn(self.home)
+        if self.home != before:
+            self.undo_stack.push(_EditHome(self, before, copy.deepcopy(self.home), label))
+
+    def home_set(self, set_id: str) -> dict | None:
+        return next((s for s in self.home.get("sets", []) if s["id"] == set_id), None)
+
+    def sets_containing(self, p: dict) -> set[str]:
+        key = core.project_key(p)
+        return {s["id"] for s in self.home.get("sets", []) if key in s.get("projects", [])}
+
+    def set_in_home_set(self, p: dict, set_id: str, on: bool):
+        key = core.project_key(p)
+        name = (self.home_set(set_id) or {}).get("name", "home page")
+
+        def fn(h):
+            s = next(x for x in h["sets"] if x["id"] == set_id)
+            items = s.setdefault("projects", [])
+            if on and key not in items:
+                items.append(key)
+            elif not on and key in items:
+                items.remove(key)
+        self.edit_home(f"{'Add to' if on else 'Remove from'} {name}", fn)
+
+    def project_by_key(self, key: str) -> dict | None:
+        return next((p for p in self.projects if core.project_key(p) == key), None)
 
     def move(self, p: dict, row: int):
         """Move a project to position `row` within its category."""
@@ -181,6 +229,26 @@ class _EditProject(QUndoCommand):
     def undo(self):
         _restore(self.p, self.before)
         self.store.projectChanged.emit(self.p)
+
+
+def _rename_refs(home: dict, old: str, new: str | None):
+    for s in home.get("sets", []):
+        items = s.get("projects", [])
+        s["projects"] = [new if k == old else k for k in items if not (k == old and new is None)]
+
+
+class _EditHome(QUndoCommand):
+    def __init__(self, store: Store, before: dict, after: dict, label: str):
+        super().__init__(label)
+        self.store, self.before, self.after = store, before, after
+
+    def redo(self):
+        _restore(self.store.home, self.after)
+        self.store.homeChanged.emit()
+
+    def undo(self):
+        _restore(self.store.home, self.before)
+        self.store.homeChanged.emit()
 
 
 class _SetList(QUndoCommand):

@@ -368,3 +368,15 @@ dialog .field { display: grid; gap: 4px; margin-top: 10px; }
   .sources { grid-template-columns: 68px 10px 1fr; }
   .sources .open { display: none; }
 }
+
+/* ---------------------------------------------------------------- home page sets */
+.home-sets { display: grid; gap: 4px; padding-top: 6px; }
+dialog.wide { width: min(980px, calc(100vw - 32px)); }
+.home-dialog { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 20px; }
+.home-left, .home-right { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.home-list { display: grid; gap: 2px; max-height: 52vh; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius); }
+.home-item { grid-template-columns: 16px 48px 1fr auto; cursor: grab; }
+.home-item .grip { color: var(--muted); font-size: 12px; letter-spacing: -2px; }
+.row.pick { grid-template-columns: 16px 48px 1fr; }
+.row.set-row { grid-template-columns: 10px 1fr; }
+@media (max-width: 760px) { .home-dialog { grid-template-columns: 1fr; } }

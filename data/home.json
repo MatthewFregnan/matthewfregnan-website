@@ -1,0 +1,39 @@
+{
+  "active": "balanced",
+  "sets": [
+    {
+      "id": "balanced",
+      "name": "Balanced (default)",
+      "tagline": "",
+      "projects": [
+        "commercial/redoctane-games-studio-launch-trailer",
+        "branded/mud-to-marle",
+        "commercial/otropo-hair-salon",
+        "branded/deakin-cyclone",
+        "commercial/racism-it-stops-with-me",
+        "branded/neon-streets-chau-cash-only",
+        "vertical/kia-shipyard",
+        "vertical/vce-games-design",
+        "vertical/crkd---febuary-news-reel",
+        "vertical/rs-rewards-bull-riding"
+      ]
+    },
+    {
+      "id": "gaming-social",
+      "name": "Gaming & social",
+      "tagline": "",
+      "projects": [
+        "commercial/redoctane-games-studio-launch-trailer",
+        "branded/neon-streets-chau-cash-only",
+        "branded/ladbrokes-afl-8-scottcummings",
+        "vertical/crkd---febuary-news-reel",
+        "vertical/crkd---casual-ad",
+        "vertical/crkd---customer-review-ad",
+        "vertical/vce-games-design",
+        "vertical/kia-shipyard",
+        "vertical/ladbrokes-afl-leo-barry",
+        "vertical/rs-rewards-bull-riding"
+      ]
+    }
+  ]
+}

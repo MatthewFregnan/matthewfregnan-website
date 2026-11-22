@@ -25,14 +25,48 @@
       <%= site.title %>
     </h1>
     <p class="text-xl md:text-2xl text-white/80 max-w-2xl mx-auto">
-      <%= site.tagline %>
+      <%= (home.tagline || site.tagline) %>
     </p>
     <div class="mt-12">
-      <a href="/my-work/" class="inline-block border border-white/50 px-8 py-3 text-sm uppercase tracking-wider hover:bg-white hover:text-site-bg transition-all duration-300">
+      <a href="<%= home.landscape.length || home.vertical.length ? '#selected-work' : '/my-work/' %>" class="inline-block border border-white/50 px-8 py-3 text-sm uppercase tracking-wider hover:bg-white hover:text-site-bg transition-all duration-300">
         View My Work
       </a>
     </div>
   </div>
 </section>
+
+<% if (home.landscape.length || home.vertical.length) { %>
+<!-- Selected work: chosen in the desktop app or web admin (data/home.json) -->
+<section id="selected-work" class="py-16 scroll-mt-16">
+  <div class="container mx-auto px-4">
+    <h2 class="text-2xl md:text-3xl font-light mb-8">Selected Work</h2>
+    <% if (home.landscape.length) { %>
+      <div class="portfolio-grid">
+        <% home.landscape.forEach(({ project, category }) => { %>
+          <%- include('partials/card', { project, category, vertical: false }) %>
+        <% }) %>
+      </div>
+    <% } %>
+    <% if (home.vertical.length) { %>
+      <h3 class="text-lg font-light text-site-text-muted mt-12 mb-6">Short-form</h3>
+      <div class="portfolio-grid-shortform">
+        <% home.vertical.forEach(({ project, category }) => { %>
+          <%- include('partials/card', { project, category, vertical: true }) %>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <!-- Everything else -->
+    <div class="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4">
+      <% categories.forEach(c => { %>
+        <a href="/<%= c.slug %>/" class="group block p-6 border border-white/10 hover:border-white/30 transition-colors">
+          <span class="block text-lg font-light group-hover:text-site-text-muted transition-colors"><%= c.name %></span>
+          <span class="text-sm text-site-text-muted">All <%= c.name.toLowerCase() %> &rarr;</span>
+        </a>
+      <% }) %>
+    </div>
+  </div>
+</section>
+<% } %>
 
 <%- include('partials/footer') %>
