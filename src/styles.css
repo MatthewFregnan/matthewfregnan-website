@@ -350,10 +350,22 @@
    ---------------------------------------------------------------------------------------- */
 .portfolio-grid-home > [hidden] { display: none !important; }
 
-.shortform-scroller { position: relative; --gap: 12px; --per: 2.3; }
-@media (min-width: 640px) { .shortform-scroller { --per: 3.4; } }
-@media (min-width: 1024px) { .shortform-scroller { --per: 5.4; } }
-@media (min-width: 1280px) { .shortform-scroller { --per: 6.4; } }
+/* --per = tiles across. When there are more than fit, a slice of the next one shows so it's clear
+   the row scrolls. When they all fit they share the row, but never get bigger than this. */
+.shortform-scroller { position: relative; --gap: 12px; --per: 2.25; }
+.shortform-scroller.fit-base { --per: 2; }
+@media (min-width: 640px) {
+  .shortform-scroller { --per: 3.3; }
+  .shortform-scroller.fit-sm { --per: 3; }
+}
+@media (min-width: 1024px) {
+  .shortform-scroller { --per: 4.35; }
+  .shortform-scroller.fit-lg { --per: 4; }
+}
+@media (min-width: 1280px) {
+  .shortform-scroller { --per: 5.35; }
+  .shortform-scroller.fit-xl { --per: max(var(--n), 4); }
+}
 .shortform-track {
   display: flex; gap: var(--gap); overflow-x: auto; overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory; scroll-padding-left: 0; scrollbar-width: none;

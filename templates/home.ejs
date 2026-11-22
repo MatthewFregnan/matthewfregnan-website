@@ -95,8 +95,11 @@
         </script>
         <% } %>
       <% } else { %>
-        <%# One scrolling row so a long list doesn't make the page long. Arrows on wider screens; swipe on phones. %>
-        <div class="shortform-scroller" data-scroller>
+        <%# One row. When they all fit (up to 2 on phones, 3 on tablets, 4 on laptops, 5 on desktops) they
+            share the row; any more and it scrolls: arrows on wider screens, swipe on phones. %>
+        <% const n = row.items.length;
+           const fit = [n <= 2 && 'fit-base', n <= 3 && 'fit-sm', n <= 4 && 'fit-lg', n <= 5 && 'fit-xl'].filter(Boolean).join(' '); %>
+        <div class="shortform-scroller <%= fit %>" style="--n: <%= n %>" data-scroller>
           <button type="button" class="scroller-btn prev" aria-label="Scroll back" hidden>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
           </button>
