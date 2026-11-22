@@ -436,3 +436,6 @@
   .portrait-page .project-context { grid-template-columns: 1fr; gap: 28px; }
   .portrait-page .pp-details > div:first-child.mt-8 { margin-top: 0; }
 }
+
+/* Slightly rounded tiles (project cards and the "All work" section tiles) */
+.portfolio-item, .portfolio-item-vertical, .category-tile { border-radius: 6px; overflow: hidden; isolation: isolate; }

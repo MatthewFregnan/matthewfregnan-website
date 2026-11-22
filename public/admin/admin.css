@@ -628,3 +628,4 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .pv-stats { margin: -20px 0 28px; text-align: center; font-size: 14px; color: #a0a0a0; }
 
 #list.over { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.pv-tile, .pv-cat { border-radius: 6px; }
