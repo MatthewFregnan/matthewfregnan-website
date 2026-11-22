@@ -2151,7 +2151,7 @@ const SITE_TEXT = [
     ['homeAboutTitle', 'About card: heading', 'Hi, I’m Matthew!'],
     ['homeAboutText', 'About card: line under it', 'A Melbourne-based video editor & colourist. More about me, and how to get in touch.'],
     ['homeAboutButton', 'About card: button', 'More about me'],
-    ['clientsLabel', 'Label over the client logos', 'Selected clients', 'Type - (a dash) to hide it.'],
+    ['clientsLabel', 'Label over the client logos', 'Clients include', 'Type - (a dash) to hide it.'],
   ]],
   ['About page', [
     ['aboutHeading', 'Heading', 'Hi, I’m Matthew!'],

@@ -755,7 +755,7 @@ const SITE_TEXT = {
   homeAboutTitle: 'Hi, I’m Matthew!',
   homeAboutText: 'A Melbourne-based video editor & colourist. More about me, and how to get in touch.',
   homeAboutButton: 'More about me',
-  clientsLabel: 'Selected clients',
+  clientsLabel: 'Clients include',
 };
 function readSiteText() {
   const file = path.join(DATA_DIR, 'home.json');
