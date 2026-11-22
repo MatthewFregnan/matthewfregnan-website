@@ -1078,7 +1078,7 @@ function renderHomeDialog() {
           onclick: () => editHome(() => { S.home.active = set.id; }) }, live ? 'This set is on the site' : 'Show This on the Site'),
         h('button', { class: 'btn', onclick: () => { HD.adding = true; HD.q = ''; renderHomeDialog(); } }, 'Add Projects…')),
       h('div', { class: 'home-list' }, rows.length ? rows : h('p', { class: 'muted' }, 'No projects yet. Use “Add Projects…”.')),
-      h('p', { class: 'hint' }, 'Drag to reorder. Landscape projects show first on the site, then short-form in its own row.'));
+      h('p', { class: 'hint' }, 'Drag to reorder. Landscape projects show first on the site, then Social projects in their own row.'));
   }
 
   d.replaceChildren(

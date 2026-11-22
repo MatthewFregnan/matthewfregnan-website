@@ -24,7 +24,7 @@
     <% const video = project._video; %>
     <% if (video && video.sources.length) { %>
       <% const src = video.sources[video.active];
-         const isVertical = category.slug === 'vertical';
+         const isVertical = category.id === 'vertical';
          const shape = src.kind === 'instagram' ? 'is-instagram' : (isVertical ? 'is-vertical' : '');
          const poster = project.thumbnail ? `/images/thumbnails/${project.thumbnail}` : ''; %>
       <div class="video-player mb-8"

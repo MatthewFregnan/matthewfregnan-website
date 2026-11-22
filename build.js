@@ -345,9 +345,31 @@ async function generateOgImages(projects) {
 const categoryDescriptions = {
   'commercial': 'Commercial video editing portfolio featuring campaigns for KIA, Oporto, Department of Education, and government agencies by Melbourne editor Matthew Fregnan.',
   'branded': 'Branded content video editing - corporate videos for Deakin University, TAB, DSS, and more by Melbourne-based editor Matthew Fregnan.',
-  'vertical': 'Vertical video editing for social media - TikTok and Instagram content for KIA, VCAA, RS Rewards by Matthew Fregnan.',
+  'vertical': 'Social video editing - short-form vertical content for TikTok, Instagram and YouTube Shorts for KIA, VCAA, CRKD and RS Rewards by Melbourne editor Matthew Fregnan.',
   'colour-grading': 'Professional colour grading portfolio featuring film and commercial colour work including music videos and short films by Melbourne colourist Matthew Fregnan.'
 };
+
+// Old addresses that moved, so links people already have keep working:
+// /<from>/ and /<from>/<project>/ redirect to the same page under /<to>/.
+const MOVED_SECTIONS = { vertical: 'social' };
+
+async function generateRedirects(projects, siteConfig) {
+  for (const [from, to] of Object.entries(MOVED_SECTIONS)) {
+    const category = projects.categories.find(c => c.slug === to);
+    if (!category) continue;
+    const pages = [''].concat(projects.projects.filter(p => p.category === category.id).map(p => `${p.id}/`));
+    for (const page of pages) {
+      const target = `/${to}/${page}`;
+      const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Moved</title><meta name="robots" content="noindex">
+<link rel="canonical" href="${siteConfig.domain}${target}">
+<meta http-equiv="refresh" content="0; url=${target}">
+<script>location.replace(${JSON.stringify(target)} + location.hash)</script>
+</head><body><p>This page has moved to <a href="${target}">${siteConfig.domain}${target}</a>.</p></body></html>`;
+      await fs.outputFile(path.join(DIST_DIR, from, page, 'index.html'), html);
+    }
+  }
+}
 
 // Generate sitemap.xml
 async function generateSitemap(projects, siteConfig) {
@@ -522,7 +544,7 @@ function resolveHome(projects) {
       continue;
     }
     const category = projects.categories.find(c => c.id === project.category);
-    (category.slug === 'vertical' ? out.vertical : out.landscape).push({ project, category });
+    (category.id === 'vertical' ? out.vertical : out.landscape).push({ project, category });
   }
   console.log(`  Home page set: ${set.name} (${out.landscape.length + out.vertical.length} projects)`);
   out.categoryTiles = categoryTiles(projects, set);
@@ -600,7 +622,7 @@ async function buildPages() {
 
     // Build gallery index page with ItemList schema
     console.log(`Building ${category.name} gallery...`);
-    const galleryDescription = categoryDescriptions[category.slug] || `${category.name} video editing and post-production work by ${siteConfig.title}, Melbourne-based video editor.`;
+    const galleryDescription = categoryDescriptions[category.id] || `${category.name} video editing and post-production work by ${siteConfig.title}, Melbourne-based video editor.`;
     const galleryHtml = await renderTemplate('gallery', {
       ...commonData,
       title: `${category.name} | ${siteConfig.title}`,
@@ -640,6 +662,7 @@ async function buildPages() {
   }
 
   await generateOgImages(projects);
+  await generateRedirects(projects, siteConfig);
 
   // Generate sitemap and robots.txt
   await generateSitemap(projects, siteConfig);

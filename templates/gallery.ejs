@@ -8,9 +8,9 @@
     </h1>
 
     <!-- Portfolio Grid -->
-    <div class="<%= category.slug === 'vertical' ? 'portfolio-grid-vertical' : 'portfolio-grid' %>">
+    <div class="<%= category.id === 'vertical' ? 'portfolio-grid-vertical' : 'portfolio-grid' %>">
       <% projects.forEach(project => { %>
-        <%- include('partials/card', { project, category, vertical: category.slug === 'vertical' }) %>
+        <%- include('partials/card', { project, category, vertical: category.id === 'vertical' }) %>
       <% }) %>
     </div>
 

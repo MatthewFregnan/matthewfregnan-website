@@ -120,7 +120,7 @@ class HomeDialog(QDialog):
         b_add.clicked.connect(self._add)
         b_rm = QPushButton("Remove")
         b_rm.clicked.connect(self._remove)
-        hint = QLabel("Drag to reorder. Landscape projects show first, then short-form in its own row.")
+        hint = QLabel("Drag to reorder. Landscape projects show first, then Social projects in their own row.")
         hint.setStyleSheet("color: palette(placeholder-text);")
         right = QWidget()
         rl = QVBoxLayout(right)
