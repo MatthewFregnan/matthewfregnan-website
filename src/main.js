@@ -534,12 +534,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (best) {
       tile = [...best.children].find(t => !t.hidden && t.dataset.preview && fullyIn(t, best)) || null;
     } else if (!rows.length && touch) {
-      // Section pages on phones (no hover): the tile nearest the middle of the screen plays
+      // Section and project pages on phones (no hover): the tile nearest where the eye rests, a little
+      // above the middle, among tiles mostly in view between the menu bar and Safari's bottom bar.
+      const top = document.querySelector('header')?.offsetHeight || 64;
+      const bottom = window.innerHeight - 90;
+      const focus = top + (bottom - top) * 0.42;
       let d = Infinity;
       for (const t of tiles) {
         const r = t.getBoundingClientRect();
-        if (r.bottom < window.innerHeight * 0.2 || r.top > window.innerHeight * 0.8) continue;
-        const dist = Math.abs((r.top + r.bottom) / 2 - mid);
+        const seen = Math.min(r.bottom, bottom) - Math.max(r.top, top);
+        if (seen < r.height * 0.6) continue;
+        const dist = Math.abs((r.top + r.bottom) / 2 - focus);
         if (dist < d) { d = dist; tile = t; }
       }
     }
@@ -554,11 +559,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Play a tile for the scroll position, and after 12 seconds move on to the next video in the row
   // (the next one on screen; on phones, where one fills the row, the row slides along to it).
   let advanceTimer = null;
-  const pickTile = (tile) => {
+  let dwellTimer = null;
+  // Scrolling picks a tile, but it only starts once the page has been still for 0.9s: long enough to
+  // take in the opening shot and read the title, and nothing starts while someone is scrolling past.
+  const DWELL = 900;
+  const pickTile = (tile, now = false) => {
     clearTimeout(advanceTimer);
+    clearTimeout(dwellTimer);
     if (scrollPick && Previews.current === scrollPick) Previews.stop(scrollPick);
     scrollPick = tile;
     if (!tile) return;
+    if (!now) {
+      dwellTimer = setTimeout(() => { if (scrollPick === tile && !hovered) pickTile(tile, true); }, DWELL);
+      return;
+    }
     Previews.play(tile);
     const row = tile.closest('.row-track');
     if (!row) return;
@@ -566,14 +580,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (hovered || scrollPick !== tile || document.hidden) return;
       const list = [...row.children].filter(t => !t.hidden && t.dataset.preview);
       const next = list[list.indexOf(tile) + 1];
-      if (next && fullyIn(next, row)) pickTile(next);
+      if (next && fullyIn(next, row)) pickTile(next, true);
       else if (next && touch) row.scrollBy({ left: next.getBoundingClientRect().left - row.getBoundingClientRect().left, behavior: 'smooth' });   // the row's scroll picks it
-      else pickTile(list.find(t => fullyIn(t, row)) || tile);
+      else pickTile(list.find(t => fullyIn(t, row)) || tile, true);
     }, 12000);
   };
   if (rows.length || touch) {
     let ticking = false;
-    const onScroll = () => { if (!ticking) { ticking = true; setTimeout(() => { ticking = false; pickFromScroll(); }, 120); } };
+    const onScroll = () => {
+      // still moving: hold off starting the picked tile until the page settles
+      if (scrollPick && Previews.current !== scrollPick) {
+        clearTimeout(dwellTimer);
+        const t = scrollPick;
+        dwellTimer = setTimeout(() => { if (scrollPick === t && !hovered) pickTile(t, true); }, DWELL);
+      }
+      if (!ticking) { ticking = true; setTimeout(() => { ticking = false; pickFromScroll(); }, 120); }
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     rows.forEach(r => r.addEventListener('scroll', onScroll, { passive: true }));
     window.addEventListener('resize', onScroll);
