@@ -48,22 +48,47 @@ function tile(h, p, { vertical, thumb, badge, onPick }) {
     h('div', { class: 'pv-tile-title' }, h('b', {}, p.title || '(untitled)'), p.client ? h('small', {}, p.client) : null));
 }
 
-/** Which landscape projects show, matching build.js (locked first, then shuffle or the top of the list). */
-export function featuredPick(set, landscape, seed = 0) {
-  const count = Math.max(0, parseInt(set.featuredCount, 10) || 0);
-  if (!count || count >= landscape.length) return { shown: landscape, count: 0 };
-  const lockedKeys = new Set(set.locked || []);
+/** Row settings for a home page set: the landscape (featured projects) row or the social (reels) row. */
+export function rowSettings(set, kind) {
+  return kind === 'social'
+    ? { count: Math.max(0, parseInt(set.reelsCount, 10) || 0), shuffle: !!set.reelsShuffle }
+    : { count: Math.max(0, parseInt(set.featuredCount, 10) || 0), shuffle: !!set.shuffle };
+}
+
+/**
+ * Which projects fill a row's places (matches build.js and the script on the home page).
+ * `items` are the row's projects in list order. Pinned projects keep their place (slot) in the list;
+ * with shuffle on, every other place gets a random unpinned project. Returns
+ * { shown, count, pinned:Set, status:Map(key -> text) }.
+ */
+export function rowPlan(items, { count, shuffle }, pinnedKeys, seed = 1) {
   const key = p => `${p.category}/${p.id}`;
-  const locked = landscape.filter(p => lockedKeys.has(key(p))).slice(0, count);
-  let rest = landscape.filter(p => !locked.includes(p));
-  if (set.shuffle) {
+  const n = count && count < items.length ? count : items.length;
+  const status = new Map();
+  const pinnedAt = new Map();
+  if (shuffle) items.forEach((p, i) => { if (i < n && pinnedKeys.has(key(p))) pinnedAt.set(i, p); });
+  let shown;
+  if (!shuffle) {
+    shown = items.slice(0, n);
+  } else {
+    let pool = items.filter((p, i) => !(i < n && pinnedKeys.has(key(p))));
     // seeded shuffle so "Shuffle again" gives a new mix but re-renders while editing don't
     let x = seed * 9301 + 49297;
     const rnd = () => ((x = (x * 9301 + 49297) % 233280) / 233280);
-    rest = rest.map(p => [rnd(), p]).sort((a, b) => a[0] - b[0]).map(([, p]) => p);
+    pool = pool.map(p => [rnd(), p]).sort((a, b) => a[0] - b[0]).map(([, p]) => p);
+    shown = [];
+    for (let i = 0; i < n; i++) shown.push(pinnedAt.get(i) || pool.shift());
+    shown = shown.filter(Boolean);
   }
-  const pick = new Set([...locked, ...rest.slice(0, count - locked.length)]);
-  return { shown: landscape.filter(p => pick.has(p)), count, locked: new Set(locked) };
+  const free = n - pinnedAt.size;
+  items.forEach((p, i) => {
+    const k = key(p);
+    if (!shuffle) status.set(k, i < n ? (n < items.length ? 'Shown' : '') : `Not shown (only the top ${n})`);
+    else if (pinnedAt.get(i) === p) status.set(k, `📌 Pinned to place ${i + 1}`);
+    else if (pinnedKeys.has(k)) status.set(k, `Pinned below the ${n} places shown, so it's shuffled`);
+    else status.set(k, free > 0 ? 'In the shuffle' : 'Not shown (every place is pinned)');
+  });
+  return { shown, count: n < items.length ? n : 0, pinned: new Set(pinnedAt.values()), status };
 }
 
 /**
@@ -78,7 +103,13 @@ export function homePreview(h, opts) {
   const chosen = (set.projects || []).map(k => byKey.get(k)).filter(Boolean);
   const landscape = set.showLandscape === false ? [] : chosen.filter(p => p.category !== 'vertical');
   const social = set.showSocial === false ? [] : chosen.filter(p => p.category === 'vertical');
-  const feat = featuredPick(set, landscape, seed);
+  const pinned = new Set(set.locked || []);
+  const landSettings = rowSettings(set, 'landscape');
+  const reelSettings = rowSettings(set, 'social');
+  const feat = rowPlan(landscape, landSettings, pinned, seed);
+  const reels = rowPlan(social, reelSettings, pinned, seed + 7);
+  const badgeFor = (plan, settings) => p => (settings.shuffle
+    ? (plan.pinned.has(p) ? { kind: 'lock', text: '📌 Pinned' } : { kind: 'shuffle', text: '⤮ Shuffled' }) : null);
 
   // Same split as the site: hero 82% of the screen, heading 12%, then the work peeks in
   const screenH = SCREENS[screen].height;
@@ -102,22 +133,22 @@ export function homePreview(h, opts) {
         h('div', { class: 'pv-track pv-grid' }, feat.shown.map(p => {
           const t = tile(h, p, {
             thumb, onPick,
-            badge: feat.count ? (feat.locked.has(p) ? { kind: 'lock', text: '🔒 Locked' } : set.shuffle ? { kind: 'shuffle', text: '⤮ Shuffled' } : null) : null,
+            badge: badgeFor(feat, landSettings)(p),
           });
           t.style.flex = `0 0 ${tileW}`;
           return t;
         })),
         n > fitAt && !phone ? h('span', { class: 'pv-arrow' }, '›') : null) });
   }
-  if (social.length) {
-    const n = social.length;
+  if (reels.shown.length) {
+    const n = reels.shown.length;
     const fitAt = phone ? 2 : 5;               // what fits on this screen (see .shortform-scroller)
     const per = n <= fitAt ? (phone ? 2 : Math.max(n, 4)) : (phone ? 2.25 : 5.35);
     const tileW = `calc((100% - ${12 * (per - 1)}px) / ${per})`;
     rows.push({ kind: 'social', title: String(set.socialTitle || '').trim(),
       el: h('div', { class: 'pv-social' },
-        h('div', { class: 'pv-track' }, social.map(p => {
-          const t = tile(h, p, { vertical: true, thumb, onPick });
+        h('div', { class: 'pv-track' }, reels.shown.map(p => {
+          const t = tile(h, p, { vertical: true, thumb, onPick, badge: badgeFor(reels, reelSettings)(p) });
           t.style.flex = `0 0 ${tileW}`;
           return t;
         })),

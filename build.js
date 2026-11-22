@@ -669,27 +669,28 @@ function resolveHome(projects) {
   if (!out.showLandscape) out.landscape = [];
   if (!out.showSocial) out.vertical = [];
 
-  // Landscape row: show `featuredCount` of them (0 = all). Locked ones always show; with shuffle
-  // on, the other places are filled at random on each visit (a small script on the home page),
-  // otherwise from the top of the list. The page is built with the no-shuffle pick, so it also
-  // works without JavaScript.
-  const pool = out.landscape;
-  const count = Math.max(0, parseInt(set.featuredCount, 10) || 0);
-  const locked = new Set(set.locked || []);
-  const isLocked = item => locked.has(`${item.project.category}/${item.project.id}`);
-  out.featured = { count: count && count < pool.length ? count : 0, shuffle: !!set.shuffle };
-  if (out.featured.count) {
-    const first = [...pool.filter(isLocked), ...pool.filter(i => !isLocked(i))].slice(0, out.featured.count);
-    pool.forEach(item => {
-      item.locked = isLocked(item);
-      item.shown = first.includes(item);
+  // Each row (featured projects / featured reels) shows `count` of its projects (0 = all). With
+  // shuffle on, pinned projects keep their place in the list and every other place gets a random
+  // unpinned project on each visit (a small script on the home page; public/admin/js/preview.js
+  // rowPlan does the same for the admin preview). The page is built with the plain top-of-the-list
+  // pick, so it also works without JavaScript.
+  const pinned = new Set(set.locked || []);
+  const plan = (items, countValue, shuffle) => {
+    const count = Math.max(0, parseInt(countValue, 10) || 0);
+    const n = count && count < items.length ? count : items.length;
+    items.forEach((item, i) => {
+      item.pinned = !!shuffle && i < n && pinned.has(`${item.project.category}/${item.project.id}`);
+      item.shown = i < n;
     });
-  } else {
-    pool.forEach(item => { item.locked = false; item.shown = true; });
-  }
-  out.landscapeShown = out.featured.count || pool.length;
-  const how = out.featured.count ? ` (${out.featured.count} of ${pool.length} landscape${out.featured.shuffle ? ', shuffled' : ''})` : '';
-  console.log(`  Home page set: ${set.name} (${out.landscapeShown + out.vertical.length} projects shown${how})`);
+    return { count: n < items.length ? n : 0, shuffle: !!shuffle && items.length > 1, shown: n };
+  };
+  out.featured = plan(out.landscape, set.featuredCount, set.shuffle);
+  out.reels = plan(out.vertical, set.reelsCount, set.reelsShuffle);
+  out.landscapeShown = out.featured.shown;
+  out.verticalShown = out.reels.shown;
+  const how = [out.featured.count && `${out.featured.count} of ${out.landscape.length} landscape`, out.featured.shuffle && 'shuffled',
+    out.reels.count && `${out.reels.count} of ${out.vertical.length} reels`, out.reels.shuffle && 'reels shuffled'].filter(Boolean).join(', ');
+  console.log(`  Home page set: ${set.name} (${out.landscapeShown + out.verticalShown} projects shown${how ? ` (${how})` : ''})`);
   out.categoryTiles = categoryTiles(projects, set);
   return out;
 }

@@ -376,7 +376,7 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .home-left, .home-right { display: grid; gap: 10px; align-content: start; min-width: 0; }
 .home-list { display: grid; gap: 2px; max-height: 52vh; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius); }
 .home-item { grid-template-columns: 16px 48px 1fr auto auto; cursor: grab; }
-.home-item > .btn.danger:nth-child(4) { grid-column: 5; }
+.home-item > .btn.danger:nth-child(5) { grid-column: 6; }
 .home-item .grip { color: var(--muted); font-size: 12px; letter-spacing: -2px; }
 .row.pick { grid-template-columns: 16px 48px 1fr; }
 .row.set-row { grid-template-columns: 10px 1fr; }
@@ -665,3 +665,14 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .ov-stat-row .btn.link { white-space: nowrap; font-size: 12px; }
 .ov-fresh { margin-top: 8px; }
 .ov-fresh summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+
+/* home page rows (featured projects / reels) */
+.row-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
+.row-card.is-hidden-row { opacity: 0.6; }
+.row-card-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.row-card-head h4 { margin: 0 auto 0 0; font-size: 14px; }
+.row-card p { margin: 0; }
+.row-card .home-list { max-height: none; }
+.home-item { grid-template-columns: 18px 16px 48px 1fr auto auto !important; }
+.slot-num { font-size: 11px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.row-end { height: 10px; position: relative; }

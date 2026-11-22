@@ -72,38 +72,44 @@
         // Every row scrolls sideways like a streaming service: when the tiles all fit they share the row,
         // otherwise a slice of the next one peeks in and arrows appear (swipe on phones). See .row-scroller.
         const landscape = row.kind === 'landscape';
-        const n = landscape ? home.landscapeShown : row.items.length;
+        const settings = landscape ? home.featured : home.reels;
+        const n = settings.shown;
         const fit = landscape
           ? [n <= 1 && 'fit-base', n <= 2 && 'fit-sm', n <= 3 && 'fit-lg', n <= 3 && 'fit-xl']
           : [n <= 2 && 'fit-base', n <= 3 && 'fit-sm', n <= 4 && 'fit-lg', n <= 5 && 'fit-xl'];
-        const shuffle = landscape && home.featured.count && home.featured.shuffle;
+        const rowId = landscape ? 'featured' : 'reels';
       %>
       <div class="row-scroller <%= landscape ? 'is-landscape' : 'is-portrait' %> <%= fit.filter(Boolean).join(' ') %>" style="--n: <%= n %>" data-scroller>
         <button type="button" class="scroller-btn prev" aria-label="Scroll back" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
         </button>
-        <div class="row-track"<% if (landscape) { %> id="featured"<% } %><% if (shuffle) { %> data-count="<%= home.featured.count %>" data-shuffle<% } %>>
-          <% row.items.forEach(({ project, category, locked, shown }) => { %>
+        <div class="row-track" id="<%= rowId %>"<% if (settings.shuffle) { %> data-count="<%= n %>" data-shuffle<% } %>>
+          <% row.items.forEach(({ project, category, pinned, shown }) => { %>
             <%- include('partials/card', { project, category, vertical: !landscape,
-              extra: landscape ? (locked ? 'data-locked ' : '') + (shown ? '' : 'hidden') : '' }) %>
+              extra: (pinned ? 'data-pinned ' : '') + (shown ? '' : 'hidden') }) %>
           <% }) %>
         </div>
         <button type="button" class="scroller-btn next" aria-label="Scroll forward" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
         </button>
       </div>
-      <% if (shuffle) { %>
+      <% if (settings.shuffle) { %>
       <script>
-        // Shuffle: keep the locked projects and fill the other places at random, before the row is drawn
+        // Shuffle: pinned projects keep their place; every other place gets a random unpinned project.
+        // Runs before the row is drawn.
         (function () {
-          var row = document.getElementById('featured');
+          var row = document.getElementById('<%= rowId %>');
           var cards = [].slice.call(row.children);
           var n = +row.dataset.count;
-          var locked = cards.filter(function (c) { return c.hasAttribute('data-locked'); }).slice(0, n);
-          var rest = cards.filter(function (c) { return locked.indexOf(c) < 0; });
-          for (var i = rest.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = rest[i]; rest[i] = rest[j]; rest[j] = t; }
-          var pick = locked.concat(rest.slice(0, n - locked.length));
-          cards.forEach(function (c) { c.hidden = pick.indexOf(c) < 0; });
+          var fixed = {};
+          cards.forEach(function (c, i) { if (i < n && c.hasAttribute('data-pinned')) fixed[i] = c; });
+          var pool = cards.filter(function (c, i) { return !(i < n && c.hasAttribute('data-pinned')); });
+          for (var i = pool.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+          var out = [];
+          for (var k = 0; k < n; k++) { var c = fixed[k] || pool.shift(); if (c) out.push(c); }
+          cards.forEach(function (c) { c.hidden = out.indexOf(c) < 0; });
+          out.forEach(function (c) { row.appendChild(c); });
+          cards.forEach(function (c) { if (c.hidden) row.appendChild(c); });
         })();
       </script>
       <% } %>
