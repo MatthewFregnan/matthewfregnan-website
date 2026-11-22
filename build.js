@@ -625,10 +625,16 @@ const CLIENT_RANK = [
 ];
 const STRIP_DEFAULT = CLIENT_RANK;
 const LOGO_ASPECT = new Map();   // logo file -> width / height, filled by makeWhiteLogos
-function clientLogos(projects, clients = {}) {
-  const ticked = Object.entries(clients).filter(([, c]) => c && c.strip).map(([n]) => n);
-  const rank = n => { const i = CLIENT_RANK.findIndex(r => r.toLowerCase() === n); return i < 0 ? 999 : i; };
-  const names = (ticked.length ? ticked : STRIP_DEFAULT).map(n => n.trim().toLowerCase()).sort((a, b) => rank(a) - rank(b));
+// stripOrder: home.json "clientStrip", the clients shown and their order, set on the admin's Home Page screen.
+function clientLogos(projects, clients = {}, stripOrder = null) {
+  let names;
+  if (Array.isArray(stripOrder)) {
+    names = stripOrder.map(n => String(n).trim().toLowerCase());
+  } else {   // older setup: ticked clients (or the defaults), in CLIENT_RANK order
+    const ticked = Object.entries(clients).filter(([, c]) => c && c.strip).map(([n]) => n);
+    const rank = n => { const i = CLIENT_RANK.findIndex(r => r.toLowerCase() === n); return i < 0 ? 999 : i; };
+    names = (ticked.length ? ticked : STRIP_DEFAULT).map(n => n.trim().toLowerCase()).sort((a, b) => rank(a) - rank(b));
+  }
   const seen = new Map();
   for (const name of names) {
     const file = CLIENT_LOGOS.get(name);
@@ -757,6 +763,9 @@ const SITE_TEXT = {
   homeAboutButton: 'More about me',
   clientsLabel: 'Clients include',
 };
+function readHomeFile() {
+  try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'home.json'), 'utf8')); } catch { return {}; }
+}
 function readSiteText() {
   const file = path.join(DATA_DIR, 'home.json');
   let saved = {};
@@ -880,7 +889,7 @@ async function buildPages() {
     buildLocalBusinessSchema(siteConfig)
   ];
   const homeHtml = await renderTemplate('home', {
-    clientStrip: clientLogos(projects.projects, projects.clients),
+    clientStrip: clientLogos(projects.projects, projects.clients, readHomeFile().clientStrip),
     ...commonData,
     home,
     title: `${siteConfig.title} | Melbourne Video Editor & Colourist`,

@@ -750,3 +750,11 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .text-card textarea { width: 100%; resize: vertical; font: inherit; line-height: 1.5; }
 .text-card .btn.link { justify-self: start; padding-left: 0; }
 .strip-check { flex-basis: 100%; margin-top: 4px; }
+.strip-editor { margin-top: 28px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.1); display: grid; gap: 8px; max-width: 720px; }
+.strip-editor p { margin: 0; }
+.strip-row { display: grid; grid-template-columns: 18px 14px 64px 1fr auto auto; align-items: center; gap: 8px; cursor: grab; }
+.strip-row .logo-chip { min-width: 64px; height: 30px; padding: 3px 6px; }
+.strip-row .logo-chip img { width: auto; height: auto; max-height: 20px; max-width: 52px; object-fit: contain; border-radius: 0; background: none; aspect-ratio: auto; }
+.strip-row.drop-above { box-shadow: 0 -2px 0 var(--accent); }
+.strip-list { max-height: none; }
+.strip-add select { width: auto; }

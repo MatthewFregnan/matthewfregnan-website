@@ -232,17 +232,12 @@ function clientLogoRow(p) {
     });
     $('#client-logo')?.replaceChildren(clientLogoRow(p));
   };
-  // Home page logo strip: ticked clients. Until any are ticked the site shows a default set (STRIP_DEFAULT,
-  // the same list as build.js); the first tick starts from that set so nothing disappears unexpectedly.
-  const entry = clientEntry(p.client);
-  const anyTicked = Object.values(S.data.clients || {}).some(c => c && c.strip);
-  const inStrip = anyTicked ? !!entry?.[1]?.strip : STRIP_DEFAULT.some(n => clientKey(n) === clientKey(p.client));
+  // Home page logo strip (also arranged on the Home Page screen)
+  const inStrip = inStripList(p.client);
   const toggleStrip = on => {
-    mutate(() => {
-      if (!anyTicked) for (const [n, c] of Object.entries(S.data.clients || {})) if (STRIP_DEFAULT.some(d => clientKey(d) === clientKey(n))) c.strip = true;
-      const c = clientEntry(p.client)?.[1];
-      if (c) { if (on) c.strip = true; else delete c.strip; }
-    });
+    const name = clientEntry(p.client)?.[0] || p.client.trim();
+    const list = stripList().filter(n => clientKey(n) !== clientKey(name));
+    setStripList(on ? [...list, name] : list);
     $('#client-logo')?.replaceChildren(clientLogoRow(p));
   };
   return h('div', { class: 'logo-row' },
@@ -259,6 +254,22 @@ function clientLogoRow(p) {
 // Same as CLIENT_RANK in build.js (the strip is shown in this order of importance)
 const STRIP_DEFAULT = ['RedOctane Games', 'CRKD', 'KIA', 'Deakin University', 'Ladbrokes', 'Toni and Ryan', 'Oporto', 'TAB',
   "Royal Children's Hospital", 'Victorian Government', 'PTV', 'Yarra Valley Water'];
+
+// The home page logo strip: home.json "clientStrip" lists the clients shown, in order (all sets share it).
+// Until it's set, the site uses the older ticks (clients[].strip) or STRIP_DEFAULT, in STRIP_DEFAULT order.
+function stripList() {
+  if (Array.isArray(S.home?.clientStrip)) return S.home.clientStrip;
+  const ticked = Object.entries(S.data.clients || {}).filter(([, c]) => c && c.strip).map(([n]) => n);
+  const rank = n => { const i = STRIP_DEFAULT.findIndex(r => clientKey(r) === clientKey(n)); return i < 0 ? 999 : i; };
+  return (ticked.length ? ticked : STRIP_DEFAULT).filter(n => clientEntry(n)?.[1]?.logo).sort((a, b) => rank(a) - rank(b));
+}
+const inStripList = name => stripList().some(n => clientKey(n) === clientKey(name));
+function setStripList(list) {
+  mutate(() => {
+    S.home.clientStrip = list;
+    for (const c of Object.values(S.data.clients || {})) delete c?.strip;   // the list replaces the older ticks
+  });
+}
 
 function usedImagePaths() {
   const used = new Set();
@@ -1729,9 +1740,46 @@ function renderHomeDialog() {
       h('div', { class: 'home-left' }, h('h4', {}, 'Sets'), h('p', { class: 'muted small' }, 'The set with the green dot is on the site.'),
         h('div', { class: 'home-list' }, setRows), setTools),
       right,
-      preview)));
+      preview),
+    clientStripEditor()));
   d.querySelectorAll('.home-list').forEach((el, i) => { el.scrollTop = keepScroll[i] || 0; });
   d.scrollTop = pageScroll;
+}
+
+// ---------------------------------------------------------------- client logo strip (home page hero)
+
+let stripDrag = null;
+function clientStripEditor() {
+  const shown = stripList().filter(n => clientEntry(n)?.[1]?.logo);
+  const others = Object.entries(S.data.clients || {}).filter(([n, c]) => c?.logo && !shown.some(x => clientKey(x) === clientKey(n)))
+    .map(([n]) => n).sort((a, b) => a.localeCompare(b));
+  const save = list => { setStripList(list); renderHomeDialog(); };
+  const chip = name => { const logo = clientEntry(name)?.[1]?.logo; return h('span', { class: 'logo-chip' }, logo ? I.withFallback(h('img', { src: I.src('logos', logo), alt: '' }), 'logos', logo) : null); };
+  const rows = shown.map((name, i) => {
+    const el = h('div', { class: 'row strip-row', draggable: true, title: 'Drag to change the order' },
+      h('span', { class: 'slot-num' }, String(i + 1)), h('span', { class: 'grip', 'aria-hidden': 'true' }, '⋮⋮'), chip(name),
+      h('span', { class: 'row-title' }, name),
+      h('button', { class: 'btn link', title: 'Move up', disabled: i === 0, onclick: () => { const l = [...shown]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; save(l); } }, '↑'),
+      h('button', { class: 'btn link danger', title: 'Take it out of the strip', onclick: () => save(shown.filter((_, k) => k !== i)) }, 'Remove'));
+    el.addEventListener('dragstart', e => { stripDrag = i; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    el.addEventListener('dragend', () => { stripDrag = null; el.classList.remove('dragging'); });
+    el.addEventListener('dragover', e => { if (stripDrag !== null && stripDrag !== i) { e.preventDefault(); el.classList.add('drop-above'); } });
+    el.addEventListener('dragleave', () => el.classList.remove('drop-above'));
+    el.addEventListener('drop', e => {
+      e.preventDefault(); el.classList.remove('drop-above');
+      if (stripDrag === null) return;
+      const l = [...shown]; const [m] = l.splice(stripDrag, 1); l.splice(stripDrag < i ? i - 1 : i, 0, m); stripDrag = null; save(l);
+    });
+    return el;
+  });
+  return h('section', { class: 'strip-editor' },
+    h('h4', {}, 'Client logos'),
+    h('p', { class: 'muted small' }, 'The logos under your name on the home page (every set), left to right. Drag to reorder. The label over them is on the Site Text screen.'),
+    shown.length ? h('div', { class: 'home-list strip-list' }, rows) : h('p', { class: 'muted small' }, 'None: the strip is hidden.'),
+    others.length ? h('label', { class: 'strip-add' }, 'Add ',
+      h('select', { onchange: e => { if (e.target.value) save([...shown, e.target.value]); } },
+        h('option', { value: '' }, 'a client…'), others.map(n => h('option', { value: n }, n)))) : null,
+    h('p', { class: 'muted small' }, 'Clients get a logo in a project’s Client logo row.'));
 }
 
 // ---------------------------------------------------------------- project page preview
