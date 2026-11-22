@@ -81,7 +81,8 @@
     "homeAboutButton": "About me",
     "aboutCta": "See more of my work",
     "clientsLabel": "Work includes",
-    "ctaText": "I edit and colour commercials, branded and social content. Let’s make something together."
+    "ctaText": "I edit and colour commercials, branded and social content. Let’s make something together.",
+    "aboutPeekHint": "Swipe up to learn more."
   },
   "clientStrip": [
     "RedOctane Games",
