@@ -53,11 +53,6 @@
             <% } %>
           </div>
         </div>
-        <% if (project._stats) { %>
-          <p class="video-stats" data-kind="<%= project._stats.kind %>"<% if (project._stats.typed) { %> data-typed<% } %>>
-            <%= project._stats.text %><% if (project._stats.where) { %> on <% if (project._stats.link) { %><a href="<%= project._stats.link %>" target="_blank" rel="noopener" class="stats-link"><%= project._stats.where %></a><% } else { %><%= project._stats.where %><% } %><% } %>
-          </p>
-        <% } %>
       </div>
     <% } %>
 

@@ -47,7 +47,7 @@
           <h2 class="about-label">Get in touch</h2>
           <ul class="space-y-2">
             <li>
-              <a href="mailto:<%= site.email %>" class="about-link"><%= site.email %></a>
+              <a href="mailto:<%= site.email %>" class="about-link with-icon"><%- include('partials/icon-mail') %><%= site.email %></a>
             </li>
             <% if (site.social && site.social.linkedin) { %>
               <li>

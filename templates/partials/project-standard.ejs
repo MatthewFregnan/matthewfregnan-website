@@ -7,7 +7,7 @@
     <% } %>
 
     <!-- Project Details -->
-    <% if (project.client || project.production || project.role || project.year) { %>
+    <% if (project.client || project.production || project.role || project.year || project._stats) { %>
       <div class="mt-8 pt-8 border-t border-white/10">
         <dl class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <% if (project.client) { %>
@@ -34,6 +34,7 @@
               <dd><%= project.year %></dd>
             </div>
           <% } %>
+          <%- include('stats-fact', { project }) %>
         </dl>
       </div>
     <% } %>

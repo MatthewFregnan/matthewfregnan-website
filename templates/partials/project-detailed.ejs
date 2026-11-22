@@ -11,7 +11,7 @@
         ['Year', project.year],
       ].filter(([, v]) => v);
     %>
-    <% if (project.description || roles.length || platforms.length || facts.length) { %>
+    <% if (project.description || roles.length || platforms.length || facts.length || project._stats) { %>
       <div class="project-context">
         <div class="ctx-main">
           <% if (project.description) { %>
@@ -30,11 +30,12 @@
             </div>
           <% } %>
         </div>
-        <% if (facts.length) { %>
+        <% if (facts.length || project._stats) { %>
           <dl class="ctx-facts">
             <% facts.forEach(([label, value]) => { %>
               <div><dt><%= label %></dt><dd><%= value %></dd></div>
             <% }) %>
+            <%- include('stats-fact', { project }) %>
           </dl>
         <% } %>
       </div>

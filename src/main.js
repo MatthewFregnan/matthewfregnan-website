@@ -92,6 +92,7 @@ class VideoPlayer {
 
     const src = this.sources[this.index];
     if (src && src.kind === 'file') this.setupFile(this.container.querySelector('video'));
+    else if (this.container.querySelector('iframe')) this.watchEmbed(this.container.querySelector('iframe'));
     else this.verify();
   }
 
@@ -119,9 +120,9 @@ class VideoPlayer {
       if (shape) node.classList.add(shape);
     }
     this.teardown();
-    const stats = this.root.querySelector('.video-stats');
+    const stats = document.querySelector('.stats-fact');
     // Live counts belong to one source; numbers typed in the editor stay whichever video plays
-    if (stats && !stats.hasAttribute('data-typed') && stats.dataset.kind !== src.kind) stats.remove();
+    if (stats && !stats.hasAttribute('data-typed') && stats.dataset.statsKind !== src.kind) stats.remove();
     if (src.kind === 'file') {
       const v = document.createElement('video');
       v.src = src.embed;
@@ -137,8 +138,30 @@ class VideoPlayer {
       f.allow = 'autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write';
       f.allowFullscreen = true;
       this.container.replaceChildren(f);
+      this.watchEmbed(f);
       this.verify();
     }
+  }
+
+  /** Pressing play glides the player to the middle of the screen (and fits it on phones). */
+  centre() {
+    const r = this.shell.getBoundingClientRect();
+    const navH = document.querySelector('header')?.offsetHeight || 64;
+    const room = window.innerHeight - navH;
+    const offset = r.height < room ? (room - r.height) / 2 : 0;
+    const y = r.top + window.scrollY - navH - offset;
+    const visible = r.top >= navH - 2 && r.bottom <= window.innerHeight + 2;
+    // already fully on screen on a big screen: leave it
+    if (visible && window.innerWidth >= 1024) return;
+    if (Math.abs(y - window.scrollY) > 8 && typeof glideTo === 'function') glideTo(Math.max(0, y), 750);
+    document.body.classList.add('video-playing');
+  }
+
+  /** Embeds (YouTube, Vimeo, Instagram, TikTok) can't tell us about play, but a click moves focus into them. */
+  watchEmbed(frame) {
+    const onBlur = () => setTimeout(() => { if (document.activeElement === frame) this.centre(); }, 0);
+    window.addEventListener('blur', onBlur);
+    (this.cleanup ||= []).push(() => window.removeEventListener('blur', onBlur));
   }
 
   // ------------------------------------------------------------------ hosted file
@@ -182,7 +205,7 @@ class VideoPlayer {
 
     on(video, 'click', () => this.toggle());
     on(video, 'dblclick', () => this.toggleFullscreen());
-    on(video, 'play', () => this.setPlaying(true));
+    on(video, 'play', () => { this.setPlaying(true); this.centre(); });
     on(video, 'pause', () => this.setPlaying(false));
     on(video, 'ended', () => {
       this.setPlaying(false);
@@ -600,3 +623,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   } catch { /* stats are optional */ }
 })();
+
+// Phones and tablets: while a video plays and the title has scrolled away, a small "Info" button
+// brings the details back (the video glided to the centre when play was pressed).
+document.addEventListener('DOMContentLoaded', () => {
+  const title = document.querySelector('.pp-title, section h1');
+  if (!title || !document.querySelector('.video-player')) return;
+  const pill = document.createElement('button');
+  pill.type = 'button';
+  pill.className = 'info-pill';
+  pill.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>Info';
+  pill.setAttribute('aria-label', 'Show the project info');
+  pill.addEventListener('click', () => glideTo(0, 700));
+  document.body.append(pill);
+  const update = () => {
+    const navH = document.querySelector('header')?.offsetHeight || 64;
+    const hidden = title.getBoundingClientRect().bottom < navH;   // title scrolled under the nav bar
+    pill.classList.toggle('is-shown', hidden && document.body.classList.contains('video-playing') && window.innerWidth < 1024);
+  };
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+});

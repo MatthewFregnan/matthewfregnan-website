@@ -134,8 +134,9 @@
   }
 
   /* Vertical portfolio grid (for portrait videos) */
+  /* 3 across: the Social page is arranged in threes (e.g. three videos per client) */
   .portfolio-grid-vertical {
-    @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3;
+    @apply grid grid-cols-2 sm:grid-cols-3 gap-3;
   }
 
   .portfolio-item-vertical {
@@ -464,6 +465,21 @@
 }
 .hero-bg.no-zoom .hero-media { transform: none; }
 
-/* "on Instagram" / "on TikTok" under a video links to the post */
-.video-stats .stats-link { color: #fff; text-decoration: underline; text-decoration-color: rgba(255, 255, 255, 0.35); text-underline-offset: 3px; }
-.video-stats .stats-link:hover { text-decoration-color: #fff; opacity: 1; }
+
+.with-icon { display: inline-flex; align-items: center; gap: 0.45em; }
+.icon-mail { width: 1.05em; height: 1.05em; flex-shrink: 0; opacity: 0.85; }
+
+/* Views line in the project info */
+.stats-fact dd .stats-link { color: inherit; text-decoration: underline; text-decoration-color: rgba(255, 255, 255, 0.35); text-underline-offset: 3px; }
+.stats-fact dd .stats-link:hover { text-decoration-color: #fff; opacity: 1; }
+/* "Info" button on phones/tablets while a video plays */
+.info-pill {
+  position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 40;
+  transform: translate(-50%, 140%); transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1);
+  display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px 9px 12px; border-radius: 999px;
+  background: rgba(20, 20, 20, 0.85); color: #fff; border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(8px); font-size: 14px; cursor: pointer;
+}
+.info-pill svg { width: 18px; height: 18px; }
+.info-pill.is-shown { transform: translate(-50%, 0); }
+@media (min-width: 1024px) { .info-pill { display: none; } }

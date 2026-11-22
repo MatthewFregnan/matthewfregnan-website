@@ -166,7 +166,7 @@ export function projectPreview(h, opts) {
     const roles = String(p.role || '').split(/\s*(?:,|&|\+|·|\/)\s*/).filter(Boolean);
     const platforms = String(p.platform || '').split(/\s*(?:,|·|\/)\s*/).filter(Boolean);
     const facts = [['Client', p.client], ['Agency', p.agency], ['Production', p.production],
-      ['Deliverables', p.deliverables], ['Year', p.year]].filter(([, v]) => v);
+      ['Deliverables', p.deliverables], ['Year', p.year], ['Views', statsText(p)]].filter(([, v]) => v);
     details = p.description || roles.length || platforms.length || facts.length
       ? h('div', { class: `pv-context${phone ? ' one' : ''}` },
         h('div', {},
@@ -178,14 +178,14 @@ export function projectPreview(h, opts) {
         facts.length ? h('dl', { class: 'pv-facts' }, facts.map(([k, v]) => h('div', {}, h('dt', {}, k), h('dd', {}, v)))) : null)
       : null;
   } else {
-    const facts = [['Client', p.client], ['Production', p.production], ['Role', p.role], ['Year', p.year]].filter(([, v]) => v);
+    const facts = [['Client', p.client], ['Production', p.production], ['Role', p.role], ['Year', p.year],
+      ['Views', statsText(p)]].filter(([, v]) => v);
     details = [
       p.description ? h('p', { class: 'pv-muted' }, p.description) : null,
       facts.length ? h('dl', { class: `pv-dl${phone ? ' one' : ''}` }, facts.map(([k, v]) => h('div', {}, h('dt', {}, k), h('dd', {}, v)))) : null,
     ];
   }
 
-  const stats = statsText(p);
   const title = h('div', { class: 'pv-title' }, p.title || '(untitled)');
   const client = p.client ? h('div', { class: 'pv-muted pv-client' }, p.client) : null;
   const empty = !hasVideo && !gallery.length ? h('p', { class: 'pv-muted' }, 'No video or stills yet.') : null;
@@ -198,9 +198,9 @@ export function projectPreview(h, opts) {
     h('div', { class: 'pv-page' },
       h('div', { class: 'pv-back' }, `‹  Back to ${c.name}`),
       portrait
-        ? h('div', { class: 'pv-portrait' }, h('div', {}, player, stats ? h('div', { class: 'pv-stats', style: 'margin:12px 0 0' }, stats) : null),
+        ? h('div', { class: 'pv-portrait' }, player,
           h('div', {}, title, client, h('div', { class: 'pv-one' }, details), gallery.length ? h('div', { class: 'pv-gallery' }, gallery) : null))
-        : [title, client, player, stats && player ? h('div', { class: 'pv-stats' }, stats) : null, gallery.length ? h('div', { class: 'pv-gallery' }, gallery) : null, details, empty]));
+        : [title, client, player, gallery.length ? h('div', { class: 'pv-gallery' }, gallery) : null, details, empty]));
   return scaled(h, frame, SCREENS[screen].width);
 }
 

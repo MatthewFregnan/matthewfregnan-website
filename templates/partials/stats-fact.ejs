@@ -1,0 +1,8 @@
+<%# Views / likes / comments as one line of project info. Live counts belong to one video source, so
+    src/main.js removes them if the page falls back to another; numbers typed in the editor always stay. %>
+<% if (project._stats) { const s = project._stats; %>
+<div class="stats-fact" data-stats-kind="<%= s.kind %>"<% if (s.typed) { %> data-typed<% } %>>
+  <dt class="text-site-text-muted"><%= s.views ? 'Views' : 'Engagement' %></dt>
+  <dd><%= s.text %><% if (s.where) { %> on <% if (s.link) { %><a href="<%= s.link %>" target="_blank" rel="noopener" class="stats-link"><%= s.where %></a><% } else { %><%= s.where %><% } %><% } %></dd>
+</div>
+<% } %>
