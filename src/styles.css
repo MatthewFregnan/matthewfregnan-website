@@ -178,7 +178,17 @@
 }
 .vp-big svg { width: 30px; height: 30px; fill: currentColor; margin-left: 4px; }
 .vp-big:hover { transform: translate(-50%, -50%) scale(1.06); background: rgba(0, 0, 0, 0.6); }
-.custom-player.is-playing .vp-big { opacity: 0; pointer-events: none; }
+.custom-player.is-playing .vp-big,
+.custom-player.is-starting .vp-big { opacity: 0; pointer-events: none; }
+.custom-player.is-starting .vp-big { transform: translate(-50%, -50%) scale(0.86); transition: opacity 0.3s ease, transform 0.35s ease; }
+
+/* Soft dim while a video is starting, then the picture fades back up */
+.vp-veil {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: #000; opacity: 0;
+  transition: opacity 0.7s ease;
+}
+.custom-player.is-starting .vp-veil { opacity: 0.55; transition: opacity 0.35s ease; }
 
 .vp-bar {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
@@ -186,7 +196,7 @@
   padding: 32px 14px 10px;
   background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.78));
   color: #fff; font-size: 12px; line-height: 1;
-  transition: opacity 0.25s;
+  transition: opacity 0.2s ease;
 }
 .custom-player.is-idle-start .vp-bar,
 .custom-player.is-idle .vp-bar { opacity: 0; pointer-events: none; }

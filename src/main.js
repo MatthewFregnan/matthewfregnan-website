@@ -163,7 +163,9 @@ class VideoPlayer {
       <button class="vp-btn vp-mute" type="button" aria-label="Mute">${ICONS.volume}</button>
       <input class="vp-vol" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">
       <button class="vp-btn vp-fs" type="button" aria-label="Full screen">${ICONS.expand}</button>`;
-    this.container.append(big, bar);
+    const veil = document.createElement('div');
+    veil.className = 'vp-veil';
+    this.container.append(veil, big, bar);
     this.big = big;
     this.bar = bar;
 
@@ -193,6 +195,7 @@ class VideoPlayer {
     on(video, 'waiting', () => this.shell.classList.add('is-buffering'));
     on(video, 'playing', () => this.shell.classList.remove('is-buffering'));
     on(video, 'volumechange', () => {
+      if (this.ramping) return;
       const muted = video.muted || video.volume === 0;
       vol.value = muted ? 0 : Math.round(video.volume * 100);
       vol.style.setProperty('--played', `${vol.value}%`);
@@ -217,9 +220,13 @@ class VideoPlayer {
     const wake = () => {
       this.shell.classList.remove('is-idle');
       clearTimeout(this.idleTimer);
-      if (!video.paused) this.idleTimer = setTimeout(() => this.shell.classList.add('is-idle'), 2500);
+      if (!video.paused) this.idleTimer = setTimeout(() => this.shell.classList.add('is-idle'), 1500);
     };
     on(this.shell, 'mousemove', wake);
+    on(this.shell, 'mouseleave', () => {
+      clearTimeout(this.idleTimer);
+      if (!video.paused) this.shell.classList.add('is-idle');
+    });
     on(this.shell, 'touchstart', wake);
     on(this.shell, 'focusin', wake);
     this.wake = wake;
@@ -242,12 +249,73 @@ class VideoPlayer {
   toggle() {
     const v = this.video;
     if (!v) return;
-    if (v.paused) {
-      const p = v.play();
-      if (p && p.catch) p.catch(() => {});
-    } else {
+    if (!v.paused) {
       v.pause();
+    } else if (this.shell.classList.contains('is-idle-start')) {
+      this.start(); // first play (or replay after the end): smooth, slightly delayed start
+    } else {
+      const p = v.play(); // resuming after a pause stays instant
+      if (p && p.catch) p.catch(() => {});
     }
+  }
+
+  // Ease into playback: the play button eases out and the picture dims, then after a short
+  // pause the video starts, the picture fades back up and the sound fades in.
+  start() {
+    const v = this.video;
+    if (this.starting) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      v.play().catch(() => {});
+      return;
+    }
+    this.starting = true;
+    this.shell.classList.add('is-starting');
+    const targetVolume = v.muted ? null : v.volume;
+    const finish = () => {
+      this.shell.classList.remove('is-starting');
+      this.starting = false;
+    };
+    setTimeout(async () => {
+      if (targetVolume !== null) {
+        this.ramping = true;
+        v.volume = 0;
+      }
+      try {
+        await v.play();
+      } catch {
+        if (targetVolume !== null) v.volume = targetVolume;
+        this.ramping = false;
+        finish();
+        return;
+      }
+      let revealed = false;
+      const reveal = () => {
+        if (revealed) return;
+        revealed = true;
+        finish();
+        if (targetVolume !== null) this.fadeVolume(targetVolume, 700);
+      };
+      // Fade up once the first real frame is on screen (or after 250 ms at the latest)
+      if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(() => reveal());
+      setTimeout(reveal, 250);
+    }, 450);
+  }
+
+  fadeVolume(target, ms) {
+    const v = this.video;
+    const t0 = performance.now();
+    clearInterval(this.fadeTimer);
+    this.fadeTimer = setInterval(() => {
+      if (!this.video || this.video !== v) { clearInterval(this.fadeTimer); return; }
+      const k = Math.min(1, (performance.now() - t0) / ms);
+      v.volume = target * (1 - Math.pow(1 - k, 2)); // ease out
+      if (k >= 1) {
+        clearInterval(this.fadeTimer);
+        this.ramping = false;
+        v.dispatchEvent(new Event('volumechange'));
+      }
+    }, 25);
   }
 
   setPlaying(playing) {
@@ -305,7 +373,9 @@ class VideoPlayer {
     this.video?.pause?.();
     this.video = null;
     this.bar = null;
-    this.shell.classList.remove('custom-player', 'is-playing', 'is-idle', 'is-idle-start', 'is-buffering');
+    this.ramping = false;
+    this.starting = false;
+    this.shell.classList.remove('custom-player', 'is-playing', 'is-idle', 'is-idle-start', 'is-buffering', 'is-starting');
   }
 }
 
