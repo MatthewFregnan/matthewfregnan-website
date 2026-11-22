@@ -28,10 +28,27 @@ def tool_paths() -> str:
     return os.pathsep.join([*extra, os.environ.get("PATH", "")])
 
 
+# Never let git sit waiting for a login prompt nobody can see (the app has no terminal);
+# fail straight away instead so the app can explain what to do.
+NO_PROMPT = {"GIT_TERMINAL_PROMPT": "0", "GCM_INTERACTIVE": "never", "GIT_ASKPASS": "",
+             "SSH_ASKPASS": "", "GIT_SSH_COMMAND": "ssh -o BatchMode=yes"}
+
+
 def tool_env() -> QProcessEnvironment:
     env = QProcessEnvironment.systemEnvironment()
     env.insert("PATH", tool_paths())
+    for k, v in NO_PROMPT.items():
+        env.insert(k, v)
     return env
+
+
+def open_github_desktop(repo_root: Path):
+    """Open this website folder in GitHub Desktop (to push when git itself isn't signed in)."""
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", "-a", "GitHub Desktop", str(repo_root)])
+    else:
+        from urllib.parse import quote
+        QDesktopServices.openUrl(QUrl("x-github-client://openLocalRepo/" + quote(str(repo_root))))
 
 
 def npm() -> str:
@@ -41,7 +58,8 @@ def npm() -> str:
 def git(repo: core.Repo, *args: str) -> subprocess.CompletedProcess:
     flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
     return subprocess.run(["git", *args], cwd=repo.root, capture_output=True, text=True, encoding="utf-8",
-                          env={**os.environ, "PATH": tool_paths()}, creationflags=flags, timeout=20)
+                          env={**os.environ, "PATH": tool_paths(), **NO_PROMPT}, creationflags=flags, timeout=20,
+                          stdin=subprocess.DEVNULL)
 
 
 # --------------------------------------------------------------------------- what's unpublished
@@ -107,9 +125,15 @@ class TaskDialog(QDialog):
         self.setWindowTitle(title)
         self.resize(640, 400)
         self.steps, self.on_success = list(steps), on_success
+        self.cwd = cwd
+        self.label = ""
+        self.output = ""
         self.log = QPlainTextEdit(readOnly=True)
         buttons = QDialogButtonBox(QDialogButtonBox.Close)
         buttons.rejected.connect(self.reject)
+        self.desktop_btn = buttons.addButton("Open GitHub Desktop", QDialogButtonBox.ActionRole)
+        self.desktop_btn.setVisible(False)
+        self.desktop_btn.clicked.connect(lambda: open_github_desktop(self.cwd))
         lay = QVBoxLayout(self)
         lay.addWidget(self.log)
         lay.addWidget(buttons)
@@ -117,8 +141,7 @@ class TaskDialog(QDialog):
         self.proc.setProcessEnvironment(tool_env())
         self.proc.setWorkingDirectory(str(cwd))
         self.proc.setProcessChannelMode(QProcess.MergedChannels)
-        self.proc.readyReadStandardOutput.connect(
-            lambda: self.log.appendPlainText(bytes(self.proc.readAllStandardOutput()).decode(errors="replace").rstrip()))
+        self.proc.readyReadStandardOutput.connect(self._read)
         self.proc.finished.connect(self._finished)
         self.proc.errorOccurred.connect(self._error)
         QTimer.singleShot(0, self._next)
@@ -130,12 +153,27 @@ class TaskDialog(QDialog):
                 self.on_success()
             return
         label, cmd = self.steps.pop(0)
+        self.label, self.output = label, ""
         self.log.appendPlainText(f"\n▶ {label}")
         self.proc.start(cmd[0], cmd[1:])
+
+    def _read(self):
+        text = bytes(self.proc.readAllStandardOutput()).decode(errors="replace")
+        self.output += text
+        self.log.appendPlainText(text.rstrip())
 
     def _finished(self, code, _status):
         if code == 0:
             self._next()
+            return
+        if self.label.startswith("Uploading to GitHub"):
+            self.log.appendPlainText(
+                "\n✗ GitHub needs you to sign in before this computer can upload.\n\n"
+                "Nothing is lost: your changes are saved and committed on this Mac. To finish:\n"
+                "  • click “Open GitHub Desktop” below, then “Push origin”.\n\n"
+                "To let Publish upload by itself in future, sign git in once from Terminal:\n"
+                "  brew install gh   then   gh auth login   (choose HTTPS, and “Yes” to authenticate Git)")
+            self.desktop_btn.setVisible(True)
         else:
             self.log.appendPlainText(f"\n✗ Stopped: the last step failed (exit code {code}).")
 
