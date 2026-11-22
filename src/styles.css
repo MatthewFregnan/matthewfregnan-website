@@ -53,9 +53,10 @@
     @apply absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent;
   }
 
-  /* Home page: shorter hero so the selected work shows without scrolling */
-  .hero { min-height: 78vh; }
-  @media (min-width: 768px) { .hero { min-height: max(440px, 62vh); } }
+  /* Home page hero: most of the screen for the background video, with the top of the
+     selected work just peeking in below (and the scroll arrow as a nudge) */
+  .hero { min-height: 82vh; }
+  @media (min-width: 768px) { .hero { min-height: max(520px, calc(100vh - 110px)); } }
 
   /* Scroll nudge at the bottom of the hero */
   .scroll-cue {

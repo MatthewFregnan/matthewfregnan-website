@@ -21,13 +21,13 @@
 
   <!-- Hero Content -->
   <div class="relative z-10 container mx-auto px-4 text-center">
-    <h1 class="text-4xl md:text-6xl font-light mb-4">
+    <h1 class="text-4xl md:text-6xl lg:text-7xl font-light mb-6">
       <%= site.title %>
     </h1>
-    <p class="text-lg md:text-xl text-white/80 max-w-2xl mx-auto">
+    <p class="text-xl md:text-2xl text-white/80 max-w-2xl mx-auto">
       <%= (home.tagline || site.tagline) %>
     </p>
-    <div class="mt-8">
+    <div class="mt-12">
       <a href="<%= home.landscape.length || home.vertical.length ? '#selected-work' : '/my-work/' %>" class="inline-block border border-white/50 px-8 py-3 text-sm uppercase tracking-wider hover:bg-white hover:text-site-bg transition-all duration-300">
         View My Work
       </a>
