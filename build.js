@@ -111,8 +111,7 @@ function buildLocalBusinessSchema(siteConfig) {
         "longitude": 144.9631
       }
     },
-    "priceRange": "$$",
-    "taxID": siteConfig.abn
+    "priceRange": "$$"
   };
 }
 

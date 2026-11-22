@@ -57,6 +57,13 @@
     @apply absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent;
   }
 
+  /* About page sections */
+  .about-block { @apply mt-10 pt-6 border-t border-white/10; }
+  .about-label { @apply text-xs uppercase text-site-text-muted mb-3 font-normal; letter-spacing: 0.14em; }
+  .about-tags { @apply flex flex-wrap gap-2; }
+  .about-tags li { @apply text-sm px-3 py-1 rounded-full bg-white/10; }
+  .about-link { @apply text-site-text underline underline-offset-4 decoration-white/30 hover:decoration-white; }
+
   /* Home page hero: most of the screen for the background video, with the top of the
      selected work just peeking in below (and the scroll arrow as a nudge) */
   .hero { min-height: 82vh; }

@@ -1,50 +1,80 @@
 <%- include('partials/header') %>
 
-<section class="py-12">
+<section class="py-12 md:py-16">
   <div class="container mx-auto px-4">
-    <div class="grid md:grid-cols-2 gap-12 items-center max-w-5xl mx-auto">
+    <div class="grid md:grid-cols-5 gap-10 md:gap-14 max-w-5xl mx-auto items-start">
       <!-- Headshot -->
-      <div class="order-2 md:order-1">
+      <div class="md:col-span-2">
         <img
           src="/images/headshot.jpg"
           alt="<%= site.title %>"
-          class="w-full max-w-md mx-auto rounded-lg"
+          class="w-full max-w-sm mx-auto rounded-lg"
         >
       </div>
 
       <!-- Bio -->
-      <div class="order-1 md:order-2">
+      <div class="md:col-span-3">
         <h1 class="text-3xl md:text-4xl font-light mb-6">About</h1>
 
-        <div class="space-y-4 text-site-text-muted">
+        <div class="space-y-4 text-site-text-muted leading-relaxed">
           <p>
-            I'm a post-production professional with over 5 years of experience based in Melbourne, Australia.
-            I specialize in editing diverse content types, from commercial campaigns to branded videos and social media content.
+            I'm a video editor and colourist based in Melbourne. Since 2019 I've worked in-house at
+            production companies and agencies, including ThinkHQ, Elastic Studios and Robot Army / Milk Video,
+            editing TVCs, branded content and social for clients like KIA, Ladbrokes, Oporto, Deakin University,
+            RedOctane Games and CRKD, as well as campaigns for the Victorian and Federal Governments.
           </p>
-
           <p>
-            I studied at Swinburne University of Technology, completing a Diploma & Advanced Diploma of Screen and Media
-            plus a Bachelor of Film and Television (Honours).
-          </p>
-
-          <p>
-            My portfolio includes work with major brands such as KIA, Redoctane Games, CRKD, Deakin University,
-            Ladbrokes, Oporto, and Australian government agencies. I focus on creating content that tells a story
-            with clarity, energy, and style.
+            Most of my time is spent in the edit, finding the story and getting the pacing right, but I also grade
+            a lot of what I cut, and I enjoy the technical side of post: finishing, delivery, and setting up
+            workflows that save everyone time.
           </p>
         </div>
 
-        <!-- Contact Info -->
-        <div class="mt-8 pt-8 border-t border-white/10">
-          <h2 class="text-xl font-light mb-4">Get in Touch</h2>
-          <ul class="space-y-2 text-site-text-muted">
+        <div class="about-block">
+          <h2 class="about-label">What I do</h2>
+          <ul class="about-tags">
+            <li>Editing: TVC, branded &amp; social</li>
+            <li>Colour grading</li>
+            <li>Motion graphics</li>
+            <li>Sound editing</li>
+            <li>Workflow automation</li>
+          </ul>
+        </div>
+
+        <div class="about-block">
+          <h2 class="about-label">Tools</h2>
+          <p class="text-site-text-muted">
+            Premiere Pro · DaVinci Resolve Studio · After Effects · Audition · Photoshop · Final Cut Pro ·
+            Avid Media Composer · Pro Tools
+          </p>
+        </div>
+
+        <div class="about-block">
+          <h2 class="about-label">Education</h2>
+          <ul class="space-y-2">
             <li>
-              <a href="mailto:<%= site.email %>" class="hover:text-site-text transition-colors">
-                <%= site.email %>
-              </a>
+              <span class="block">Bachelor of Film and Television (Honours)</span>
+              <span class="text-sm text-site-text-muted">Swinburne University · 2018–2019</span>
             </li>
-            <li><%= site.location %></li>
-            <li>ABN: <%= site.abn %></li>
+            <li>
+              <span class="block">Advanced Diploma &amp; Diploma of Screen and Media</span>
+              <span class="text-sm text-site-text-muted">Swinburne University · 2016–2017</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="about-block">
+          <h2 class="about-label">Get in touch</h2>
+          <ul class="space-y-2">
+            <li>
+              <a href="mailto:<%= site.email %>" class="about-link"><%= site.email %></a>
+            </li>
+            <% if (site.social && site.social.linkedin) { %>
+              <li>
+                <a href="<%= site.social.linkedin %>" class="about-link" target="_blank" rel="noopener">LinkedIn</a>
+              </li>
+            <% } %>
+            <li class="text-site-text-muted"><%= site.location %></li>
           </ul>
         </div>
       </div>
