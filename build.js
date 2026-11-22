@@ -375,7 +375,33 @@ const categoryDescriptions = {
 // /<from>/ and /<from>/<project>/ redirect to the same page under /<to>/.
 const MOVED_SECTIONS = { vertical: 'social' };
 
+function redirectPage(target, siteConfig) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Moved</title><meta name="robots" content="noindex">
+<link rel="canonical" href="${siteConfig.domain}${target}">
+<meta http-equiv="refresh" content="0; url=${target}">
+<script>location.replace(${JSON.stringify(target)} + location.hash)</script>
+</head><body><p>This page has moved to <a href="${target}">${siteConfig.domain}${target}</a>.</p></body></html>`;
+}
+
 async function generateRedirects(projects, siteConfig) {
+  // Projects whose page address (or section) changed: the old address forwards to the new one,
+  // unless another project now lives there.
+  const slugOf = id => (projects.categories.find(c => c.id === id) || {}).slug || id;
+  const live = new Set(projects.projects.map(p => `${p.category}/${p.id}`));
+  let moved = 0;
+  for (const p of projects.projects) {
+    for (const old of p.formerAddresses || []) {
+      if (live.has(old)) continue;
+      const [cat, id] = old.split('/');
+      if (!cat || !id || !/^[a-z0-9-]+$/.test(id)) continue;
+      const target = `/${slugOf(p.category)}/${p.id}/`;
+      await fs.outputFile(path.join(DIST_DIR, slugOf(cat), id, 'index.html'), redirectPage(target, siteConfig));
+      moved += 1;
+    }
+  }
+  if (moved) console.log(`  Redirects for renamed projects: ${moved}`);
+
   for (const [from, to] of Object.entries(MOVED_SECTIONS)) {
     const category = projects.categories.find(c => c.slug === to);
     if (!category) continue;

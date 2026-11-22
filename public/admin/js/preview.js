@@ -90,14 +90,22 @@ export function homePreview(h, opts) {
 
   const rows = [];
   if (feat.shown.length) {
-    // 3 across; 4 when that fills the rows evenly (4 or 8). Phones: 1 across.
-    const cols = phone ? 1 : (feat.shown.length % 4 === 0 ? 4 : 3);
+    // A sideways row like .row-scroller.is-landscape: up to 3 share the row (phones: 1), more scroll with a peek
+    const n = feat.shown.length;
+    const fitAt = phone ? 1 : 3;
+    const per = n <= fitAt ? (phone ? 1 : Math.max(n, 2)) : (phone ? 1.2 : 3.3);
+    const tileW = `calc((100% - ${12 * (per - 1)}px) / ${per})`;
     rows.push({ kind: 'landscape', title: (set.landscapeTitle || '').trim(),
-      el: h('div', { class: 'pv-grid', style: `grid-template-columns:repeat(${cols},1fr)` },
-        feat.shown.map(p => tile(h, p, {
-          thumb, onPick,
-          badge: feat.count ? (feat.locked.has(p) ? { kind: 'lock', text: '🔒 Locked' } : set.shuffle ? { kind: 'shuffle', text: '⤮ Shuffled' } : null) : null,
-        }))) });
+      el: h('div', { class: 'pv-social' },
+        h('div', { class: 'pv-track pv-grid' }, feat.shown.map(p => {
+          const t = tile(h, p, {
+            thumb, onPick,
+            badge: feat.count ? (feat.locked.has(p) ? { kind: 'lock', text: '🔒 Locked' } : set.shuffle ? { kind: 'shuffle', text: '⤮ Shuffled' } : null) : null,
+          });
+          t.style.flex = `0 0 ${tileW}`;
+          return t;
+        })),
+        n > fitAt && !phone ? h('span', { class: 'pv-arrow' }, '›') : null) });
   }
   if (social.length) {
     const n = social.length;

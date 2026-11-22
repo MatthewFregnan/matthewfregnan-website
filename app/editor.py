@@ -435,7 +435,7 @@ class ProjectEditor(QScrollArea):
             return
         new = core.unique_id(self.store.data, new, self.p["category"], ignore=self.p)
         self.store.edit(self.p, "Change Page Address", lambda p: p.__setitem__("id", new))
-        self.message.emit("Page address changed. Links to the old address will stop working.")
+        self.message.emit("Page address changed. The old address will redirect here once you publish.")
 
     # ------------------------------------------------------------------ video
     def _set_source(self, kind: str):

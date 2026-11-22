@@ -479,7 +479,7 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .pv-h3 { font-size: 16px; font-weight: 300; color: #a0a0a0; margin: 4px 0 16px; }
 .pv-h3.gap { margin-top: 40px; }
 .pv-gap { height: 40px; }
-.pv-grid { display: grid; gap: 12px; }
+.pv-grid { gap: 12px; }
 .pv-tile { position: relative; overflow: hidden; aspect-ratio: 16 / 9; background: #141414; cursor: pointer; }
 .pv-tile.v { aspect-ratio: 9 / 16; }
 .pv-tile img, .pv-tile .pv-noimg { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -626,3 +626,5 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .stat-field { display: grid; gap: 3px; }
 @media (max-width: 760px) { .stats-row { grid-template-columns: 1fr 1fr; } }
 .pv-stats { margin: -20px 0 28px; text-align: center; font-size: 14px; color: #a0a0a0; }
+
+#list.over { outline: 2px dashed var(--accent); outline-offset: -6px; }

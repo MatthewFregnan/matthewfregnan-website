@@ -92,6 +92,18 @@ def unique_id(data: dict, base: str, category: str, ignore: dict | None = None) 
     return cand
 
 
+def remember_address(p: dict, old_key: str):
+    """Keep the old page address so the site can redirect it after a rename or category change."""
+    new_key = project_key(p)
+    keep = [k for k in p.get("formerAddresses", []) if k != new_key and k != old_key]
+    if old_key != new_key:
+        keep.append(old_key)
+    if keep:
+        p["formerAddresses"] = keep
+    else:
+        p.pop("formerAddresses", None)
+
+
 def project_key(project: dict) -> str:
     """How home page sets refer to a project: "category/id"."""
     return f"{project.get('category')}/{project.get('id')}"
@@ -114,7 +126,8 @@ def tidy_title(title: str) -> str:
     t = re.sub(r"\b[A-Z]?\d{5,}\b", "", t)                      # job numbers like E002291
     t = re.sub(r"\s{2,}", " ", t).strip(" -_")
     if t.isupper():  # SHOUTY → Title Case, but keep short words like KIA / VCE as acronyms
-        t = " ".join(w if len(w) <= 3 and w.isalpha() and w not in ("THE", "AND", "FOR", "WITH") else w.capitalize()
+        t = " ".join(w if (len(w) <= 3 and w.isalpha() and w not in ("THE", "AND", "FOR", "WITH")) or any(c.isdigit() for c in w)
+                     else w.capitalize()
                      for w in t.split(" "))
         t = re.sub(r"\b(And|For|The|With|Of|In|On|To)\b", lambda m: m.group(1).lower(), t)
         t = t[:1].upper() + t[1:]

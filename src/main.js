@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
   reduce.addEventListener?.('change', apply);
 });
 
-// Hover previews: short-form tiles with a hosted video play it silently while the mouse is over
+// Hover previews: tiles with a hosted video play it silently while the mouse is over
 // them (desktop only; on phones a tap just opens the project). The video only loads on hover.
 document.addEventListener('DOMContentLoaded', () => {
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
@@ -427,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         video.currentTime = 0;
         video.play().then(() => tile.classList.add('is-previewing')).catch(() => {});
-      }, 150); // ignore the mouse just passing over
+      }, 300); // ignore the mouse just passing over
     });
     tile.addEventListener('mouseleave', () => {
       clearTimeout(timer);
@@ -437,10 +437,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Social scroller (home page): arrows page through the row, and only show when there's more that way.
+// Home page rows: arrows page through the row, and only show when there's more that way.
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-scroller]').forEach((box) => {
-    const track = box.querySelector('.shortform-track');
+    const track = box.querySelector('.row-track');
     const prev = box.querySelector('.scroller-btn.prev');
     const next = box.querySelector('.scroller-btn.next');
     const update = () => {

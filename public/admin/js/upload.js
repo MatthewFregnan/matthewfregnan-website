@@ -100,3 +100,40 @@ export async function upload(blob, key, { token, endpoint = UPLOAD_ENDPOINT, onP
 export async function usage({ token, endpoint = UPLOAD_ENDPOINT }) {
   return call(endpoint, token, 'GET', '/usage');
 }
+
+/** Quick look at a file before uploading: { codec, width, height, duration } (null if unreadable). */
+export async function probe(file) {
+  try {
+    const { Input, BlobSource, ALL_FORMATS } = await lib();
+    const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+    const v = await input.getPrimaryVideoTrack();
+    if (!v) return null;
+    return { codec: v.codec, width: v.displayWidth, height: v.displayHeight, duration: await input.computeDuration() };
+  } catch {
+    return null;
+  }
+}
+
+/** A still from the video (about a fifth of the way in) as a JPEG Blob, or null if the browser can't play it. */
+export function grabFrame(file) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const v = document.createElement('video');
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = 'auto';
+    const done = blob => { URL.revokeObjectURL(url); resolve(blob); };
+    const timer = setTimeout(() => done(null), 15000);
+    v.onerror = () => { clearTimeout(timer); done(null); };
+    v.onloadedmetadata = () => { v.currentTime = Math.min(5, (v.duration || 1) * 0.2); };
+    v.onseeked = () => {
+      clearTimeout(timer);
+      const c = document.createElement('canvas');
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      c.getContext('2d').drawImage(v, 0, 0);
+      c.toBlob(b => done(b), 'image/jpeg', 0.92);
+    };
+    v.src = url;
+  });
+}

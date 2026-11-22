@@ -7,7 +7,7 @@ import shutil
 from PySide6.QtCore import QSettings, QStandardPaths, Qt, QTimer, QUrl
 from PySide6.QtGui import QAction, QDesktopServices, QKeySequence
 from PySide6.QtWidgets import (
-    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox,
+    QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox,
     QSplitter, QStackedWidget, QTabWidget, QToolBar, QVBoxLayout, QWidget,
 )
 from pathlib import Path
@@ -103,6 +103,9 @@ class _OverviewActions:
     def new_from_link(self):
         self.w.go("projects")
         self.w.new_from_link()
+
+    def new_from_file(self):
+        self.w.new_from_file()
 
     def changes(self):
         return list(self.w.changes)
@@ -240,6 +243,8 @@ class MainWindow(QMainWindow):
 
         self.act_new_link = act("New from Link…", self.new_from_link, QKeySequence.New, "New project from a video link")
         self.act_new = act("New Blank", self.new_blank, "Ctrl+Shift+N", "New empty project")
+        self.act_new_file = act("New from Video File…", self.new_from_file, "Ctrl+Shift+O",
+                                "New project from a video file: it uploads in the background")
         self.act_dup = act("Duplicate", self.duplicate, "Ctrl+D")
         self.act_del = act("Delete", self.delete, "Ctrl+Backspace", "Delete project (you can undo)")
         self.act_up = act("Move Up", lambda: self.move(-1), "Ctrl+Up")
@@ -263,14 +268,14 @@ class MainWindow(QMainWindow):
         tb = QToolBar("Main")
         tb.setMovable(False)
         tb.setToolButtonStyle(Qt.ToolButtonTextOnly)
-        for a in (self.act_new_link, self.act_new, self.act_dup, self.act_del, None, self.act_undo, self.act_redo,
+        for a in (self.act_new_link, self.act_new_file, self.act_new, self.act_dup, self.act_del, None, self.act_undo, self.act_redo,
                   None, self.act_home, self.act_check, self.act_view, self.act_preview, self.act_publish):
             tb.addSeparator() if a is None else tb.addAction(a)
         self.addToolBar(tb)
 
         mb = self.menuBar()
         for title, items in (
-            ("&File", (self.act_new_link, self.act_new, self.act_dup, None, self.act_view, self.act_preview,
+            ("&File", (self.act_new_link, self.act_new_file, self.act_new, self.act_dup, None, self.act_view, self.act_preview,
                        self.act_publish, None, self.act_discard)),
             ("&Edit", (self.act_undo, self.act_redo, None, self.act_find, self.act_up, self.act_down, None, self.act_del)),
             ("&Tools", (self.act_home, self.act_check, self.act_storage)),
@@ -329,6 +334,33 @@ class MainWindow(QMainWindow):
             run_async(lambda: download_thumbnail(ref, st), finish)
         else:
             finish(None)
+
+    def new_from_file(self, src: Path | None = None):
+        from newfile import NewFromFileDialog
+        from upload import VIDEO_EXTS
+        if src is None:
+            exts = " ".join(f"*{e}" for e in sorted(VIDEO_EXTS))
+            name, _ = QFileDialog.getOpenFileName(self, "Choose a video", "", f"Videos ({exts})")
+            if not name:
+                return
+            src = Path(name)
+        dlg = NewFromFileDialog(self, self.store, src, self._current_category())
+        try:
+            if dlg.exec() != QDialog.Accepted:
+                return
+            p = dlg.make_project()
+            if dlg.frame:
+                try:
+                    core.import_thumbnail(self.repo, p, dlg.frame)
+                except Exception:
+                    pass   # pick a thumbnail later
+        finally:
+            dlg.cleanup()
+        self.go("projects")
+        self.store.add(p)
+        self.sidebar.select(p)
+        self.uploads.enqueue(p, src)
+        self.statusBar().showMessage(f"Added “{p['title']}”. The video is uploading; keep working meanwhile.", 8000)
 
     def new_blank(self):
         cat = self._current_category()

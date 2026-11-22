@@ -110,7 +110,7 @@ function suggestions(key) {
 
 function dialog(build) {
   const d = $('#dialog');
-  d.replaceChildren(...build(() => d.close()));
+  d.replaceChildren(...build(() => d.close()).flat().filter(x => x != null && x !== false && x !== ''));
   d.showModal();
   return d;
 }
@@ -229,6 +229,13 @@ const homeSet = id => S.home.sets.find(s => s.id === id);
 
 /** Keep home page sets pointing at a project after its address/category changes (or it's deleted). */
 function renameRefs(oldKey, newKey) {
+  // Remember the old page address so the site redirects it (links already sent out keep working)
+  const moved = newKey && projects().find(x => keyOf(x) === newKey);
+  if (moved) {
+    const keep = (moved.formerAddresses || []).filter(k => k !== newKey && k !== oldKey);
+    if (oldKey !== newKey) keep.push(oldKey);
+    if (keep.length) moved.formerAddresses = keep; else delete moved.formerAddresses;
+  }
   for (const s of S.home.sets) {
     s.projects = (s.projects || []).flatMap(k => (k === oldKey ? (newKey ? [newKey] : []) : [k]));
     if (s.locked) s.locked = s.locked.flatMap(k => (k === oldKey ? (newKey ? [newKey] : []) : [k]));
@@ -418,7 +425,10 @@ function renderEditor() {
   if (!p) {
     ed.replaceChildren(h('div', { class: 'empty' },
       h('div', {}, h('p', {}, 'Select a project, or add one.'),
-        h('button', { class: 'btn primary', onclick: newFromLink }, 'New from Link'))));
+        h('div', { class: 'vrow-tools', style: 'justify-content:center' },
+          h('button', { class: 'btn primary', onclick: newFromLink }, 'New from Link'),
+          h('button', { class: 'btn', onclick: () => newFromFile() }, 'New from Video File')),
+        h('p', { class: 'muted small' }, 'Tip: drop a video file on the project list.'))));
     return;
   }
   const scrollTop = ed.scrollTop;
@@ -497,7 +507,7 @@ function detailsForm(p) {
       renameRefs(oldKey, keyOf(p));
     });
     $('#url').textContent = `matthewfregnan.com${pagePath(p)}`;
-    toast('Page address changed. Links to the old address will stop working.');
+    toast('Page address changed. The old address will redirect here once you publish.');
     return true;
   }
   const input = h('input', { id: 'f-id', value: p.id, onchange: e => setAddress(e.target.value) });
@@ -1157,6 +1167,73 @@ function newFromLink() {
   link.focus();
 }
 
+/** New project straight from a video file: title, section, address and thumbnail filled in, then it uploads. */
+async function newFromFile(given) {
+  const file = given || (await pickVideoFile())[0];
+  if (!file) return;
+  if (!U.looksLikeVideo(file)) { toast('Choose a video file (MP4 or MOV).'); return; }
+  let addrTouched = false;
+  let catTouched = false;
+  const title = h('input', { value: V.tidyTitle(file.name), oninput: () => syncAddr() });
+  const client = h('input', { placeholder: 'e.g. Deakin University', list: 'dl-client' });
+  const cat = h('select', { onchange: () => { catTouched = true; syncAddr(); } },
+    S.data.categories.map(c => h('option', { value: c.id, selected: c.id === currentCategory() }, c.name)));
+  const addr = h('input', { oninput: () => { addrTouched = true; showUrl(); }, onchange: () => { addr.value = slugify(addr.value); showUrl(); } });
+  const url = h('div', { class: 'url' });
+  const still = h('div', { class: 'lookup' }, h('span', { class: 'noimg', style: 'width:140px;height:79px' }), h('span', { class: 'muted small' }, 'Reading the video…'));
+  const warn = h('p', { class: 'error', hidden: true });
+  const create = h('button', { class: 'btn primary' }, uploadConfig() ? 'Create & Upload' : 'Create Project');
+  let frame = null;
+  function showUrl() { url.textContent = `matthewfregnan.com/${category(cat.value).slug}/${uniqueId(slugify(addr.value || title.value), cat.value)}/`; }
+  function syncAddr() { if (!addrTouched) addr.value = slugify(title.value); showUrl(); }
+  syncAddr();
+
+  // Look at the file: portrait videos default to Social; grab a frame for the thumbnail
+  (async () => {
+    const [info, blob] = await Promise.all([U.probe(file), U.grabFrame(file)]);
+    frame = blob;
+    if (info && info.height > info.width && !catTouched) { cat.value = 'vertical'; syncAddr(); }
+    if (info?.codec === 'prores') {
+      warn.textContent = "This is ProRes, which browsers can't read. Create the project here and upload the file with the desktop app, or export an H.264 MP4.";
+      warn.hidden = false;
+    }
+    const facts = info ? `${info.width}×${info.height} · ${Math.round(info.duration || 0)}s · ${(file.size / 1e6).toFixed(0)} MB` : `${(file.size / 1e6).toFixed(0)} MB`;
+    still.replaceChildren(
+      blob ? h('img', { src: URL.createObjectURL(blob), alt: '' }) : h('span', { class: 'noimg', style: 'width:140px;height:79px' }),
+      h('div', {}, h('b', {}, file.name), h('div', { class: 'muted small' }, facts),
+        h('div', { class: 'muted small' }, blob ? 'This frame becomes the thumbnail (change it any time).' : 'Pick a thumbnail after creating it.')));
+  })();
+
+  dialog(close => {
+    create.onclick = async () => {
+      if (!title.value.trim()) { title.focus(); return; }
+      create.disabled = true;
+      create.textContent = 'Creating…';
+      const p = blankProject(cat.value);
+      p.title = title.value.trim();
+      if (client.value.trim()) p.client = client.value.trim();
+      p.id = uniqueId(slugify(addr.value || p.title), p.category);
+      if (frame) { try { p.thumbnail = await storeThumbnail(p, frame); } catch { /* add one later */ } }
+      close();
+      addProject(p);
+      if (warn.hidden && uploadConfig()) startUpload(p, file);
+      toast(warn.hidden && uploadConfig() ? `Added “${p.title}”. The video is uploading; keep working meanwhile.` : `Added “${p.title}”.`, 6000);
+    };
+    return [
+      h('h3', {}, 'New Project from Video File'),
+      still,
+      warn,
+      h('div', { class: 'field' }, h('label', {}, 'Title'), title),
+      h('div', { class: 'field' }, h('label', {}, 'Client (optional)'), client),
+      h('div', { class: 'field' }, h('label', {}, 'Section'), cat),
+      h('div', { class: 'field' }, h('label', {}, 'Page address'), addr, url),
+      !uploadConfig() ? h('p', { class: 'muted small' }, 'Sign in to upload; in this mode the project is created without its video.') : null,
+      h('div', { class: 'actions' }, h('button', { class: 'btn', onclick: close }, 'Cancel'), create),
+    ];
+  });
+  title.select();
+}
+
 async function checkVideos() {
   const refs = new Map();
   projects().forEach(p => V.ordered(p).forEach(r => refs.set(V.pageUrl(r), r)));
@@ -1556,7 +1633,8 @@ function renderOverview() {
         h('div', { class: 'ov-cats' }, S.data.categories.map(c => h('button', { class: 'ov-cat', onclick: () => { $('#filter').value = c.id; $('#search').value = ''; go('projects'); renderList(); } },
           h('strong', {}, String(projects().filter(p => p.category === c.id).length)), h('span', {}, c.name)))),
         recent.length ? [h('h4', {}, 'Recently edited'), h('div', { class: 'ov-list' }, recent.map(p => projectLink(p, `${category(p.category).name} · ${ago(p.updated)}`)))] : null,
-        h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: newFromLink }, 'New from Link')))))));
+        h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: newFromLink }, 'New from Link'),
+          h('button', { class: 'btn', onclick: () => newFromFile() }, 'New from Video File')))))));
   fillStorageSummary(storageBox);
 }
 
@@ -1817,6 +1895,16 @@ function wire() {
     if (S.uploads.some(j => !j.finished)) { e.preventDefault(); e.returnValue = ''; }
   });
   $('#new-link').onclick = newFromLink;
+  $('#new-file').onclick = () => newFromFile();
+  // Drop a video file on the project list to start a new project from it
+  const list = $('#list');
+  list.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')) { e.preventDefault(); list.classList.add('over'); } });
+  list.addEventListener('dragleave', () => list.classList.remove('over'));
+  list.addEventListener('drop', e => {
+    list.classList.remove('over');
+    const f = [...(e.dataTransfer.files || [])].find(U.looksLikeVideo);
+    if (f) { e.preventDefault(); newFromFile(f); }
+  });
   $('#new-blank').onclick = newBlank;
   $('#duplicate').onclick = duplicate;
   $('#delete').onclick = remove;

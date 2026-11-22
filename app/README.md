@@ -29,6 +29,12 @@ Both the app and the web admin have the same left menu:
 - Client, Role and Production suggest values you've used before.
 - Backup video links and the stills gallery stay hidden until you need them (*+ Add a backup link*, *+ Add stills*).
 
+## Adding a new project from a video file
+
+**New from Video File** (toolbar, Overview, or drop a video on the project list in the web admin): pick the file and the title (tidied from the file name), section (portrait videos go to Social), page address and thumbnail (a frame from the video) are filled in for you. Check them, add the client, and click **Create & Upload**: the project appears straight away and the video uploads in the background. ProRes masters need the desktop app.
+
+**Changing a page address is safe:** the old address keeps working and forwards to the new one (from your next Publish), so links you've already sent recruiters don't break.
+
 ## Adding a video
 
 **Easiest: Upload Video File…** in the project's Video section (or drop a video file on the player). Any file works: a ProRes or 4K master, a phone video, a reel you've saved from your own Instagram. The app:

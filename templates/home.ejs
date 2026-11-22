@@ -70,48 +70,44 @@
       <% } else if (i > 0) { %>
         <div class="mt-10"></div>
       <% } %>
-      <% if (row.kind === 'landscape') { %>
-        <%# 4 across when that fills the rows evenly (4 or 8 projects), otherwise 3 %>
-        <div id="featured" class="portfolio-grid-home <%= home.landscapeShown % 4 === 0 ? 'is-four' : '' %>"
-          <% if (home.featured.count && home.featured.shuffle) { %>data-count="<%= home.featured.count %>" data-shuffle<% } %>>
+      <%
+        // Every row scrolls sideways like a streaming service: when the tiles all fit they share the row,
+        // otherwise a slice of the next one peeks in and arrows appear (swipe on phones). See .row-scroller.
+        const landscape = row.kind === 'landscape';
+        const n = landscape ? home.landscapeShown : row.items.length;
+        const fit = landscape
+          ? [n <= 1 && 'fit-base', n <= 2 && 'fit-sm', n <= 3 && 'fit-lg', n <= 3 && 'fit-xl']
+          : [n <= 2 && 'fit-base', n <= 3 && 'fit-sm', n <= 4 && 'fit-lg', n <= 5 && 'fit-xl'];
+        const shuffle = landscape && home.featured.count && home.featured.shuffle;
+      %>
+      <div class="row-scroller <%= landscape ? 'is-landscape' : 'is-portrait' %> <%= fit.filter(Boolean).join(' ') %>" style="--n: <%= n %>" data-scroller>
+        <button type="button" class="scroller-btn prev" aria-label="Scroll back" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <div class="row-track"<% if (landscape) { %> id="featured"<% } %><% if (shuffle) { %> data-count="<%= home.featured.count %>" data-shuffle<% } %>>
           <% row.items.forEach(({ project, category, locked, shown }) => { %>
-            <%- include('partials/card', { project, category, vertical: false,
-              extra: (locked ? 'data-locked ' : '') + (shown ? '' : 'hidden') }) %>
+            <%- include('partials/card', { project, category, vertical: !landscape,
+              extra: landscape ? (locked ? 'data-locked ' : '') + (shown ? '' : 'hidden') : '' }) %>
           <% }) %>
         </div>
-        <% if (home.featured.count && home.featured.shuffle) { %>
-        <script>
-          // Shuffle: keep the locked projects and fill the other places at random, before the row is drawn
-          (function () {
-            var grid = document.getElementById('featured');
-            var cards = [].slice.call(grid.children);
-            var n = +grid.dataset.count;
-            var locked = cards.filter(function (c) { return c.hasAttribute('data-locked'); }).slice(0, n);
-            var rest = cards.filter(function (c) { return locked.indexOf(c) < 0; });
-            for (var i = rest.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = rest[i]; rest[i] = rest[j]; rest[j] = t; }
-            var pick = locked.concat(rest.slice(0, n - locked.length));
-            cards.forEach(function (c) { c.hidden = pick.indexOf(c) < 0; });
-          })();
-        </script>
-        <% } %>
-      <% } else { %>
-        <%# One row. When they all fit (up to 2 on phones, 3 on tablets, 4 on laptops, 5 on desktops) they
-            share the row; any more and it scrolls: arrows on wider screens, swipe on phones. %>
-        <% const n = row.items.length;
-           const fit = [n <= 2 && 'fit-base', n <= 3 && 'fit-sm', n <= 4 && 'fit-lg', n <= 5 && 'fit-xl'].filter(Boolean).join(' '); %>
-        <div class="shortform-scroller <%= fit %>" style="--n: <%= n %>" data-scroller>
-          <button type="button" class="scroller-btn prev" aria-label="Scroll back" hidden>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
-          </button>
-          <div class="shortform-track">
-            <% row.items.forEach(({ project, category }) => { %>
-              <%- include('partials/card', { project, category, vertical: true }) %>
-            <% }) %>
-          </div>
-          <button type="button" class="scroller-btn next" aria-label="Scroll forward" hidden>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-          </button>
-        </div>
+        <button type="button" class="scroller-btn next" aria-label="Scroll forward" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+      <% if (shuffle) { %>
+      <script>
+        // Shuffle: keep the locked projects and fill the other places at random, before the row is drawn
+        (function () {
+          var row = document.getElementById('featured');
+          var cards = [].slice.call(row.children);
+          var n = +row.dataset.count;
+          var locked = cards.filter(function (c) { return c.hasAttribute('data-locked'); }).slice(0, n);
+          var rest = cards.filter(function (c) { return locked.indexOf(c) < 0; });
+          for (var i = rest.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = rest[i]; rest[i] = rest[j]; rest[j] = t; }
+          var pick = locked.concat(rest.slice(0, n - locked.length));
+          cards.forEach(function (c) { c.hidden = pick.indexOf(c) < 0; });
+        })();
+      </script>
       <% } %>
     <% }) %>
 

@@ -206,7 +206,7 @@ export function tidyTitle(title) {
     .replace(/\s{2,}/g, ' ')
     .replace(/^[\s\-_]+|[\s\-_]+$/g, '');
   if (t && t === t.toUpperCase() && /[A-Z]/.test(t)) {
-    t = t.split(' ').map(w => (w.length <= 3 && /^[A-Z]+$/.test(w) && !['THE', 'AND', 'FOR'].includes(w)
+    t = t.split(' ').map(w => ((w.length <= 3 && /^[A-Z]+$/.test(w) && !['THE', 'AND', 'FOR'].includes(w)) || /\d/.test(w)
       ? w : w.charAt(0) + w.slice(1).toLowerCase())).join(' ')
       .replace(/\b(And|For|The|With|Of|In|On|To)\b/g, m => m.toLowerCase());
     t = t.charAt(0).toUpperCase() + t.slice(1);

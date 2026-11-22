@@ -98,8 +98,10 @@ class Store(QObject):
             raise
         if p == before:
             return
-        core.touch(p)
         old_key, new_key = core.project_key(before), core.project_key(p)
+        if old_key != new_key:
+            core.remember_address(p, old_key)
+        core.touch(p)
         if old_key == new_key:
             self.undo_stack.push(_EditProject(self, p, before, copy.deepcopy(p), label))
             return

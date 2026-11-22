@@ -320,12 +320,12 @@
 }
 
 /* Short-form hover previews (see src/main.js) */
-.portfolio-item-vertical .vp-preview {
+.portfolio-item .vp-preview, .portfolio-item-vertical .vp-preview {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
   opacity: 0; transition: opacity 0.35s ease; pointer-events: none;
 }
-.portfolio-item-vertical.is-previewing .vp-preview { opacity: 1; }
-.portfolio-item-vertical .portfolio-item-title { z-index: 1; }
+.portfolio-item.is-previewing .vp-preview, .portfolio-item-vertical.is-previewing .vp-preview { opacity: 1; }
+.portfolio-item .portfolio-item-title, .portfolio-item-vertical .portfolio-item-title { z-index: 1; }
 
 /* ----------------------------------------------------------------------------------------
    Project context (project pages): description, what I did, platform, credits
@@ -349,38 +349,55 @@
 /* ----------------------------------------------------------------------------------------
    Home page: featured row (some cards hidden by the shuffle) and the social scroller
    ---------------------------------------------------------------------------------------- */
-.portfolio-grid-home > [hidden] { display: none !important; }
-
 /* --per = tiles across. When there are more than fit, a slice of the next one shows so it's clear
    the row scrolls. When they all fit they share the row, but never get bigger than this. */
-.shortform-scroller { position: relative; --gap: 12px; --per: 2.25; }
-.shortform-scroller.fit-base { --per: 2; }
+.row-scroller { position: relative; --gap: 12px; }
+.row-scroller.is-portrait { --per: 2.25; }
+.row-scroller.is-portrait.fit-base { --per: 2; }
+.row-scroller.is-landscape { --per: 1.2; }
+.row-scroller.is-landscape.fit-base { --per: 1; }
 @media (min-width: 640px) {
-  .shortform-scroller { --per: 3.3; }
-  .shortform-scroller.fit-sm { --per: 3; }
+  .row-scroller.is-portrait { --per: 3.3; }
+  .row-scroller.is-portrait.fit-sm { --per: 3; }
+  .row-scroller.is-landscape { --per: 2.25; }
+  .row-scroller.is-landscape.fit-sm { --per: 2; }
 }
 @media (min-width: 1024px) {
-  .shortform-scroller { --per: 4.35; }
-  .shortform-scroller.fit-lg { --per: 4; }
+  .row-scroller.is-portrait { --per: 4.35; }
+  .row-scroller.is-portrait.fit-lg { --per: 4; }
+  .row-scroller.is-landscape { --per: 3.3; }
+  .row-scroller.is-landscape.fit-lg { --per: max(var(--n), 2); }
 }
 @media (min-width: 1280px) {
-  .shortform-scroller { --per: 5.35; }
-  .shortform-scroller.fit-xl { --per: max(var(--n), 4); }
+  .row-scroller.is-portrait { --per: 5.35; }
+  .row-scroller.is-portrait.fit-xl { --per: max(var(--n), 4); }
 }
-.shortform-track {
+.row-track {
   display: flex; gap: var(--gap); overflow-x: auto; overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory; scroll-padding-left: 0; scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
-.shortform-track::-webkit-scrollbar { display: none; }
-.shortform-track > * {
+.row-track::-webkit-scrollbar { display: none; }
+.row-track > * {
   flex: 0 0 calc((100% - var(--gap) * (var(--per) - 1)) / var(--per));
   scroll-snap-align: start;
 }
+.row-track > [hidden] { display: none !important; }
 /* Fade the edge that has more to see */
-.shortform-scroller.more-after .shortform-track { mask-image: linear-gradient(to right, #000 88%, transparent); }
-.shortform-scroller.more-before .shortform-track { mask-image: linear-gradient(to left, #000 88%, transparent); }
-.shortform-scroller.more-before.more-after .shortform-track { mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent); }
+.row-scroller.more-after .row-track { mask-image: linear-gradient(to right, #000 90%, transparent); }
+.row-scroller.more-before .row-track { mask-image: linear-gradient(to left, #000 90%, transparent); }
+.row-scroller.more-before.more-after .row-track { mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent); }
+
+/* Hover (mouse only): the tile grows a little and its video plays silently, like a streaming service.
+   The track gets some breathing room so the grown tile isn't clipped. */
+@media (hover: hover) and (pointer: fine) {
+  .row-track { padding: 22px 0; margin: -22px 0; }
+  .row-track > a { transition: transform 0.3s ease, box-shadow 0.3s ease; will-change: transform; }
+  .row-track > a:hover { transform: scale(1.06); z-index: 3; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65); }
+  .row-track > a:first-child:hover { transform-origin: left center; }
+  .row-track > a:last-child:hover { transform-origin: right center; }
+}
+@media (prefers-reduced-motion: reduce) { .row-track > a:hover { transform: none; } }
 .scroller-btn {
   position: absolute; top: 50%; z-index: 2; width: 40px; height: 40px; margin-top: -20px;
   display: grid; place-items: center; border-radius: 999px; color: #fff;
