@@ -100,16 +100,19 @@ export class GitHubBackend {
   }
 
   /** One commit containing the new projects.json, home.json and any new images. */
-  async save({ text, homeText, images, message, baseSha }) {
+  async save({ text, homeText, images, message, baseSha, rebase }) {
     let head = await this.head();
     if (head !== baseSha) {
-      // Someone (e.g. the desktop app) published since this page loaded. That's fine if they
-      // didn't touch the project list (e.g. a code change); otherwise stop rather than overwrite.
+      // Something else was published since this page (or its saved draft) loaded: a push from GitHub
+      // Desktop, the desktop app, another tab. If it touched the data files, `rebase` merges your
+      // edits onto the new versions (and throws ConflictError if the same thing changed on both sides).
       const theirs = b64ToText((await this.api(`/contents/${DATA_PATH}?ref=${head}`)).content);
-      const ours = b64ToText((await this.api(`/contents/${DATA_PATH}?ref=${baseSha}`)).content);
-      if (theirs !== ours) throw new ConflictError('The project list was changed somewhere else since you opened this page.');
-      if ((await this.readHome(head)) !== (await this.readHome(baseSha))) {
-        throw new ConflictError('The home page was changed somewhere else since you opened this page.');
+      const theirsHome = await this.readHome(head);
+      const base = b64ToText((await this.api(`/contents/${DATA_PATH}?ref=${baseSha}`)).content);
+      const baseHome = await this.readHome(baseSha);
+      if (theirs !== base || theirsHome !== baseHome) {
+        if (!rebase) throw new ConflictError('The project list was changed somewhere else since you opened this page.');
+        ({ text, homeText } = rebase({ base, baseHome, theirs, theirsHome }));
       }
     }
     const baseTree = (await this.api(`/git/commits/${head}`)).tree.sha;
@@ -127,7 +130,7 @@ export class GitHubBackend {
       method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [head] }),
     });
     await this.api(`/git/refs/heads/${BRANCH}`, { method: 'PATCH', body: JSON.stringify({ sha: commit.sha }) });
-    return commit.sha;
+    return { sha: commit.sha, text, homeText };
   }
 }
 
@@ -149,9 +152,9 @@ export class DemoBackend {
       siteText: site?.ok ? await site.text() : '{}', sha: 'demo' };
   }
 
-  async save({ images }) {
+  async save({ text, homeText, images }) {
     await new Promise(r => setTimeout(r, 600));
     console.info('[demo] would publish', images.size, 'image(s)');
-    return 'demo';
+    return { sha: 'demo', text, homeText };
   }
 }

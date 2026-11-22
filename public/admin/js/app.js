@@ -8,6 +8,7 @@ import * as U from './upload.js';
 import * as P from './preview.js';
 import * as T from './traffic.js';
 import { ConflictError, DEFAULT_HOME, DemoBackend, GitHubBackend } from './github.js';
+import { mergeJsonText } from './merge.js';
 
 const SITE = 'https://matthewfregnan.com';
 const DRAFT_KEY = 'pm-draft';
@@ -1422,6 +1423,20 @@ async function checkVideos() {
   ]);
 }
 
+/** For publishing (and restoring a draft): re-apply your edits on top of newer versions of the data
+ *  files. Throws ConflictError naming anything that was changed differently on both sides. */
+function rebaseOnto(text, homeText) {
+  return ({ base, baseHome, theirs, theirsHome }) => {
+    const data = mergeJsonText(base, text, theirs);
+    const home = mergeJsonText(baseHome, homeText, theirsHome);
+    const clashes = [...data.conflicts, ...home.conflicts.map(c => `home page › ${c}`)];
+    if (clashes.length) {
+      throw new ConflictError(`Some things were changed both here and somewhere else since you opened this page: ${clashes.slice(0, 5).join('; ')}${clashes.length > 5 ? ` and ${clashes.length - 5} more` : ''}. Change them back here (or Undo) and publish again, or reload to start from the published version.`);
+    }
+    return { text: data.text, homeText: home.text };
+  };
+}
+
 function publish() {
   const list = changes();
   if (!list.length) return;
@@ -1438,10 +1453,18 @@ function publish() {
       const used = usedImagePaths();
       const images = new Map([...I.pending].filter(([path]) => used.has(path)));
       try {
-        const sha = await S.backend.save({ text, homeText, images, message: `${msg.value.trim() || 'Update portfolio'} (web)`, baseSha: S.baseSha });
-        S.baseText = text;
-        S.baseHomeText = homeText;
-        S.baseSha = sha;
+        const saved = await S.backend.save({ text, homeText, images, message: `${msg.value.trim() || 'Update portfolio'} (web)`,
+          baseSha: S.baseSha, rebase: rebaseOnto(text, homeText) });
+        if (saved.text !== text || saved.homeText !== homeText) {   // merged with changes made elsewhere
+          S.data = JSON.parse(saved.text);
+          S.home = JSON.parse(saved.homeText);
+          S.current = S.current && projects().find(p => keyOf(p) === keyOf(S.current)) || null;
+          renderList();
+          renderEditor();
+        }
+        S.baseText = saved.text;
+        S.baseHomeText = saved.homeText;
+        S.baseSha = saved.sha;
         I.markPublished();
         saveDraft();
         close();
@@ -1451,9 +1474,7 @@ function publish() {
         go.disabled = false;
         go.textContent = 'Publish';
         err.hidden = false;
-        err.textContent = e instanceof ConflictError
-          ? `${e.message} Reload to get the latest version. Your edits here would be lost, so note anything you need first.`
-          : `Couldn't publish: ${e.message}`;
+        err.textContent = e instanceof ConflictError ? e.message : `Couldn't publish: ${e.message}`;
       }
     };
     return [
@@ -2244,6 +2265,19 @@ async function start(backend) {
       S.baseHomeText = draft.baseHomeText || S.baseHomeText;
       S.baseText = draft.baseText;
       S.baseSha = draft.baseSha;
+      if (draft.baseSha !== sha && (draft.baseText !== text || (draft.baseHomeText || '') !== (homeText || DEFAULT_HOME))) {
+        // Published elsewhere since the draft was made (e.g. a push from GitHub Desktop): bring the
+        // draft up to date so it builds on the latest version. If parts clash, publishing explains.
+        try {
+          const merged = rebaseOnto(draft.text, draft.homeText || S.baseHomeText)({
+            base: draft.baseText, baseHome: draft.baseHomeText || S.baseHomeText, theirs: text, theirsHome: homeText || DEFAULT_HOME });
+          S.data = JSON.parse(merged.text);
+          S.home = JSON.parse(merged.homeText);
+          S.baseText = text;
+          S.baseHomeText = homeText || DEFAULT_HOME;
+          S.baseSha = sha;
+        } catch { /* keep the draft as it was */ }
+      }
       await I.restorePending();
       setTimeout(() => toast('Restored your unpublished changes.'), 300);
     }
