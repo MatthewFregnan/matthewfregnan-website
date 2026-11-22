@@ -523,10 +523,17 @@ const Previews = (() => {
     if (!v) {
       v = document.createElement('video');
       v.className = 'vp-preview';
+      // iPhones only let a video start by itself if it's marked muted in its markup (the property alone
+      // isn't enough): without these, previews waited for the first tap on the page.
       v.muted = true;
+      v.defaultMuted = true;
+      v.setAttribute('muted', '');
+      v.setAttribute('autoplay', '');
       v.loop = true;
       v.playsInline = true;
       v.setAttribute('playsinline', '');
+      v.setAttribute('disablepictureinpicture', '');
+      v.setAttribute('disableremoteplayback', '');
       v.preload = 'auto';
       v.src = tile.dataset.preview;
       tile.insertBefore(v, tile.querySelector('.portfolio-item-title'));
@@ -559,6 +566,11 @@ const Previews = (() => {
       setTimeout(() => { if (current === tile) v.play().then(() => { if (current === tile) tile.classList.add('is-previewing'); }).catch(() => {}); }, 400);
     });
   };
+  // Safety net: if a browser still held a preview back, start it on the first touch.
+  const unlock = () => {
+    if (current) { const v = current.querySelector('video.vp-preview'); if (v && v.paused) v.play().then(() => current?.classList.add('is-previewing')).catch(() => {}); }
+  };
+  window.addEventListener('touchstart', unlock, { passive: true, once: true });
   return { play, stop, get current() { return current; } };
 })();
 
