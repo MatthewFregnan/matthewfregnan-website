@@ -60,7 +60,7 @@ function toast(msg, ms = 3500) {
 const projects = () => S.data.projects;
 const category = id => S.data.categories.find(c => c.id === id) || { id, name: id, slug: id };
 const pagePath = p => `/${category(p.category).slug}/${p.id}/`;
-const slugify = t => String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'untitled';
+const slugify = t => String(t).toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'untitled';
 const touch = p => { p.updated = new Date().toISOString().slice(0, 19); };
 
 function uniqueId(base, cat, ignore) {
@@ -444,23 +444,29 @@ function detailsForm(p) {
     }, { list: true, editor: true }),
   }, S.data.categories.map(c => h('option', { value: c.id, selected: c.id === p.category }, c.name)));
 
-  const slug = h('input', {
-    id: 'f-id',
-    value: p.id,
-    onchange: e => {
-      const id = uniqueId(slugify(e.target.value), p.category, p);
-      e.target.value = id;
-      if (id !== p.id) {
-        mutate(() => {
-          const oldKey = keyOf(p);
-          p.id = id;
-          renameRefs(oldKey, keyOf(p));
-        });
-        $('#url').textContent = `matthewfregnan.com${pagePath(p)}`;
-        toast('Page address changed. Links to the old address will stop working.');
-      }
-    },
-  });
+  function setAddress(raw) {
+    const id = uniqueId(slugify(raw), p.category, p);
+    input.value = id;
+    if (id === p.id) return false;
+    mutate(() => {
+      const oldKey = keyOf(p);
+      p.id = id;
+      renameRefs(oldKey, keyOf(p));
+    });
+    $('#url').textContent = `matthewfregnan.com${pagePath(p)}`;
+    toast('Page address changed. Links to the old address will stop working.');
+    return true;
+  }
+  const input = h('input', { id: 'f-id', value: p.id, onchange: e => setAddress(e.target.value) });
+  const slug = h('div', { class: 'slug-row' }, input,
+    h('button', {
+      class: 'btn', type: 'button', title: 'Make the page address from the title',
+      onclick: () => {
+        const title = $('#f-title')?.value || p.title || '';
+        if (!title.trim()) { toast('Add a title first.'); return; }
+        if (!setAddress(title)) toast('The page address already matches the title.');
+      },
+    }, 'From Title'));
   return h('div', { class: 'form' },
     lists,
     h('label', { for: 'f-title' }, 'Title'), textField(p, 'title'),
@@ -1414,6 +1420,94 @@ function featuredControls(set, feat) {
     h('p', { class: 'muted small' }, hint));
 }
 
+// ---------------------------------------------------------------- video storage (Cloudflare R2)
+
+const STORAGE_LIMIT = 10 * 1000 ** 3;   // R2 free plan: 10 GB
+const SECTION_NAMES = { home: 'Home page background' };
+
+function fmtBytes(n) {
+  if (n >= 1000 ** 3) return `${(n / 1000 ** 3).toFixed(2)} GB`;
+  if (n >= 1000 ** 2) return `${(n / 1000 ** 2).toFixed(n >= 100 * 1000 ** 2 ? 0 : 1)} MB`;
+  return `${Math.max(1, Math.round(n / 1000))} KB`;
+}
+
+/** Which project uses each stored file (matched by its address, ignoring ?v=). */
+function storageKeyOf(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname === 'videos.matthewfregnan.com' ? decodeURIComponent(u.pathname.slice(1)) : null;
+  } catch { return null; }
+}
+
+async function openStorage() {
+  const cfg = uploadConfig();
+  if (!cfg) { toast('Sign in to see video storage.'); return; }
+  const body = h('div', { class: 'storage' }, h('p', { class: 'muted' }, 'Looking at your video storage…'));
+  dialog(close => [h('h3', {}, 'Video Storage'), body,
+    h('div', { class: 'actions' },
+      h('a', { class: 'btn', href: 'https://dash.cloudflare.com/?to=/:account/r2/default/buckets/matthewfregnan-videos', target: '_blank', rel: 'noopener' }, 'Open in Cloudflare'),
+      h('button', { class: 'btn primary', onclick: close }, 'Done'))]);
+  let data;
+  try {
+    data = await U.usage(cfg);
+  } catch (e) {
+    body.replaceChildren(h('p', { class: 'error' }, e.message));
+    return;
+  }
+  const users = new Map();
+  for (const p of projects()) {
+    const k = p.videoFile && storageKeyOf(p.videoFile);
+    if (k) users.set(k, p);
+  }
+  const files = data.objects.map(o => ({ ...o, project: users.get(o.key), section: o.key.split('/')[0] }));
+  const pct = Math.min(100, (data.total / STORAGE_LIMIT) * 100);
+  const level = pct >= 90 ? 'bad' : pct >= 70 ? 'backup' : 'ok';
+
+  const sections = new Map();
+  for (const f of files) {
+    const s = sections.get(f.section) || { size: 0, count: 0 };
+    s.size += f.size; s.count += 1;
+    sections.set(f.section, s);
+  }
+  const sectionName = id => SECTION_NAMES[id] || S.data.categories.find(c => c.id === id)?.name || id;
+  const unused = files.filter(f => !f.project && f.section !== 'home').sort((a, b) => b.size - a.size);
+  const unusedSize = unused.reduce((n, f) => n + f.size, 0);
+  const largest = [...files].sort((a, b) => b.size - a.size).slice(0, 8);
+  // An unused file is usually an older upload for a project: "category/project-id-<stamp>.mp4"
+  const formerOwner = key => projects()
+    .filter(p => key.startsWith(`${keyOf(p)}-`) || key === `${keyOf(p)}.mp4`)
+    .sort((a, b) => b.id.length - a.id.length)[0];
+  const name = f => {
+    if (f.project) return f.project.title;
+    const was = formerOwner(f.key);
+    return was ? `${was.title} (older version)` : f.key.split('/').pop();
+  };
+  const fileRow = f => h('div', { class: 'st-row' },
+    h('span', { class: 'st-name', title: f.key }, f.project
+      ? h('a', { href: '#', onclick: e => { e.preventDefault(); $('#dialog').close(); clearSearchFor(f.project); select(f.project); } }, name(f))
+      : name(f)),
+    h('span', { class: 'muted small' }, new Date(f.uploaded).toLocaleDateString()),
+    h('span', { class: 'st-size' }, fmtBytes(f.size)));
+
+  body.replaceChildren(...[
+    h('div', { class: 'st-total' },
+      h('strong', {}, fmtBytes(data.total)), ` of 10 GB free storage used (${pct.toFixed(0)}%)`,
+      h('div', { class: `st-bar ${level}` }, h('span', { style: `width:${Math.max(pct, 0.5)}%` })),
+      h('div', { class: 'muted small' }, `${files.length} files · about ${fmtBytes(Math.max(0, STORAGE_LIMIT - data.total))} left. Your images are stored on GitHub and don’t count.`)),
+    h('h4', {}, 'By section'),
+    h('div', { class: 'st-list' }, [...sections].sort((a, b) => b[1].size - a[1].size).map(([id, s]) =>
+      h('div', { class: 'st-row' }, h('span', { class: 'st-name' }, sectionName(id)),
+        h('span', { class: 'muted small' }, `${s.count} file${s.count === 1 ? '' : 's'}`),
+        h('span', { class: 'st-size' }, fmtBytes(s.size))))),
+    h('h4', {}, 'Largest files'),
+    h('div', { class: 'st-list' }, largest.map(fileRow)),
+    unused.length ? [
+      h('h4', {}, `Not used by any project: ${fmtBytes(unusedSize)}`),
+      h('p', { class: 'muted small' }, 'Usually earlier versions of a video you replaced. They aren’t on the site; delete them in Cloudflare (R2 → matthewfregnan-videos) if you want the space back.'),
+      h('div', { class: 'st-list' }, unused.map(fileRow)),
+    ] : h('p', { class: 'muted small' }, 'Every video file is used by a project.')].flat());
+}
+
 function accountMenu() {
   const n = changes().length;
   dialog(close => [
@@ -1433,6 +1527,7 @@ function accountMenu() {
           }
         },
       }, 'Discard Changes') : null,
+      h('button', { class: 'btn', disabled: !uploadConfig(), onclick: () => { close(); openStorage(); } }, 'Video Storage…'),
       h('button', {
         class: 'btn',
         onclick: () => {

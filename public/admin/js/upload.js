@@ -95,3 +95,8 @@ export async function upload(blob, key, { token, endpoint = UPLOAD_ENDPOINT, onP
     throw e;
   }
 }
+
+/** Everything in video storage: { objects: [{ key, size, uploaded }], total }. */
+export async function usage({ token, endpoint = UPLOAD_ENDPOINT }) {
+  return call(endpoint, token, 'GET', '/usage');
+}

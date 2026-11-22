@@ -80,7 +80,7 @@ class Repo:
 # --------------------------------------------------------------------------- projects
 
 def slugify(text: str) -> str:
-    s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    s = re.sub(r"[^a-z0-9]+", "-", re.sub(r"['’]", "", text.lower())).strip("-")
     return re.sub(r"-{2,}", "-", s) or "untitled"
 
 

@@ -172,6 +172,8 @@ class MainWindow(QMainWindow):
                             QKeySequence.Find)
         self.act_check = act("Check Videos", self.check_videos, "Ctrl+K", "Check every video link still plays")
         self.act_home = act("Home Page…", self.open_home, "Ctrl+H", "Choose which projects are on the home page")
+        self.act_storage = act("Video Storage…", self.open_storage, None,
+                               "See how much of the free 10 GB of video storage is used")
         self.act_preview = act("Preview Site", self.preview, "Ctrl+R", "Build the site and open it in your browser")
         self.act_view = act("View on Site", self.view_on_site, "Ctrl+Shift+V", "Open this project on the live site")
         self.act_discard = act("Discard Unpublished Changes…", self.discard_changes, None,
@@ -191,7 +193,7 @@ class MainWindow(QMainWindow):
             ("&File", (self.act_new_link, self.act_new, self.act_dup, None, self.act_view, self.act_preview,
                        self.act_publish, None, self.act_discard)),
             ("&Edit", (self.act_undo, self.act_redo, None, self.act_find, self.act_up, self.act_down, None, self.act_del)),
-            ("&Tools", (self.act_home, self.act_check)),
+            ("&Tools", (self.act_home, self.act_check, self.act_storage)),
         ):
             m = mb.addMenu(title)
             for a in items:
@@ -286,6 +288,10 @@ class MainWindow(QMainWindow):
     def open_home(self):
         from home import HomeDialog
         HomeDialog(self, self.store).exec()
+
+    def open_storage(self):
+        from storage import StorageDialog
+        StorageDialog(self, self.store).exec()
 
     # ------------------------------------------------------------------ videos
     def check_videos(self):

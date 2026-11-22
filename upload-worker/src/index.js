@@ -9,6 +9,7 @@
 //   PUT    /uploads/<uploadId>/<partNumber>?key=...        (body = chunk) -> { partNumber, etag }
 //   POST   /uploads/<uploadId>/complete?key=...            (body = { parts: [...] }) -> { url }
 //   DELETE /uploads/<uploadId>?key=...                     -> aborts
+//   GET    /usage                                          -> { objects: [{ key, size, uploaded }], total }
 
 const ALLOWED_ORIGINS = ['https://matthewfregnan.com', 'https://www.matthewfregnan.com'];
 const KEY_PATTERN = /^(commercial|branded|vertical|colour-grading|home)\/[a-z0-9][a-z0-9-]{0,120}\.mp4$/;
@@ -23,7 +24,7 @@ function corsHeaders(request) {
   const allowed = ALLOWED_ORIGINS.includes(origin) || local;
   return {
     'Access-Control-Allow-Origin': allowed ? origin : ALLOWED_ORIGINS[0],
-    'Access-Control-Allow-Methods': 'POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
@@ -71,9 +72,21 @@ export default {
 
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean); // ['uploads', id?, part|'complete'?]
-    if (parts[0] !== 'uploads') return json(request, { error: 'Not found' }, 404);
+    if (parts[0] !== 'uploads' && parts[0] !== 'usage') return json(request, { error: 'Not found' }, 404);
     if (!(await authorised(request, env))) {
       return json(request, { error: 'Not signed in, or this GitHub token can’t write to the website repo.' }, 401);
+    }
+
+    // What's in storage (for the admin's Storage view)
+    if (parts[0] === 'usage' && request.method === 'GET') {
+      const objects = [];
+      let cursor;
+      do {
+        const page = await env.VIDEOS.list({ limit: 1000, cursor });
+        for (const o of page.objects) objects.push({ key: o.key, size: o.size, uploaded: o.uploaded });
+        cursor = page.truncated ? page.cursor : undefined;
+      } while (cursor);
+      return json(request, { objects, total: objects.reduce((n, o) => n + o.size, 0), base: PUBLIC_BASE });
     }
     const key = url.searchParams.get('key') || '';
     if (!KEY_PATTERN.test(key)) return json(request, { error: 'Invalid video address.' }, 400);

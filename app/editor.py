@@ -120,7 +120,14 @@ class ProjectEditor(QScrollArea):
         detailed_note.setWordWrap(True)
         detailed_note.setStyleSheet("color: palette(placeholder-text); font-size: 11px;")
         form.addRow("", detailed_note)
-        form.addRow("Page address", self.slug)
+        slug_row = QHBoxLayout()
+        slug_row.setContentsMargins(0, 0, 0, 0)
+        slug_row.addWidget(self.slug, 1)
+        b_from_title = QPushButton("From Title")
+        b_from_title.setToolTip("Make the page address from the title")
+        b_from_title.clicked.connect(self._slug_from_title)
+        slug_row.addWidget(b_from_title)
+        form.addRow("Page address", slug_row)
         form.addRow("", self.url_label)
         self.home_box = QWidget()
         self.home_lay = QVBoxLayout(self.home_box)
@@ -370,6 +377,20 @@ class ProjectEditor(QScrollArea):
             p["category"] = new
             p["id"] = core.unique_id(self.store.data, p["id"], new, ignore=p)
         self.store.edit(self.p, "Change Category", fn)
+
+    def _slug_from_title(self):
+        if self.p is None:
+            return
+        title = self.f["title"].text().strip() or self.p.get("title", "").strip()
+        if not title:
+            self.message.emit("Add a title first.")
+            return
+        new = core.unique_id(self.store.data, core.slugify(title), self.p["category"], ignore=self.p)
+        if new == self.p["id"]:
+            self.message.emit("The page address already matches the title.")
+            return
+        set_text_quietly(self.slug, new)
+        self._set_slug()
 
     def _set_slug(self):
         if self.p is None:
