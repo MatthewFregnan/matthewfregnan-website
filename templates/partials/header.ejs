@@ -21,7 +21,8 @@
 </head>
 <body class="min-h-screen flex flex-col">
   <!-- Header -->
-  <header class="header-blur border-b border-white/10">
+  <%# On the home page the bar starts clear over the hero and turns solid once you scroll (src/main.js) %>
+  <header class="header-blur border-b border-white/10<%= activePage === 'home' ? ' is-clear at-top' : '' %>" id="site-header">
     <div class="container mx-auto px-4 py-4">
       <nav class="flex items-center justify-between">
         <!-- Logo -->
@@ -36,10 +37,11 @@
               <%= cat.name %>
             </a>
           <% }) %>
-          <a href="/about/" class="nav-link <%= activePage === 'about' ? 'active' : '' %>">
+          <%# a wider gap separates the work sections from About / Contact %>
+          <a href="/about/" class="nav-link nav-gap <%= activePage === 'about' ? 'active' : '' %>">
             About
           </a>
-          <a href="mailto:<%= site.email %>" class="nav-link">
+          <a href="mailto:<%= site.email %>" class="nav-link nav-cta">
             Contact
           </a>
         </div>

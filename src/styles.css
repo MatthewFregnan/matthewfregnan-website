@@ -168,7 +168,22 @@
   /* Header with blur effect */
   .header-blur {
     @apply fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-site-bg/80;
+    transition: background-color 0.35s ease, border-color 0.35s ease, backdrop-filter 0.35s ease;
   }
+  /* Home page, scrolled to the top: no bar, just the links over the hero */
+  .header-blur.is-clear.at-top {
+    background-color: transparent; border-color: transparent;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+
+  /* Work sections | About + Contact */
+  .nav-link.nav-gap { margin-left: 3.5rem !important; }
+  /* Contact: the one action, as a small outlined button */
+  .nav-link.nav-cta {
+    padding: 6px 16px; border: 1px solid rgba(255, 255, 255, 0.45); border-radius: 999px;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  }
+  .nav-link.nav-cta:hover { background: #fff; color: #111; border-color: #fff; }
 
   /* Vimeo responsive embed */
   .video-container {

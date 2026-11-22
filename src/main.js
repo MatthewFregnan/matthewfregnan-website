@@ -1,3 +1,12 @@
+// Home page: the nav bar is clear while you're at the top of the hero, and solid once you scroll
+document.addEventListener('DOMContentLoaded', () => {
+  const header = document.getElementById('site-header');
+  if (!header || !header.classList.contains('is-clear')) return;
+  const update = () => header.classList.toggle('at-top', window.scrollY < 24);
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+});
+
 // Mobile menu toggle
 document.addEventListener('DOMContentLoaded', () => {
   const menuToggle = document.getElementById('menu-toggle');
