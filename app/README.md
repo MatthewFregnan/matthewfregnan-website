@@ -72,7 +72,6 @@ Open **https://matthewfregnan.com/admin/** to edit from your phone or any comput
 - **New from Link**, the coloured status dots, **Check Videos**, backup links, **Show first**, view counts, drag to reorder, and undo/redo all work the same as here.
 - Images you add are resized and converted to WebP in the browser.
 - **Edits stay in this browser until you press Publish**, which saves everything to GitHub in one go. The site updates 1–2 minutes later. Unpublished edits (and new images) survive closing the tab.
-- **Try it without signing in:** https://matthewfregnan.com/admin/?demo loads the real projects, but nothing is saved.
 
 **Signing in.** Only someone who can write to the GitHub repo can save, so the page is safe even though anyone can open it. Nothing secret is stored in the site itself. The first time on each device, paste a GitHub token:
 

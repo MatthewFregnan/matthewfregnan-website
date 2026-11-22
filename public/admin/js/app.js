@@ -1014,7 +1014,9 @@ function wire() {
 async function main() {
   wire();
   try {
-    if (params.has('demo')) {
+    // Demo mode (loads the live data, never saves) is only for testing on this computer
+    const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+    if (local && params.has('demo')) {
       await start(new DemoBackend(params.get('data')));
       return;
     }

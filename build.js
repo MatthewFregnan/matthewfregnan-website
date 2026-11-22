@@ -446,6 +446,7 @@ async function copyAssets() {
   if (await fs.pathExists(PUBLIC_DIR)) {
     await fs.copy(PUBLIC_DIR, DIST_DIR);
   }
+  await fingerprintAdmin();
 
   // Copy images
   if (await fs.pathExists(IMAGES_DIR)) {
@@ -464,6 +465,32 @@ async function copyAssets() {
   if (await fs.pathExists(cnamePath)) {
     await fs.copy(cnamePath, path.join(DIST_DIR, 'CNAME'));
   }
+}
+
+// The admin page loads its stylesheet and scripts (and the scripts import each other).
+// Stamp every one of those links with a fingerprint of the admin's files, so a browser or
+// Cloudflare can never keep running an old copy after an update.
+async function fingerprintAdmin() {
+  const dir = path.join(DIST_DIR, 'admin');
+  if (!(await fs.pathExists(dir))) return;
+  const jsDir = path.join(dir, 'js');
+  const jsFiles = (await fs.pathExists(jsDir)) ? (await fs.readdir(jsDir)).filter(f => f.endsWith('.js')) : [];
+  const hash = require('crypto').createHash('sha1');
+  for (const f of ['index.html', 'admin.css', ...jsFiles.map(f => `js/${f}`)].sort()) {
+    const file = path.join(dir, f);
+    if (await fs.pathExists(file)) hash.update(f).update(await fs.readFile(file));
+  }
+  const v = hash.digest('hex').slice(0, 10);
+  for (const f of jsFiles) {
+    const file = path.join(jsDir, f);
+    const src = await fs.readFile(file, 'utf8');
+    await fs.writeFile(file, src.replace(/(from\s+['"]\.\/[\w-]+\.js)(['"])/g, `$1?v=${v}$2`));
+  }
+  const indexFile = path.join(dir, 'index.html');
+  const html = await fs.readFile(indexFile, 'utf8');
+  await fs.writeFile(indexFile, html
+    .replace('href="admin.css"', `href="admin.css?v=${v}"`)
+    .replace('src="js/app.js"', `src="js/app.js?v=${v}"`));
 }
 
 // Build pages
