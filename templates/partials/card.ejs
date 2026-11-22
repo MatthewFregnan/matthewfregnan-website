@@ -7,6 +7,7 @@
     src="/images/thumbnails/<%= project.thumbnail %>"
     alt="<%= project.title %>"
     loading="lazy"
+    <% if (focusOf(project)) { %>style="object-position: <%= focusOf(project) %>"<% } %>
   >
   <div class="portfolio-item-title">
     <h2 class="text-lg font-medium"><%= project.title %></h2>

@@ -439,7 +439,7 @@ function fileHash(file) {
 async function renderTemplate(templateName, data) {
   const templatePath = path.join(TEMPLATES_DIR, `${templateName}.ejs`);
   const template = await fs.readFile(templatePath, 'utf8');
-  return ejs.render(template, data, { filename: templatePath });
+  return ejs.render(template, { focusOf, ...data }, { filename: templatePath });
 }
 
 // Build CSS with Tailwind
@@ -518,6 +518,13 @@ async function fingerprintAdmin() {
 // "All work" tiles on the home page: one per category, with a project count and up to four
 // pictures that slowly cycle. Pictures favour projects in the live set, then the rest of the
 // category in order, one per client so the cycle shows range.
+// A project's thumbnail focus point ("x% y%"), set by clicking the thumbnail in the app or
+// admin. Crops keep this point in view. Defaults to the centre.
+function focusOf(p) {
+  const m = /^(\d{1,3}(?:\.\d+)?)% (\d{1,3}(?:\.\d+)?)%$/.exec(String(p.thumbFocus || '').trim());
+  return m ? `${Math.min(100, +m[1])}% ${Math.min(100, +m[2])}%` : '';
+}
+
 // Thumbnails with black bars baked in (pillarbox/letterbox) look broken when cropped into the
 // wide section tiles, so those are skipped there. Filled in by findBarredThumbnails() at build.
 const barredThumbs = new Set();
@@ -554,7 +561,7 @@ function categoryTiles(projects, set) {
       const client = (p.client || p.id).toLowerCase();
       if (clients.has(client)) continue;
       clients.add(client);
-      thumbs.push(p.thumbnail);
+      thumbs.push({ src: p.thumbnail, focus: focusOf(p) });
       if (thumbs.length === 4) break;
     }
     const count = projects.projects.filter(p => p.category === category.id).length;

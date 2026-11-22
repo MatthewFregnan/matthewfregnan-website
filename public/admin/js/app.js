@@ -691,9 +691,9 @@ async function setThumbnail(files) {
   if (!files.length) return;
   try {
     const value = await storeThumbnail(p, files[0]);
-    mutate(() => { p.thumbnail = value; }, { list: true });
+    mutate(() => { p.thumbnail = value; delete p.thumbFocus; }, { list: true });
     renderThumb();
-    toast('Thumbnail added (converted to WebP).');
+    toast('Thumbnail added (converted to WebP). Click it to set a focus point if needed.');
   } catch (e) {
     toast(e.message);
   }
@@ -703,21 +703,57 @@ function renderThumb() {
   const card = $('#thumb-card');
   const p = S.current;
   if (!card || !p) return;
-  const zone = h('div', {
-    class: 'dropzone', tabIndex: 0, role: 'button', 'aria-label': 'Choose thumbnail',
-    onclick: async () => setThumbnail(await pickFiles(false)),
-    onkeydown: async e => { if (e.key === 'Enter' || e.key === ' ') setThumbnail(await pickFiles(false)); },
-  }, p.thumbnail
-    ? I.withFallback(h('img', { src: I.src('thumbnails', p.thumbnail), alt: 'Thumbnail' }), 'thumbnails', p.thumbnail)
-    : h('span', {}, 'Drop a thumbnail here', h('br'), 'or click to choose'));
+  if (!p.thumbnail) {
+    const zone = h('div', {
+      class: 'dropzone', tabIndex: 0, role: 'button', 'aria-label': 'Choose thumbnail',
+      onclick: async () => setThumbnail(await pickFiles(false)),
+      onkeydown: async e => { if (e.key === 'Enter' || e.key === ' ') setThumbnail(await pickFiles(false)); },
+    }, h('span', {}, 'Drop a thumbnail here', h('br'), 'or click to choose'));
+    dropTarget(zone, setThumbnail);
+    card.replaceChildren(h('h4', {}, 'Thumbnail'), zone);
+    return;
+  }
+
+  // With a thumbnail: click the picture to set its focus point (what crops keep in view).
+  const focus = parseFocus(p.thumbFocus);
+  const src = I.src('thumbnails', p.thumbnail);
+  const img = I.withFallback(h('img', { src, alt: 'Thumbnail', draggable: false }), 'thumbnails', p.thumbnail);
+  const marker = h('span', { class: 'focus-marker', style: `left:${focus.x}%;top:${focus.y}%` });
+  const frame = h('div', { class: 'focus-frame', title: 'Click to set the focus point' }, img, marker);
+  const setFocus = (x, y) => {
+    const v = `${Math.round(x)}% ${Math.round(y)}%`;
+    mutate(() => { if (v === '50% 50%') delete p.thumbFocus; else p.thumbFocus = v; });
+    renderThumb();
+  };
+  frame.addEventListener('click', e => {
+    const r = img.getBoundingClientRect();
+    const x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
+    const y = Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
+    setFocus(x, y);
+  });
+  const zone = h('div', { class: 'dropzone has-image' }, frame);
   dropTarget(zone, setThumbnail);
+
+  // Live preview of the widest crop on the site (the home page section banners)
+  const preview = h('div', { class: 'crop-preview' },
+    I.withFallback(h('img', { src, alt: '', style: `object-position:${focus.x}% ${focus.y}%` }), 'thumbnails', p.thumbnail));
+
   card.replaceChildren(
     h('h4', {}, 'Thumbnail'),
     zone,
-    p.thumbnail ? h('div', { class: 'thumb-tools' },
+    h('p', { class: 'hint' }, 'Click the picture to choose what stays in view when it’s cropped (e.g. a face).'),
+    h('div', { class: 'crop-label muted small' }, 'Widest crop on the site'),
+    preview,
+    h('div', { class: 'thumb-tools' },
       h('button', { class: 'btn link', onclick: async () => setThumbnail(await pickFiles(false)) }, 'Replace'),
-      h('button', { class: 'btn link', onclick: () => { mutate(() => { p.thumbnail = ''; }, { list: true }); renderThumb(); } }, 'Remove')) : null,
+      p.thumbFocus ? h('button', { class: 'btn link', onclick: () => setFocus(50, 50) }, 'Reset focus') : null,
+      h('button', { class: 'btn link', onclick: () => { mutate(() => { p.thumbnail = ''; delete p.thumbFocus; }, { list: true }); renderThumb(); } }, 'Remove')),
   );
+}
+
+function parseFocus(v) {
+  const m = /^(\d{1,3}(?:\.\d+)?)% (\d{1,3}(?:\.\d+)?)%$/.exec(String(v || '').trim());
+  return m ? { x: Math.min(100, +m[1]), y: Math.min(100, +m[2]) } : { x: 50, y: 50 };
 }
 
 // ---------------------------------------------------------------- gallery

@@ -17,7 +17,8 @@ import core
 from store import Store
 from videos import VideoChecker
 from widgets import (
-    COLORS, IMAGE_FILTER, GalleryList, ImageDrop, PlainEdit, SuggestEdit, dot, run_async, set_text_quietly,
+    COLORS, IMAGE_FILTER, GalleryList, ImageDrop, PlainEdit, SuggestEdit, crop_preview, dot, parse_focus, run_async,
+    set_text_quietly,
 )
 
 TEXT_KEYS = ["title", "client", "role", "production", "agency", "year", "platform", "deliverables", "description"]
@@ -184,11 +185,31 @@ class ProjectEditor(QScrollArea):
         # ---------------- right: thumbnail
         right.addWidget(section("Thumbnail"))
         self.thumb = ImageDrop("Drop a thumbnail here\nor click to choose")
+        self.thumb.focus_mode = True
         self.thumb.fileChosen.connect(self.set_thumbnail)
+        self.thumb.focusChosen.connect(self._set_focus)
         right.addWidget(self.thumb)
+        self.focus_hint = QLabel("Click the picture to choose what stays in view when it’s cropped (e.g. a face).")
+        self.focus_hint.setWordWrap(True)
+        self.focus_hint.setStyleSheet("color: palette(placeholder-text);")
+        right.addWidget(self.focus_hint)
+        self.crop_title = QLabel("Widest crop on the site")
+        self.crop_title.setStyleSheet("color: palette(placeholder-text); font-size: 11px;")
+        right.addWidget(self.crop_title)
+        self.crop = QLabel()
+        self.crop.setAlignment(Qt.AlignLeft)
+        right.addWidget(self.crop)
+        trow = QHBoxLayout()
+        self.thumb_replace = link_button("Replace…")
+        self.thumb_replace.clicked.connect(self._pick_thumbnail)
+        self.focus_reset = link_button("Reset focus")
+        self.focus_reset.clicked.connect(lambda: self._set_focus(50, 50))
         self.thumb_remove = link_button("Remove thumbnail")
         self.thumb_remove.clicked.connect(self._remove_thumbnail)
-        right.addWidget(self.thumb_remove)
+        for b in (self.thumb_replace, self.focus_reset, self.thumb_remove):
+            trow.addWidget(b)
+        trow.addStretch()
+        right.addLayout(trow)
 
         # ---------------- right: gallery
         self.add_stills = link_button("+ Add stills (gallery)")
@@ -255,8 +276,14 @@ class ProjectEditor(QScrollArea):
         self.show_stats.setChecked(bool(p.get("showStats")))
         self.show_stats.blockSignals(False)
         self._show_video_state()
-        self.thumb.show_path(self.store.repo.thumb_path(p))
-        self.thumb_remove.setVisible(bool(p.get("thumbnail")))
+        focus = parse_focus(p.get("thumbFocus"))
+        self.thumb.show_path(self.store.repo.thumb_path(p), focus)
+        has = bool(p.get("thumbnail")) and self.thumb._pix is not None
+        for w in (self.thumb_remove, self.thumb_replace, self.focus_hint, self.crop_title, self.crop):
+            w.setVisible(has)
+        self.focus_reset.setVisible(has and bool(p.get("thumbFocus")))
+        if has:
+            self.crop.setPixmap(crop_preview(self.thumb._pix, focus, 16 / 5, 420))
         gallery = p.get("gallery", [])
         show_gallery = bool(gallery) or p.get("category") == "colour-grading" or self._show_gallery
         self.gallery_box.setVisible(show_gallery)
@@ -457,15 +484,30 @@ class ProjectEditor(QScrollArea):
         if self.p is None:
             return
         try:
-            self.store.edit(self.p, "Change Thumbnail", lambda p: core.import_thumbnail(self.store.repo, p, src))
+            def fn(p):
+                core.import_thumbnail(self.store.repo, p, src)
+                p.pop("thumbFocus", None)   # a new picture starts centred
+            self.store.edit(self.p, "Change Thumbnail", fn)
         except Exception as e:
             QMessageBox.critical(self, "Thumbnail", f"Couldn't read that image:\n{e}")
             return
         self.message.emit("Thumbnail saved as WebP.")
 
+    def _pick_thumbnail(self):
+        f, _ = QFileDialog.getOpenFileName(self, "Choose thumbnail", "", IMAGE_FILTER)
+        if f:
+            self.set_thumbnail(Path(f))
+
+    def _set_focus(self, x: float, y: float):
+        if self.p is None:
+            return
+        value = f"{int(x)}% {int(y)}%"
+        self.store.edit(self.p, "Set Focus Point",
+                        lambda p: p.pop("thumbFocus", None) if value == "50% 50%" else p.__setitem__("thumbFocus", value))
+
     def _remove_thumbnail(self):
         if self.p and self.p.get("thumbnail"):
-            self.store.edit(self.p, "Remove Thumbnail", lambda p: p.__setitem__("thumbnail", ""))
+            self.store.edit(self.p, "Remove Thumbnail", lambda p: (p.__setitem__("thumbnail", ""), p.pop("thumbFocus", None)))
 
     def add_gallery(self, files: list[Path]):
         if self.p is None or not files:
