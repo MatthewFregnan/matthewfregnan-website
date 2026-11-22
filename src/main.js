@@ -480,11 +480,19 @@ const Previews = (() => {
     }
     return v;
   };
+  // iPhones only let a page hold a few videos open at once, so a stopped preview is fully let go (after
+  // its fade-out) rather than just paused; otherwise previews stop starting after the third or fourth.
+  const release = (v) => {
+    v.pause();
+    v.removeAttribute('src');
+    v.load();
+    v.remove();
+  };
   const stop = (tile) => {
     if (!tile) return;
     tile.classList.remove('is-previewing');
     const v = tile.querySelector('video.vp-preview');
-    if (v) setTimeout(() => { if (!tile.classList.contains('is-previewing')) v.pause(); }, 350);
+    if (v) setTimeout(() => { if (!tile.classList.contains('is-previewing') && current !== tile) release(v); }, 350);
     if (current === tile) current = null;
   };
   const play = (tile, restart = true) => {
@@ -493,7 +501,10 @@ const Previews = (() => {
     current = tile;
     const v = videoFor(tile);
     if (restart) v.currentTime = 0;
-    v.play().then(() => { if (current === tile) tile.classList.add('is-previewing'); }).catch(() => {});
+    v.play().then(() => { if (current === tile) tile.classList.add('is-previewing'); }).catch(() => {
+      // couldn't start (e.g. the phone is still letting go of the last one): try once more shortly
+      setTimeout(() => { if (current === tile) v.play().then(() => { if (current === tile) tile.classList.add('is-previewing'); }).catch(() => {}); }, 400);
+    });
   };
   return { play, stop, get current() { return current; } };
 })();
