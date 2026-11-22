@@ -318,3 +318,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// Home page background video: keep it silent and still for people who prefer reduced motion,
+// and make sure it starts on browsers that hold back autoplay until the page is visible.
+document.addEventListener('DOMContentLoaded', () => {
+  const hero = document.getElementById('hero-video');
+  if (!hero) return;
+  hero.muted = true;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const apply = () => {
+    if (reduce.matches) hero.pause();
+    else hero.play().catch(() => {});
+  };
+  apply();
+  reduce.addEventListener?.('change', apply);
+});

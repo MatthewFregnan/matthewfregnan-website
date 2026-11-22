@@ -2,18 +2,18 @@
 
 <!-- Hero Section with Video Background -->
 <section class="relative min-h-screen flex items-center justify-center overflow-hidden -mt-16">
-  <!-- YouTube Video Background -->
+  <!-- Background video: a silent self-hosted loop (no player controls). Set in data/site.json. -->
   <div class="absolute inset-0 w-full h-full">
-    <div class="absolute inset-0 w-full h-full pointer-events-none">
-      <iframe
+    <div class="absolute inset-0 w-full h-full pointer-events-none overflow-hidden" aria-hidden="true">
+      <video
         id="hero-video"
-        class="absolute top-1/2 left-1/2 min-w-[100vw] min-h-[100vh] w-auto h-auto -translate-x-1/2 -translate-y-1/2"
-        style="aspect-ratio: 16/9;"
-        src="https://www.youtube.com/embed/3bQmdVbqdjU?autoplay=1&mute=1&loop=1&playlist=3bQmdVbqdjU&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
-        frameborder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowfullscreen
-      ></iframe>
+        class="absolute inset-0 w-full h-full object-cover"
+        src="<%= site.heroVideo %>"
+        poster="<%= site.heroPoster %>"
+        autoplay muted loop playsinline disablepictureinpicture disableremoteplayback
+        preload="auto"
+        tabindex="-1"
+      ></video>
     </div>
     <!-- Dark overlay for text readability -->
     <div class="absolute inset-0 bg-black/50"></div>
