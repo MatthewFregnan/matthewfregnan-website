@@ -58,7 +58,19 @@
         "vertical/kia-ao24-influencer",
         "vertical/rs-rewards-footy"
       ],
-      "shuffle": true
+      "shuffle": true,
+      "locked": [
+        "commercial/redoctane-games-studio-launch-trailer"
+      ],
+      "reelsShuffle": true,
+      "soft": [
+        "vertical/stage-tour-comic-con",
+        "vertical/stage-tour-acai-vs-moose",
+        "vertical/stage-tour-controller-deep-dive",
+        "vertical/stage-tour-chart-guessing-game",
+        "vertical/crkd-pax-australia-2026",
+        "vertical/crkd---casual-ad"
+      ]
     }
   ]
 }
