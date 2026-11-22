@@ -585,7 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (section) {
         more.href = section.href;
         more.setAttribute('aria-label', `See more ${section.name} work`);
-        more.innerHTML = `<span>More</span><span class="more-name">&nbsp;${section.name}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`;
+        more.innerHTML = `<span>More</span><span class="more-name"><span>&nbsp;${section.name}</span></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`;
       }
     };
     const page = (dir) => {

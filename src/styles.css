@@ -513,9 +513,11 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); transition: background 0.2s, color 0.2s;
   animation: more-in 0.35s cubic-bezier(0.2, 0.9, 0.2, 1);
 }
-/* compact: just "More ›"; the section name slides out on hover */
-.scroller-more .more-name { display: inline-block; max-width: 0; overflow: hidden; vertical-align: bottom; transition: max-width 0.3s ease; }
-.scroller-more:hover .more-name, .scroller-more:focus-visible .more-name { max-width: 12em; }
+/* compact: just "More ›"; the section name slides out on hover. A 0fr → 1fr grid column animates to the
+   name's exact width both ways (a max-width guess opens too fast and closes late). */
+.scroller-more .more-name { display: inline-grid; grid-template-columns: 0fr; transition: grid-template-columns 0.3s ease; }
+.scroller-more .more-name > span { min-width: 0; overflow: hidden; white-space: nowrap; }
+.scroller-more:hover .more-name, .scroller-more:focus-visible .more-name { grid-template-columns: 1fr; }
 .scroller-more svg { width: 15px; height: 15px; margin-left: 2px; transition: transform 0.2s; }
 .scroller-more:hover { background: rgba(255, 255, 255, 0.95); color: #111; opacity: 1; }
 .scroller-more:hover svg { transform: translateX(2px); }
