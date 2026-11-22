@@ -37,16 +37,16 @@
   </div>
 
   <% if (clientStrip.length > 3) { %>
-    <%# Clients worked with: fades in a few seconds after the page opens and drifts slowly sideways.
+    <%# Clients worked with: rises and fades in soon after the page opens, then drifts slowly sideways.
         Every logo that has a file in images/logos (see "clients" in data/projects.json). %>
     <div class="hero-clients" aria-label="Clients include">
-      <div class="hero-clients-track">
+      <div class="hero-clients-rise"><div class="hero-clients-track">
         <% [0, 1].forEach(copy => { %>
           <div class="hero-clients-set"<% if (copy) { %> aria-hidden="true"<% } %>>
-            <% clientStrip.forEach(c => { %><img src="<%= c.src %>" alt="<%= copy ? '' : c.name %>" loading="lazy"><% }) %>
+            <% clientStrip.forEach(c => { %><img src="<%= c.src %>" alt="<%= copy ? '' : c.name %>" decoding="async"><% }) %>
           </div>
         <% }) %>
-      </div>
+      </div></div>
     </div>
   <% } %>
 

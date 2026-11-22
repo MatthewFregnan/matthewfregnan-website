@@ -620,7 +620,10 @@ function clientLogos(projects) {
   for (const p of projects) {
     const src = logoOf(p);
     const file = CLIENT_LOGOS.get(String(p.client || '').trim().toLowerCase());
-    if (src && !seen.has(file)) seen.set(file, { src, name: p.client.trim() });
+    if (!src || seen.has(file)) continue;
+    // the strip shows the full logo (icon and name) when there is one in images/logos/full
+    const full = fs.existsSync(path.join(IMAGES_DIR, 'logos', 'full', file));
+    seen.set(file, { src: full ? imageUrl('logos', `full/${file}`).replace('/images/logos/', '/images/logos-white/') : src, name: p.client.trim() });
   }
   return [...seen.values()];
 }
@@ -629,7 +632,8 @@ function clientLogos(projects) {
 // CSS colour filter, which some browsers drop while the tile animates (the logo flashed black).
 async function makeWhiteLogos() {
   let made = 0;
-  for (const file of new Set(CLIENT_LOGOS.values())) {
+  const files = [...new Set(CLIENT_LOGOS.values())];
+  for (const file of [...files, ...files.map(f => `full/${f}`)]) {
     const src = path.join(IMAGES_DIR, 'logos', file);
     if (!fs.existsSync(src)) continue;
     const { data, info } = await sharp(src).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
