@@ -2211,7 +2211,7 @@ const SITE_TEXT = [
   ]],
   ['Section pages', [
     ['intro_commercial', 'Commercial: line under the heading', 'TV and online campaigns for brands, agencies and government.', "Type - (a dash) to hide it."],
-    ['intro_branded', 'Branded: line under the heading', 'Brand stories, profiles and series made with organisations and creators.'],
+    ['intro_branded', 'Branded: line under the heading', 'Brand stories, profiles and series made with organisations and brands.'],
     ['intro_vertical', 'Social: line under the heading', 'Short-form for TikTok, Instagram and YouTube Shorts.'],
     ['intro_colour-grading', 'Colour: line under the heading', 'Grading for commercials, music videos and short films.'],
   ]],
