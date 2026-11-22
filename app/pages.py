@@ -304,6 +304,37 @@ class OverviewPage(QScrollArea):
         lay.addLayout(r)
         left.addWidget(card)
 
+        # view counts to refresh
+        stats = core.stats_to_refresh(projects)
+        due = [x for x in stats if x[1] >= core.STATS_DUE_DAYS]
+        fresh = [x for x in stats if x[1] < core.STATS_DUE_DAYS]
+        card, lay = _card(f"View counts to update ({len(due)})" if due else "View counts")
+        if not stats:
+            lay.addWidget(_muted("No projects show typed views or likes yet. Add them in a project's Video section."))
+        else:
+            if due:
+                lay.addWidget(_muted(f"Over {core.STATS_DUE_DAYS} days old. Open the post, then update the numbers "
+                                     "(or mark them as still current)."))
+            for group, items in (("due", due), ("fresh", fresh)):
+                if group == "fresh" and items:
+                    lay.addWidget(_muted(f"Up to date (updated in the last {core.STATS_DUE_DAYS} days):"))
+                for p, days in items:
+                    r = QHBoxLayout()
+                    views = f"{p['statsViews']} views · " if p.get("statsViews") else ""
+                    b = QPushButton(f"{p.get('title') or '(untitled)'}   ·   updated {core.ago_text(days)}   ·   {views.rstrip(' ·')}".rstrip(" ·"))
+                    b.setFlat(True)
+                    b.setStyleSheet("text-align: left; padding: 4px 2px;")
+                    b.clicked.connect(lambda _=False, p=p: self.a.open_project(p))
+                    r.addWidget(b, 1)
+                    if group == "due":
+                        ok = QPushButton("Still current")
+                        ok.setToolTip("The numbers haven't changed: mark them as checked today")
+                        ok.clicked.connect(lambda _=False, p=p: self.store.edit(
+                            p, "Mark Stats Checked", lambda q: q.__setitem__("statsUpdated", core.today())))
+                        r.addWidget(ok)
+                    lay.addLayout(r)
+        left.addWidget(card)
+
         # storage
         card, lay = _card("Video storage")
         lay.addWidget(QLabel(self._storage_text))

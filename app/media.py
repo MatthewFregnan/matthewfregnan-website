@@ -143,7 +143,7 @@ class FramePicker(QDialog):
     """Scrub a hosted video and grab frames as the thumbnail or gallery stills."""
     FRAME_MS = 40   # 25 fps
 
-    def __init__(self, parent, title: str, url: str, on_thumbnail, on_still):
+    def __init__(self, parent, title: str, url: str, on_thumbnail, on_still, stills: bool = False):
         super().__init__(parent)
         self.setWindowTitle(f"Pick from video · {title}")
         self.resize(900, 640)
@@ -176,6 +176,7 @@ class FramePicker(QDialog):
         b_still.clicked.connect(self._still)
         b_thumb.clicked.connect(self._thumb)
         b_done.clicked.connect(self.accept)
+        (b_still if stills else b_thumb).setDefault(True)   # the main action, depending on where it was opened
         lay = QVBoxLayout(self)
         lay.addWidget(self.video, 1)
         lay.addWidget(self.transport)

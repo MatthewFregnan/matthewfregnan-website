@@ -659,3 +659,9 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .tr-spark { width: 100%; height: 36px; display: block; margin: 6px 0; }
 .tr-spark polyline { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
 @media (max-width: 900px) { .tr-kpis { grid-template-columns: repeat(2, 1fr); } .tr-cols { grid-template-columns: 1fr; } }
+
+.ov-stat-row { display: flex; align-items: center; gap: 6px; }
+.ov-stat-row .ov-row { flex: 1; min-width: 0; }
+.ov-stat-row .btn.link { white-space: nowrap; font-size: 12px; }
+.ov-fresh { margin-top: 8px; }
+.ov-fresh summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }

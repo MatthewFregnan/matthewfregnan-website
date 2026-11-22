@@ -743,7 +743,7 @@ function linkUploadedVideo(job, url) {
   mutate(() => V.setSource(p, 'file', ref), { list: true });
   S.current = prev;
   V.check(ref, true).then(() => { if (S.current === p) renderVideo(); }).catch(() => {});
-  if (S.current === p) renderVideo();
+  if (S.current === p) renderMedia();   // Thumbnail and Stills get "Pick from Video…" now there's a file
   toast(`Uploaded the video for “${job.title}”. Publish to put it live.`, 6000);
 }
 
@@ -766,6 +766,45 @@ function renderUploads() {
   }
 }
 
+const today = () => new Date().toISOString().slice(0, 10);
+
+/** Projects showing typed view counts, oldest numbers first: [{ p, days, when }]. */
+function statsToRefresh() {
+  const typed = p => p.showStats && (p.statsViews || p.statsLikes || p.statsComments);
+  return projects().filter(typed).map(p => {
+    const when = p.statsUpdated || (p.updated || '').slice(0, 10);   // older projects: their last edit
+    const days = when ? Math.floor((Date.now() - new Date(`${when}T00:00`).getTime()) / 86400000) : 9999;
+    return { p, days, when };
+  }).sort((a, b) => b.days - a.days);
+}
+
+const STATS_DUE_DAYS = 30;
+const agoText = days => (days >= 9999 ? 'never dated' : days === 0 ? 'today' : days === 1 ? 'yesterday'
+  : days < 60 ? `${days} days ago` : `${Math.round(days / 30)} months ago`);
+
+function statsCard(card, open) {
+  const list = statsToRefresh();
+  if (!list.length) {
+    return card('View counts', h('p', { class: 'muted small' },
+      'No projects show typed views or likes yet. Add them in a project’s Video section.'));
+  }
+  const due = list.filter(x => x.days >= STATS_DUE_DAYS);
+  const fresh = list.filter(x => x.days < STATS_DUE_DAYS);
+  const platform = p => STATS_PLATFORMS.find(([v]) => v === (p.statsPlatform ?? (p.instagramId ? 'instagram' : p.tiktokId ? 'tiktok' : '')))?.[1] || '';
+  const row = ({ p, days }) => h('div', { class: 'ov-stat-row' },
+    h('button', { class: 'ov-row', onclick: () => open(p) }, thumbFor(p),
+      h('span', { class: 'row-text' }, h('span', { class: 'row-title' }, p.title || '(untitled)'),
+        h('span', { class: 'row-sub' }, `Updated ${agoText(days)}${p.statsViews ? ` · ${p.statsViews} views` : ''}${platform(p) && !platform(p).startsWith('Don') ? ` on ${platform(p)}` : ''}`))),
+    days >= STATS_DUE_DAYS ? h('button', { class: 'btn link', title: 'The numbers haven’t changed: mark them as checked today',
+      onclick: () => { const prev = S.current; S.current = p; mutate(() => { p.statsUpdated = today(); }); S.current = prev; renderOverview(); } }, 'Still current') : null);
+  return card(due.length ? `View counts to update (${due.length})` : 'View counts',
+    due.length ? [h('p', { class: 'muted small' }, `Over ${STATS_DUE_DAYS} days old. Open the post, then update the numbers (or mark them as still current).`),
+      h('div', { class: 'ov-list' }, due.map(row))] : null,
+    fresh.length ? h('details', { class: 'ov-fresh', open: !due.length },
+      h('summary', {}, `${fresh.length} up to date (updated in the last ${STATS_DUE_DAYS} days)`),
+      h('div', { class: 'ov-list' }, fresh.map(row))) : null);
+}
+
 const STATS_PLATFORMS = [['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['youtube', 'YouTube'], ['facebook', 'Facebook'],
   ['linkedin', 'LinkedIn'], ['vimeo', 'Vimeo'], ['x', 'X'], ['', 'Don’t say (across platforms)']];
 
@@ -774,7 +813,7 @@ function statsFields(p) {
   const field = (key, label, placeholder) => h('label', { class: 'stat-field' }, h('span', { class: 'muted small' }, label),
     h('input', { value: p[key] || '', placeholder, inputmode: 'decimal', onchange: e => {
       const v = e.target.value.trim();
-      mutate(() => { if (v) p[key] = v; else delete p[key]; });
+      mutate(() => { if (v) p[key] = v; else delete p[key]; p.statsUpdated = today(); });
     } }));
   const where = p.statsPlatform ?? (p.instagramId ? 'instagram' : p.tiktokId ? 'tiktok' : '');
   return h('div', { class: 'stats-box' },
@@ -783,7 +822,7 @@ function statsFields(p) {
       field('statsLikes', 'Likes', 'e.g. 45K'),
       field('statsComments', 'Comments', 'e.g. 320'),
       h('label', { class: 'stat-field' }, h('span', { class: 'muted small' }, 'Counted on'),
-        h('select', { onchange: e => mutate(() => { p.statsPlatform = e.target.value; }) },
+        h('select', { onchange: e => mutate(() => { p.statsPlatform = e.target.value; p.statsUpdated = today(); }) },
           STATS_PLATFORMS.map(([v, n]) => h('option', { value: v, selected: v === where }, n))))),
     h('p', { class: 'hint' }, 'Type the numbers from the post (1.2M, 45K or 45000). Leave them all empty to use YouTube’s or Vimeo’s live count instead. Shown like “1.2M views · 45K likes · 320 comments on Instagram”.'));
 }
@@ -817,7 +856,7 @@ function setSourceFromInput(kind, text) {
     return;
   }
   mutate(() => V.setSource(p, target, ref));
-  renderVideo();
+  if (target === 'file') renderMedia(); else renderVideo();   // a file unlocks Pick from Video
   if (ref) V.check(ref, true);
 }
 
@@ -956,15 +995,26 @@ function renderThumb() {
 // ---------------------------------------------------------------- pick frames from the video
 
 /** "Pick from video" is offered when the project has its own hosted video file. */
-function pickFromVideoButton(p) {
-  const ref = V.sources(p).file;
-  if (!ref) {
-    return h('p', { class: 'hint' }, 'Add a hosted video file to pick a thumbnail or stills straight from the video.');
-  }
-  return h('button', { class: 'btn', style: 'margin-top:8px', onclick: () => openFramePicker(p, ref.id) }, 'Pick from Video…');
+/** Redraw the video, thumbnail and stills sections (e.g. once a video file is added). */
+function renderMedia() {
+  renderVideo();
+  renderThumb();
+  renderGallery();
 }
 
-function openFramePicker(p, url) {
+function pickFromVideoButton(p, mode = 'thumb') {
+  const ref = V.sources(p).file;
+  if (!ref) {
+    return h('p', { class: 'hint' }, mode === 'stills'
+      ? 'Add a hosted video file to pick stills straight from the video.'
+      : 'Add a hosted video file to pick a thumbnail or stills straight from the video.');
+  }
+  return h('button', { class: 'btn', style: 'margin-top:8px', onclick: () => openFramePicker(p, ref.id, mode) },
+    mode === 'stills' ? 'Pick Stills from Video…' : 'Pick from Video…');
+}
+
+/** Scrub the hosted video and grab frames: as the thumbnail, or as stills. `mode` picks the main button. */
+function openFramePicker(p, url, mode = 'thumb') {
   const d = $('#dialog');
   d.classList.add('wide');
   d.addEventListener('close', () => d.classList.remove('wide'), { once: true });
@@ -1025,10 +1075,11 @@ function openFramePicker(p, url) {
     status,
     added,
     h('div', { class: 'actions' },
-      h('button', { class: 'btn', onclick: addStill }, 'Add to Stills'),
-      h('button', { class: 'btn primary', onclick: useAsThumb }, 'Use as Thumbnail'),
+      h('button', { class: `btn${mode === 'stills' ? ' primary' : ''}`, onclick: addStill }, 'Add to Stills'),
+      h('button', { class: `btn${mode === 'stills' ? '' : ' primary'}`, onclick: useAsThumb }, 'Use as Thumbnail'),
       h('button', { class: 'btn', onclick: () => d.close() }, 'Done')),
   );
+  d.addEventListener('close', () => { if (S.current === p) { renderThumb(); renderGallery(); } }, { once: true });
   if (!d.open) d.showModal();
 }
 
@@ -1100,7 +1151,8 @@ function renderGallery() {
     h('button', { class: 'add', onclick: async () => addGallery(await pickFiles(true)) }, '+ Add images'));
   dropTarget(grid, addGallery);
   card.replaceChildren(h('h4', {}, `Gallery (${gallery.length})`), grid,
-    h('p', { class: 'hint' }, 'Drag to reorder · drop images from your computer to add'));
+    h('p', { class: 'hint' }, 'Drag to reorder · drop images from your computer to add'),
+    pickFromVideoButton(p, 'stills'));
 }
 
 // =========================================================================== dialogs
@@ -1630,6 +1682,8 @@ function renderOverview() {
           issues.length > 8 ? h('p', { class: 'muted small' }, `…and ${issues.length - 8} more`) : null)
           : h('p', { class: 'muted' }, checking ? 'Checking videos…' : [h('span', { class: 'dot ok' }), ' Nothing to fix. Every video plays.']),
         h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: checkVideos }, 'Check Videos Now'))),
+      statsCard(card, p => { clearSearchFor(p); S.editorTab = 'details'; select(p);
+        setTimeout(() => $('.stats-box')?.scrollIntoView({ block: 'center' }), 50); }),
       trafficCard, storageCard), h('div', { class: 'ov-col' },
       card('Home page',
         h('p', {}, h('strong', {}, set?.name || '—'), h('span', { class: 'muted' }, ' is on the site')),

@@ -92,6 +92,40 @@ def unique_id(data: dict, base: str, category: str, ignore: dict | None = None) 
     return cand
 
 
+def today() -> str:
+    from datetime import date
+    return date.today().isoformat()
+
+
+STATS_DUE_DAYS = 30
+
+
+def stats_to_refresh(projects: list[dict]) -> list[tuple[dict, int]]:
+    """Projects showing typed view counts, oldest numbers first: [(project, days since updated)]."""
+    from datetime import date
+    out = []
+    for p in projects:
+        if not (p.get("showStats") and (p.get("statsViews") or p.get("statsLikes") or p.get("statsComments"))):
+            continue
+        when = p.get("statsUpdated") or (p.get("updated") or "")[:10]   # older projects: their last edit
+        try:
+            days = (date.today() - date.fromisoformat(when)).days
+        except ValueError:
+            days = 9999
+        out.append((p, days))
+    return sorted(out, key=lambda x: -x[1])
+
+
+def ago_text(days: int) -> str:
+    if days >= 9999:
+        return "never dated"
+    if days == 0:
+        return "today"
+    if days == 1:
+        return "yesterday"
+    return f"{days} days ago" if days < 60 else f"{round(days / 30)} months ago"
+
+
 def remember_address(p: dict, old_key: str):
     """Keep the old page address so the site can redirect it after a rename or category change."""
     new_key = project_key(p)

@@ -287,7 +287,11 @@ class ProjectEditor(QScrollArea):
             [Path(f) for f in QFileDialog.getOpenFileNames(self, "Add gallery images", "", IMAGE_FILTER)[0]]))
         b_rm = QPushButton("Remove Selected")
         b_rm.clicked.connect(self._remove_gallery)
+        self.btn_pick_stills = QPushButton("Pick Stills from Video…")
+        self.btn_pick_stills.setToolTip("Scrub this project's video and add frames as stills")
+        self.btn_pick_stills.clicked.connect(lambda: self.pick_from_video(stills=True))
         row.addWidget(b_add)
+        row.addWidget(self.btn_pick_stills)
         row.addWidget(b_rm)
         row.addStretch()
         gb.addLayout(row)
@@ -475,12 +479,18 @@ class ProjectEditor(QScrollArea):
         v = text.strip()
         if self.p is None or v == str(self.p.get(key, "")):
             return
-        self.store.edit(self.p, "Change Stats", lambda p: p.__setitem__(key, v) if v else p.pop(key, None))
+        def fn(p):
+            if v:
+                p[key] = v
+            else:
+                p.pop(key, None)
+            p["statsUpdated"] = core.today()
+        self.store.edit(self.p, "Change Stats", fn)
 
     def _set_stats_platform(self):
         v = self.stats_platform.currentData()
         if self.p is not None and v != self.p.get("statsPlatform"):
-            self.store.edit(self.p, "Change Stats", lambda p: p.__setitem__("statsPlatform", v))
+            self.store.edit(self.p, "Change Stats", lambda p: p.update(statsPlatform=v, statsUpdated=core.today()))
 
     def _open_source(self, kind: str):
         ref = core.project_sources(self.p or {}).get(kind)
@@ -546,6 +556,7 @@ class ProjectEditor(QScrollArea):
     def _update_preview(self, p, ordered):
         file_ref = next((r for r in ordered if r.kind == "file"), None)
         self.btn_pick.setVisible(file_ref is not None)
+        self.btn_pick_stills.setVisible(file_ref is not None)
         active = next((r for r in ordered if (s := self.checker.get(r)) is None or s.ok is not False), None)
         active = active or (ordered[0] if ordered else None)
         if active and active.kind == "file":
@@ -586,7 +597,7 @@ class ProjectEditor(QScrollArea):
             self.upload_state.setText(f"{dot('unknown')} {'Uploading' if job.state == 'running' else 'Waiting to upload'} "
                                       f"{job.src.name}: {job.status}")
 
-    def pick_from_video(self):
+    def pick_from_video(self, stills: bool = False):
         p = self.p
         ref = core.project_sources(p).get("file") if p else None
         if not ref:
@@ -595,7 +606,7 @@ class ProjectEditor(QScrollArea):
         self.preview.stop()
         FramePicker(self, p.get("title", ""), ref.id,
                     on_thumbnail=self.set_thumbnail,
-                    on_still=lambda path: self.add_gallery([path])).exec()
+                    on_still=lambda path: self.add_gallery([path]), stills=stills).exec()
 
     def use_video_details(self):
         p = self.p
