@@ -808,20 +808,6 @@
       "updated": "2026-11-22T03:50:40"
     },
     {
-      "id": "crkd-sale-ad",
-      "title": "CRKD Sale AD",
-      "category": "vertical",
-      "client": "CRKD",
-      "role": "Editor",
-      "production": "",
-      "year": "2026",
-      "description": "",
-      "thumbnail": "vertical/crkd-sale-ad.jpg",
-      "updated": "2026-11-22T12:05:40",
-      "videoFile": "https://videos.matthewfregnan.com/vertical/crkd-sale-ad-mwrsg3o7.mp4?v=1795349019756",
-      "thumbFocus": "53% 78%"
-    },
-    {
       "id": "rs-rewards-footy",
       "title": "RS Rewards - Friday Night Footy",
       "category": "vertical",
@@ -954,6 +940,22 @@
       "production": "Milk Video",
       "updated": "2026-11-22T04:50:18",
       "thumbFocus": "73% 46%"
+    },
+    {
+      "id": "crkd-sale-ad",
+      "title": "CRKD Sale AD",
+      "category": "vertical",
+      "client": "CRKD",
+      "role": "Editor",
+      "production": "",
+      "year": "2026",
+      "description": "",
+      "thumbnail": "vertical/crkd-sale-ad.jpg",
+      "updated": "2026-11-22T12:50:44",
+      "videoFile": "https://videos.matthewfregnan.com/vertical/crkd-sale-ad-mwrsg3o7.mp4?v=1795349019756",
+      "thumbFocus": "53% 78%",
+      "hidden": true,
+      "hiddenSince": "2026-11-22"
     },
     {
       "id": "crkd---febuary-news-reel",
