@@ -608,20 +608,6 @@
 @media (max-height: 640px) { .hero-clients, .hero-clients-label { display: none; } }
 @media (prefers-reduced-motion: reduce) { .hero-clients-track { animation: none; } }
 
-/* Home page, after the work: a way on to the About page */
-.home-about {
-  display: flex; align-items: center; gap: 20px; margin-top: 48px; padding: 20px 24px; border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); transition: background 0.2s, border-color 0.2s;
-}
-.home-about:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); }
-.home-about img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex: none; }
-.home-about-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.home-about-title { font-size: 1.25rem; font-weight: 300; }
-.home-about-sub { font-size: 0.9rem; color: #a0a0a0; }
-.home-about-go { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.45); font-size: 0.875rem; white-space: nowrap; transition: background 0.2s, color 0.2s; }
-.home-about-go svg { width: 16px; height: 16px; }
-.home-about:hover .home-about-go { background: #fff; color: #111; }
-@media (max-width: 639px) { .home-about { flex-wrap: wrap; } .home-about-go { margin-left: 84px; } }
 
 /* Project page reach: one line per number, the number big */
 .stats-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
@@ -671,9 +657,9 @@ footer { animation: page-fade 0.35s ease-out 0.1s backwards; }
 @media (max-width: 639px) { .more-next-title { max-width: 12em; } .more-grid-v > :nth-child(3) { display: none; } }
 
 /* Closing call to action, above the footer on every page but About (partials/footer.ejs) */
-.closing-cta { padding: 72px 0 80px; text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.08); }
-.closing-cta-title { font-size: clamp(1.75rem, 3.2vw, 2.5rem); font-weight: 300; margin: 0 0 12px; }
-.closing-cta-text { color: #a0a0a0; max-width: 34em; margin: 0 auto 28px; line-height: 1.6; }
+.closing-cta { padding: 48px 0 56px; text-align: center; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.closing-cta-title { font-size: clamp(1.5rem, 2.6vw, 2rem); font-weight: 300; margin: 0 0 8px; }
+.closing-cta-text { color: #a0a0a0; max-width: 34em; margin: 0 auto 22px; line-height: 1.6; }
 .closing-cta-btn {
   display: inline-flex; align-items: center; gap: 10px; padding: 13px 26px; border-radius: 999px; background: #fff; color: #111;
   font-size: 0.95rem; letter-spacing: 0.02em; transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -708,3 +694,27 @@ footer { animation: page-fade 0.35s ease-out 0.1s backwards; }
 .contact-btn:hover { opacity: 1; background: #fff; color: #111; }
 .contact-where { margin: 18px 0 0; color: #8a8a8a; font-size: 0.85rem; }
 @media (prefers-reduced-motion: reduce) { .contact-panel[open], .contact-panel::backdrop { animation: none; } }
+
+/* Home page close: about me | get in touch, side by side (stacked on phones) */
+.closing-cta.is-duo { padding: 0 0 40px; text-align: left; border-top: 0; }
+.closing-duo { display: grid; gap: 12px; }
+@media (min-width: 900px) { .closing-duo { grid-template-columns: 1fr 1fr; } }
+.duo-about, .duo-contact {
+  display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.duo-about { transition: background 0.2s, border-color 0.2s; }
+.duo-about:hover { opacity: 1; background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); }
+.duo-about img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex: none; }
+.duo-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.duo-title { font-size: 1.15rem; font-weight: 300; }
+.duo-sub { font-size: 0.875rem; color: #a0a0a0; line-height: 1.45; }
+.duo-btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.45); font-size: 0.875rem; white-space: nowrap; transition: background 0.2s, color 0.2s; }
+.duo-btn svg, .duo-contact .closing-cta-btn svg { width: 16px; height: 16px; }
+.duo-about:hover .duo-btn { background: #fff; color: #111; }
+.duo-contact .closing-cta-btn { padding: 10px 18px; font-size: 0.875rem; white-space: nowrap; flex: none; }
+@media (max-width: 639px) {
+  .duo-about, .duo-contact { flex-wrap: wrap; }
+  .duo-btn, .duo-contact .closing-cta-btn { margin-left: 0; }
+  .duo-about .duo-btn { margin-left: 74px; }
+}

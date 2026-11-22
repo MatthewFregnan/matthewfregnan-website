@@ -1,12 +1,37 @@
-  <%# Closing call to action on every page except About (which has its own "Get in touch") %>
+  <%# Closing call to action on every page except About (which has its own "Get in touch"). On the home
+      page it sits beside a short "about me", so the page ends with one row offering both next steps. %>
   <% if (activePage !== 'about') { %>
-  <section class="closing-cta">
+  <section class="closing-cta<%= activePage === 'home' ? ' is-duo' : '' %>">
     <div class="container mx-auto px-4">
+      <% if (activePage === 'home') { %>
+      <div class="closing-duo">
+        <a href="/about/" class="duo-about">
+          <img src="<%= imageUrl('', 'headshot.jpg').replace('/images//', '/images/') %>" alt="" loading="lazy">
+          <span class="duo-text">
+            <span class="duo-title"><%= text.homeAboutTitle %></span>
+            <span class="duo-sub"><%= text.homeAboutText %></span>
+          </span>
+          <span class="duo-btn"><%= text.homeAboutButton %>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </span>
+        </a>
+        <div class="duo-contact">
+          <span class="duo-text">
+            <span class="duo-title"><%= text.ctaHeading %></span>
+            <span class="duo-sub"><%= text.ctaText %></span>
+          </span>
+          <a href="mailto:<%= site.email %>" class="closing-cta-btn" data-contact><%= text.ctaButton %>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+        </div>
+      </div>
+      <% } else { %>
       <h2 class="closing-cta-title"><%= text.ctaHeading %></h2>
       <p class="closing-cta-text"><%= text.ctaText %></p>
       <a href="mailto:<%= site.email %>" class="closing-cta-btn" data-contact><%= text.ctaButton %>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
+      <% } %>
     </div>
   </section>
   <% } %>
