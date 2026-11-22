@@ -600,7 +600,26 @@ async function fingerprintAdmin() {
 const CLIENT_LOGOS = new Map();
 function logoOf(p) {
   const file = CLIENT_LOGOS.get(String(p.client || '').trim().toLowerCase());
-  return file && fs.existsSync(path.join(IMAGES_DIR, 'logos', file)) ? imageUrl('logos', file) : '';
+  if (!file || !fs.existsSync(path.join(IMAGES_DIR, 'logos', file))) return '';
+  // the white copy made by makeWhiteLogos, versioned by the original file
+  return imageUrl('logos', file).replace('/images/logos/', '/images/logos-white/');
+}
+
+// Logos show white on the tiles. Bake that into white copies (dist/images/logos-white) instead of a
+// CSS colour filter, which some browsers drop while the tile animates (the logo flashed black).
+async function makeWhiteLogos() {
+  let made = 0;
+  for (const file of new Set(CLIENT_LOGOS.values())) {
+    const src = path.join(IMAGES_DIR, 'logos', file);
+    if (!fs.existsSync(src)) continue;
+    const { data, info } = await sharp(src).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    for (let i = 0; i < data.length; i += 4) { data[i] = 255; data[i + 1] = 255; data[i + 2] = 255; }
+    const out = path.join(DIST_DIR, 'images', 'logos-white', file);
+    await fs.ensureDir(path.dirname(out));
+    await sharp(data, { raw: info }).webp({ quality: 92, alphaQuality: 100 }).toFile(out);
+    made += 1;
+  }
+  if (made) console.log(`  White client logos: ${made}`);
 }
 
 // Image URLs carry a short hash of the file (?v=...), so replacing an image under the same
@@ -761,6 +780,7 @@ async function buildPages() {
   for (const [name, c] of Object.entries(projects.clients || {})) {
     if (c && c.logo) CLIENT_LOGOS.set(name.trim().toLowerCase(), c.logo);
   }
+  await makeWhiteLogos();
 
   console.log('Checking video links...');
   await resolveVideos(projects.projects);

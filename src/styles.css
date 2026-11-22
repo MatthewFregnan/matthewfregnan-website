@@ -497,23 +497,28 @@
 .portfolio-item .card-logo, .portfolio-item-vertical .card-logo {
   position: absolute; top: 12px; left: 12px; z-index: 2; height: 24px; width: auto; max-width: 45%; transform: none;
   object-fit: contain; object-position: left top; pointer-events: none;
-  filter: brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55)); opacity: 0.92;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55)); opacity: 0.92; transition: opacity 0.25s ease;
 }
 .portfolio-item-vertical .card-logo { height: 18px; top: 10px; left: 10px; }
 .portfolio-item:hover .card-logo, .portfolio-item-vertical:hover .card-logo { transform: none; }
+/* out of the way while the tile's video plays */
+.portfolio-item.is-previewing .card-logo, .portfolio-item-vertical.is-previewing .card-logo { opacity: 0; }
 
 /* End of a home page row: "More Commercial ›" etc. takes you to that section's page */
 .scroller-more {
-  position: absolute; top: 50%; right: -8px; z-index: 4; transform: translateY(-50%);
-  display: inline-flex; align-items: center; gap: 4px; padding: 9px 12px 9px 16px; border-radius: 999px;
-  color: #fff; font-size: 14px; white-space: nowrap; text-decoration: none;
-  background: rgba(20, 20, 20, 0.8); border: 1px solid rgba(255, 255, 255, 0.25); backdrop-filter: blur(6px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); transition: background 0.2s, color 0.2s, padding 0.2s;
+  position: absolute; top: 50%; right: -6px; z-index: 4; transform: translateY(-50%);
+  display: inline-flex; align-items: center; height: 32px; padding: 0 8px 0 12px; border-radius: 999px;
+  color: #fff; font-size: 12.5px; letter-spacing: 0.01em; white-space: nowrap; text-decoration: none;
+  background: rgba(20, 20, 20, 0.78); border: 1px solid rgba(255, 255, 255, 0.22); backdrop-filter: blur(6px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4); transition: background 0.2s, color 0.2s;
   animation: more-in 0.35s cubic-bezier(0.2, 0.9, 0.2, 1);
 }
-.scroller-more svg { width: 18px; height: 18px; transition: transform 0.2s; }
+/* compact: just "More ›"; the section name slides out on hover */
+.scroller-more .more-name { display: inline-block; max-width: 0; overflow: hidden; vertical-align: bottom; transition: max-width 0.3s ease; }
+.scroller-more:hover .more-name, .scroller-more:focus-visible .more-name { max-width: 12em; }
+.scroller-more svg { width: 15px; height: 15px; margin-left: 2px; transition: transform 0.2s; }
 .scroller-more:hover { background: rgba(255, 255, 255, 0.95); color: #111; opacity: 1; }
-.scroller-more:hover svg { transform: translateX(3px); }
+.scroller-more:hover svg { transform: translateX(2px); }
 .scroller-more[hidden] { display: none; }
 @keyframes more-in { from { opacity: 0; transform: translate(10px, -50%); } to { opacity: 1; transform: translate(0, -50%); } }
-@media (max-width: 639px) { .scroller-more { right: 4px; padding: 8px 10px 8px 14px; font-size: 13px; } }
+@media (max-width: 639px) { .scroller-more { right: 4px; height: 30px; } }
