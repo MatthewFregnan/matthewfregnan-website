@@ -23,6 +23,24 @@
   ],
   "projects": [
     {
+      "id": "crkd-pax-australia-2026",
+      "title": "CRKD x PAX Australia 2026",
+      "category": "vertical",
+      "client": "CRKD",
+      "role": "Editor",
+      "production": "",
+      "year": "2026",
+      "description": "",
+      "thumbnail": "vertical/crkd-pax-australia-2026.jpg",
+      "updated": "2026-11-22T09:54:19",
+      "formerAddresses": [
+        "vertical/new-project",
+        "vertical/crkd-x-pax-australia-2026"
+      ],
+      "videoFile": "https://videos.matthewfregnan.com/vertical/crkd-pax-australia-2026-mwrnsj9j.mp4?v=1795341212722",
+      "thumbFocus": "53% 37%"
+    },
+    {
       "id": "stage-tour-controller-deep-dive",
       "title": "Stage Tour Controller Hardware Deep Dive",
       "category": "vertical",
