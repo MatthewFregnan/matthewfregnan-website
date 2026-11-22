@@ -289,7 +289,7 @@ async function fetchStats(projects) {
     s.text = [part(s.views, 'view'), part(s.likes, 'like'), part(s.comments, 'comment')].filter(Boolean).join(' · ');
     // one line per number on the project page (partials/stats-fact.ejs)
     s.lines = [[s.views, 'view'], [s.likes, 'like'], [s.comments, 'comment']].filter(([n]) => n)
-      .map(([n, word]) => ({ n: compact.format(n), word: `${word}${n === 1 ? '' : 's'}` }));
+      .map(([n, word]) => ({ n: compact.format(n), word: `${word}${n === 1 ? '' : 's'}`, kind: word }));
     s.where = STATS_PLATFORMS[s.kind] || '';
     // "on Instagram" etc. links to the post when the project has that platform's link
     s.link = (p._video?.sources || []).find(src => src.kind === s.kind)?.page || '';

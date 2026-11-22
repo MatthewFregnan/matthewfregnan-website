@@ -101,6 +101,11 @@ export async function stats({ token, endpoint = UPLOAD_ENDPOINT }, days) {
   return call(endpoint, token, 'GET', `/stats?days=${days}`);
 }
 
+/** Deletes every recorded visit (the Traffic page starts from zero). */
+export async function resetStats({ token, endpoint = UPLOAD_ENDPOINT }) {
+  return call(endpoint, token, 'DELETE', '/stats');
+}
+
 /** Everything in video storage: { objects: [{ key, size, uploaded }], total }. */
 export async function usage({ token, endpoint = UPLOAD_ENDPOINT }) {
   return call(endpoint, token, 'GET', '/usage');

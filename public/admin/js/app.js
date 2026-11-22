@@ -2277,6 +2277,21 @@ async function loadTraffic(days, force = false) {
   return data;
 }
 
+/** Deletes every recorded visit, after a confirmation (it can't be undone). */
+async function resetTraffic() {
+  if (!(await confirmDialog('Reset all stats?',
+    'This permanently deletes every recorded visit, so the Traffic page and the Overview start again from zero. It can’t be undone. (Views, likes and comments on your projects aren’t affected.)',
+    'Delete All Visits', true))) return;
+  try {
+    const { deleted } = await U.resetStats(uploadConfig());
+    S.traffic = {};
+    toast(`Stats reset: ${deleted} recorded page view${deleted === 1 ? '' : 's'} deleted.`, 6000);
+    renderTrafficPage(true);
+  } catch (e) {
+    toast(`Couldn’t reset stats: ${e.message}`, 8000);
+  }
+}
+
 async function renderTrafficPage(force = false) {
   const page = $('#page-traffic');
   const body = h('div', {}, h('p', { class: 'muted' }, 'Loading visits…'));
@@ -2285,8 +2300,10 @@ async function renderTrafficPage(force = false) {
     h('div', { class: 'page-head' }, h('h2', {}, 'Traffic'),
       h('p', { class: 'muted' }, 'Who’s looking at your site: visitors per day, what they watch, where they came from and how they move around.')),
     h('div', { class: 'preview-bar' },
-      h('div', { class: 'segs' }, seg(7, 'Last 7 days'), seg(30, '30 days'), seg(90, '90 days'), seg(365, 'Year')),
-      h('button', { class: 'btn', onclick: () => renderTrafficPage(true) }, 'Refresh')),
+      h('div', { class: 'segs' }, seg(1, 'Today'), seg(7, 'Last 7 days'), seg(30, '30 days'), seg(90, '90 days'), seg(365, 'Year')),
+      h('button', { class: 'btn', onclick: () => renderTrafficPage(true) }, 'Refresh'),
+      h('span', { class: 'tb-spacer' }),
+      h('button', { class: 'btn danger', disabled: !uploadConfig(), onclick: resetTraffic }, 'Reset All Stats…')),
     body));
   if (!uploadConfig()) { body.replaceChildren(h('p', { class: 'muted' }, 'Sign in to see traffic.')); return; }
   try {

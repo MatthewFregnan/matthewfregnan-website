@@ -24,17 +24,31 @@ export function summarise(rows, days, now = Date.now()) {
     if (!v.source) v.source = 'Direct';
   }
 
-  // Daily visitors and page views (local days), including days with none
+  // Visitors and page views per local day, including days with none. "Today" (days = 1) is the last
+  // 24 hours, one bar per hour.
   const daily = [];
-  const start = new Date(now - (days - 1) * DAY);
-  start.setHours(0, 0, 0, 0);
   const byDay = new Map();
-  for (let t = start.getTime(); t <= now; t += DAY) {
-    const k = dayKey(t);
-    if (!byDay.has(k)) { const d = { day: k, visitors: 0, views: 0 }; byDay.set(k, d); daily.push(d); }
+  const HOUR = 3600000;
+  const hourly = days === 1;
+  const keyOf = hourly ? (t => Math.floor(t / HOUR)) : dayKey;
+  if (hourly) {
+    for (let i = 23; i >= 0; i -= 1) {
+      const t = now - i * HOUR;
+      const k = keyOf(t);
+      const at = new Date(k * HOUR);
+      const d = { day: dayKey(t), hour: at.getHours(), label: at.toLocaleTimeString(undefined, { hour: 'numeric' }), visitors: 0, views: 0 };
+      byDay.set(k, d); daily.push(d);
+    }
+  } else {
+    const start = new Date(now - (days - 1) * DAY);
+    start.setHours(0, 0, 0, 0);
+    for (let t = start.getTime(); t <= now; t += DAY) {
+      const k = dayKey(t);
+      if (!byDay.has(k)) { const d = { day: k, visitors: 0, views: 0 }; byDay.set(k, d); daily.push(d); }
+    }
   }
-  for (const [ts] of rows) { const d = byDay.get(dayKey(ts)); if (d) d.views += 1; }
-  for (const v of visits.values()) { const d = byDay.get(dayKey(v.start)); if (d) d.visitors += 1; }
+  for (const [ts] of rows) { const d = byDay.get(keyOf(ts)); if (d) d.views += 1; }
+  for (const v of visits.values()) { const d = byDay.get(keyOf(v.start)); if (d) d.visitors += 1; }
 
   const count = (items, key) => {
     const m = new Map();
@@ -107,7 +121,7 @@ function chart(h, daily) {
     svg.append(e);
     return e;
   };
-  for (const f of [0.5, 1]) {
+  for (const f of (max < 2 ? [1] : [0.5, 1])) {   // no half-way line (a second "1") when the top is 1
     const y = H - (H - 8) * f;
     el('line', { x1: pad, x2: W, y1: y, y2: y, class: 'tr-grid' });
     el('text', { x: pad - 6, y: y + 4, 'text-anchor': 'end', class: 'tr-axis' }, String(Math.round(max * f)));
@@ -118,7 +132,8 @@ function chart(h, daily) {
     const x = pad + i * bw + bw * 0.15;
     const r = el('rect', { x, y: H - bh, width: Math.max(1, bw * 0.7), height: Math.max(bh, d.visitors ? 2 : 0), rx: 2, class: 'tr-bar' });
     const t = document.createElementNS(ns, 'title');
-    t.textContent = `${new Date(`${d.day}T00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}: ${d.visitors} visitor${d.visitors === 1 ? '' : 's'}, ${d.views} page view${d.views === 1 ? '' : 's'}`;
+    const when = d.label || new Date(`${d.day}T00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    t.textContent = `${when}: ${d.visitors} visitor${d.visitors === 1 ? '' : 's'}, ${d.views} page view${d.views === 1 ? '' : 's'}`;
     r.append(t);
     // about 8 date labels; the last day always gets one (right-aligned), unless it would crowd the one before
     const every = Math.ceil(daily.length / 8);
@@ -126,7 +141,7 @@ function chart(h, daily) {
     const regular = i % every === 0 && (daily.length - 1 - i >= every * 0.6 || last);
     if (regular || last) {
       el('text', { x: last ? W : x + bw * 0.35, y: H + 16, 'text-anchor': last ? 'end' : 'middle', class: 'tr-axis' },
-        new Date(`${d.day}T00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }));
+        d.label || new Date(`${d.day}T00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }));
     }
   });
   return svg;
@@ -146,18 +161,18 @@ export function renderTraffic(h, sum, opts = {}) {
 
   if (!t.views) {
     return h('div', { class: 'tr' }, h('p', { class: 'muted' },
-      `No visits recorded in the last ${sum.days} days yet. Stats start from when tracking went live; check back after a few visits.`));
+      `No visits recorded ${sum.days === 1 ? 'in the last 24 hours' : `in the last ${sum.days} days`} yet. Stats start from when tracking went live (or was last reset); check back after a few visits.`));
   }
   const maxPage = sum.pages[0]?.views || 1;
   const maxSrc = sum.sources[0]?.n || 1;
   return h('div', { class: 'tr' },
     h('div', { class: 'tr-kpis' },
-      tile('Visitors', String(t.visitors), `last ${sum.days} days`),
+      tile('Visitors', String(t.visitors), sum.days === 1 ? 'last 24 hours' : `last ${sum.days} days`),
       tile('Page views', String(t.views)),
       tile('Pages per visit', t.pagesPerVisit.toFixed(1)),
       tile('Time per visit', fmtSecs(t.avgSecs), 'average'),
       tile('Left after one page', `${Math.round(t.oneAndDone * 100)}%`)),
-    h('section', { class: 'tr-card' }, h('h4', {}, 'Visitors per day'), chart(h, sum.daily)),
+    h('section', { class: 'tr-card' }, h('h4', {}, sum.days === 1 ? 'Visitors per hour' : 'Visitors per day'), chart(h, sum.daily)),
     h('div', { class: 'tr-cols' },
       list('Most viewed', sum.pages.slice(0, 12).map(p => h('div', { class: 'tr-row' },
         h('span', { class: 'tr-name', title: p.path }, pageLink(p.path)),

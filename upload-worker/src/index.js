@@ -14,6 +14,7 @@
 // Visit stats (anonymous, no cookies; see schema.sql):
 //   POST   /hit       (from the site, no sign-in)  body = {t:'view'|'leave', v, s, p, r, secs}
 //   GET    /stats?days=30   (signed in)            -> { rows: [[ts, visit, seq, path, source, country, device, secs]] }
+//   DELETE /stats           (signed in)            -> { deleted } (reset: removes every recorded visit)
 
 const ALLOWED_ORIGINS = ['https://matthewfregnan.com', 'https://www.matthewfregnan.com'];
 const KEY_PATTERN = /^(commercial|branded|vertical|colour-grading|home)\/[a-z0-9][a-z0-9-]{0,120}\.mp4$/;
@@ -151,6 +152,10 @@ export default {
     }
 
     if (parts[0] === 'stats' && request.method === 'GET') return stats(request, env, url);
+    if (parts[0] === 'stats' && request.method === 'DELETE') {
+      const r = await env.STATS.prepare('DELETE FROM views').run();
+      return json(request, { deleted: r.meta?.changes ?? 0 });
+    }
 
     // What's in storage (for the admin's Storage view)
     if (parts[0] === 'usage' && request.method === 'GET') {
