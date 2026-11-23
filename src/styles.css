@@ -344,7 +344,10 @@
 
 /* Short-form hover previews (see src/main.js) */
 .portfolio-item .vp-preview, .portfolio-item-vertical .vp-preview {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  /* 1px bigger than the tile on every side (the tile clips it): the video is drawn on its own layer,
+     which snaps to whole pixels, so at exactly the tile's size a hairline of the thumbnail underneath
+     could show along an edge, especially while the tile is scaled up on hover */
+  position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px); max-width: none; object-fit: cover;
   opacity: 0; transition: opacity 0.45s ease; pointer-events: none;
 }
 .portfolio-item.is-previewing .vp-preview, .portfolio-item-vertical.is-previewing .vp-preview { opacity: 1; }
