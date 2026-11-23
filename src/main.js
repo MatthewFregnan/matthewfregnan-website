@@ -537,6 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // of the row nearest the centre; works on phones too). Only one plays at a time, and a video only
 // loads when it's first needed. Off for reduced motion and data-saver.
 const PREVIEW_VOLUME = 0.6;
+const RESUME_GRACE = 3000;   // a preview left and come back to within this long carries on where it was
 const PLAYER_VOLUME = 0.8;   // project page videos start a little under full volume (the slider goes up)
 const Previews = (() => {
   let current = null;
@@ -574,6 +575,9 @@ const Previews = (() => {
     if (!tile) return;
     tile.classList.remove('is-previewing');
     const v = tile.querySelector('video.vp-preview');
+    // remember where it got to, so coming back within a few seconds (say the mouse strayed onto the
+    // next video by accident) carries on from there instead of starting over
+    if (v && v.currentTime > 0.5) tile._resumeAt = { t: v.currentTime, at: performance.now() };
     if (v && !v.muted) fadeSound(v, false, 400);   // the sound eases out with the picture
     if (v) setTimeout(() => { if (!tile.classList.contains('is-previewing') && current !== tile) release(v); }, 500);   // after the fade
     if (current === tile) current = null;
@@ -676,7 +680,10 @@ const Previews = (() => {
     stop(current);
     current = tile;
     const v = videoFor(tile);
-    if (restart) v.currentTime = 0;
+    const back = tile._resumeAt && performance.now() - tile._resumeAt.at < RESUME_GRACE ? tile._resumeAt.t : null;
+    tile._resumeAt = null;
+    if (back !== null) v.currentTime = back;
+    else if (restart) v.currentTime = 0;
     start(tile, v);
   };
   // Safety net: if a browser still held a preview back, start it on the first touch.
