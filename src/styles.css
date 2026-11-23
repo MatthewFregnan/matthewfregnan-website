@@ -72,7 +72,7 @@
 
   /* Background video: anchored towards the top so faces aren't cropped (or hidden under the
      menu bar) when the screen is wider than 16:9; any trimming comes off the bottom instead */
-  #hero-video { object-position: 50% 25%; }
+  #hero-video, .hero-media video { object-position: 50% 25%; }
 
   /* Scroll nudge at the bottom of the hero */
   .scroll-cue {

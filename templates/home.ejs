@@ -7,19 +7,20 @@
        It stays behind the whole page; as you scroll it zooms in, blurs and darkens (src/main.js). -->
   <div class="hero-bg" id="hero-bg" aria-hidden="true">
     <div class="hero-media" id="hero-media">
-      <%# The 1080p video, or a lighter 720p copy on phones (heroVideoMobile in data/site.json), swapped in
-          by the line of script straight after it before the browser has fetched much. A plain src, the way
-          every browser handles reliably. %>
+      <%# Starts with a light copy (heroVideoStart, 540p) so the page is quick on slow connections; once it's
+          playing, src/main.js fetches the sharper one (1080p, or 720p on phones) and crossfades to it at the
+          same moment in the footage. Set in data/site.json. %>
       <video
         id="hero-video"
         class="absolute inset-0 w-full h-full object-cover"
-        src="<%= site.heroVideo %>"
+        src="<%= site.heroVideoStart || site.heroVideo %>"
         poster="<%= site.heroPoster %>"
         autoplay muted loop playsinline disablepictureinpicture disableremoteplayback
         preload="auto"
-        tabindex="-1"
+        tabindex="-1"<% if (site.heroVideoStart) { %>
+        data-upgrade="<%= site.heroVideo %>"<% if (site.heroVideoMobile) { %>
+        data-upgrade-mobile="<%= site.heroVideoMobile %>"<% } %><% } %>
       ></video>
-      <% if (site.heroVideoMobile) { %><script>(function () { var v = document.getElementById('hero-video'); if (window.matchMedia('(max-width: 767px)').matches) v.src = <%- JSON.stringify(site.heroVideoMobile) %>; })();</script><% } %>
     </div>
     <!-- Darkening: an even shade, plus a fade at the bottom of the hero into the work below -->
     <div class="hero-shade" id="hero-shade"></div>

@@ -508,6 +508,56 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   apply();
   reduce.addEventListener?.('change', apply);
+
+  // Start light, then go sharp: the page opens with a small copy of the video so it starts quickly on
+  // slow connections. Once the page has loaded and the video has played for a few seconds, the sharper
+  // copy downloads quietly behind it, is lined up to the same moment in the footage, and fades in over
+  // the top; the light one is then let go. Skipped for Data Saver / 2G and reduced motion.
+  const want = window.matchMedia('(max-width: 767px)').matches ? (hero.dataset.upgradeMobile || hero.dataset.upgrade) : hero.dataset.upgrade;
+  const net = navigator.connection;
+  if (!want || reduce.matches || (net && (net.saveData || /(^|-)2g$/.test(net.effectiveType || '')))) return;
+  const once = (el, ev) => new Promise(res => el.addEventListener(ev, res, { once: true }));
+  const upgrade = async () => {
+    const hi = document.createElement('video');
+    hi.className = hero.className;
+    hi.muted = true; hi.defaultMuted = true; hi.setAttribute('muted', '');
+    hi.loop = true; hi.playsInline = true; hi.setAttribute('playsinline', '');
+    hi.setAttribute('disablepictureinpicture', ''); hi.setAttribute('disableremoteplayback', '');
+    hi.tabIndex = -1;
+    hi.preload = 'auto';
+    hi.style.opacity = '0';
+    hi.style.transition = 'opacity 1.2s ease';
+    hi.src = want;
+    hero.after(hi);
+    await once(hi, 'canplaythrough');
+    // pick a moment just ahead of the playing copy, wait there, and start both together
+    const d = hero.duration || hi.duration;
+    while (d && hero.currentTime > d - 3) await new Promise(r => setTimeout(r, 1000));   // near the loop point: let it come round
+    const at = hero.currentTime + 0.8;
+    hi.currentTime = at;
+    await once(hi, 'seeked');
+    await new Promise((res) => {
+      const tick = () => (hero.currentTime >= at - 0.02 || hero.currentTime < at - 2 ? res() : requestAnimationFrame(tick));
+      requestAnimationFrame(tick);
+    });
+    try { await hi.play(); } catch { hi.remove(); return; }
+    if (Math.abs(hi.currentTime - hero.currentTime) > 0.15) hi.currentTime = hero.currentTime;
+    hi.style.opacity = '1';
+    setTimeout(() => {
+      const old = hero;
+      hi.id = 'hero-video';
+      hi.poster = old.getAttribute('poster') || '';
+      old.pause();
+      old.removeAttribute('src');
+      old.load();
+      old.remove();
+      hi.style.transition = '';
+    }, 1300);
+  };
+  const begin = () => setTimeout(() => { if (!document.hidden) upgrade().catch(() => {}); else document.addEventListener('visibilitychange', begin, { once: true }); }, 4000);
+  const whenPlaying = () => (hero.paused ? once(hero, 'playing') : Promise.resolve());
+  const whenLoaded = () => (document.readyState === 'complete' ? Promise.resolve() : once(window, 'load'));
+  Promise.all([whenPlaying(), whenLoaded()]).then(begin);
 });
 
 // Home page backdrop: as you scroll past the hero, the showreel zooms in, blurs and darkens behind the

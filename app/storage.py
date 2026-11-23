@@ -140,10 +140,10 @@ class StorageDialog(QDialog):
         threading.Thread(target=self._work, args=(files,), daemon=True).start()
 
     def _hero_urls(self) -> list[str]:
-        """The home page background video and its lighter phone copy."""
+        """The home page background video: the light starter copy, the full one and the phone copy."""
         try:
             site = json.loads((self.store.repo.root / "data" / "site.json").read_text())
-            return [u for u in (site.get("heroVideo", ""), site.get("heroVideoMobile", "")) if u]
+            return [u for u in (site.get("heroVideoStart", ""), site.get("heroVideo", ""), site.get("heroVideoMobile", "")) if u]
         except Exception:
             return []
 
