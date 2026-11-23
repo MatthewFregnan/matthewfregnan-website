@@ -647,7 +647,15 @@ const Previews = (() => {
     if (current) { const v = current.querySelector('video.vp-preview'); if (v && v.paused) start(current, v); }
   };
   window.addEventListener('touchstart', unlock, { passive: true, once: true });
-  return { play, stop, get current() { return current; } };
+  // Turn sound off (fading out) for this visit, e.g. when the mouse leaves the tile that had it on
+  const mute = (tile) => {
+    if (!soundOn) return;
+    soundOn = false;
+    const v = tile && tile.querySelector('video.vp-preview');
+    if (v && !v.muted) fadeSound(v, false);
+    if (tile) showSound(tile);
+  };
+  return { play, stop, mute, get current() { return current; } };
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -741,11 +749,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const r = t.getBoundingClientRect();
     return r.left >= box.left - 4 && r.right <= box.right + 4;
   };
-  // Play a tile for the scroll position, and after 12 seconds move on to the next video in the row
+  // Play a tile for the scroll position, and after ADVANCE move on to the next video in the row
   // (sliding the row along to it; after the last it goes back to the first).
   let advanceTimer = null;
   let dwellTimer = null;
-  const ADVANCE = 12000;
+  // How long an auto-playing preview runs before the row moves on: 8 seconds with a mouse (a hovered
+  // video stays as long as the mouse does), 12 on phones, where you watch rather than browse
+  const ADVANCE = touch ? 12000 : 8000;
   let chosen = null;
   let chosenAt = 0;
   // Play a tile in a row, sliding the row so it's in view (to the middle on phones, where the row's
@@ -772,7 +782,7 @@ document.addEventListener('DOMContentLoaded', () => {
     pickTile(tile, true);
   };
   // Dots under each home page row (Apple-style): one per video; the long one is the video playing and
-  // fills over its 12 seconds. Click one to jump to that video.
+  // fills while it plays (ADVANCE). Click one to jump to that video.
   const dotRows = [];
   rows.forEach((row) => {
     const box = row.closest('[data-scroller]');
@@ -820,7 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const pickTile = (tile, now = false) => {
     clearTimeout(advanceTimer);
     clearTimeout(dwellTimer);
-    if (scrollPick && Previews.current === scrollPick) Previews.stop(scrollPick);
+    if (scrollPick && scrollPick !== tile && Previews.current === scrollPick) Previews.stop(scrollPick);
     scrollPick = tile;
     if (!tile) return;
     if (!now) {
@@ -866,6 +876,15 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       tile.addEventListener('mouseleave', () => {
         clearTimeout(timer);
+        // Home page rows: the video you were watching keeps playing (silently) and the row's timer starts
+        // again from it, so moving the mouse away doesn't throw you back to another video
+        if (hovered === tile && tile.parentElement.classList.contains('row-track') && Previews.current === tile) {
+          hovered = null;
+          Previews.mute(tile);
+          chosen = tile; chosenAt = performance.now();
+          pickTile(tile, true);
+          return;
+        }
         if (hovered === tile) {
           hovered = null;
           if (tile !== scrollPick) Previews.stop(tile);
