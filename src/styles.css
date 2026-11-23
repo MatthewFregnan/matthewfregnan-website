@@ -930,17 +930,22 @@ html:active-view-transition footer { animation: none !important; }
   position: relative; width: 22px; height: 22px; padding: 0; border: 0; background: none; cursor: pointer;
   transition: width 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
-.row-dot::before, .row-dot i {
-  content: ''; position: absolute; top: 50%; left: 8px; right: 8px; height: 6px; margin-top: -3px; border-radius: 999px;
+/* the dot itself clips the fill, which slides in from the left (a transform, so it runs smoothly on the
+   graphics card at the screen's full frame rate, even while videos are playing) */
+.row-dot b {
+  position: absolute; top: 50%; left: 8px; right: 8px; height: 6px; margin-top: -3px; border-radius: 999px;
+  overflow: hidden; background: rgba(255, 255, 255, 0.32); transition: background 0.3s; transform: translateZ(0);
 }
-.row-dot::before { background: rgba(255, 255, 255, 0.32); transition: background 0.3s; }
-.row-dot:hover::before { background: rgba(255, 255, 255, 0.6); }
-.row-dot i { right: auto; width: 0; background: rgba(255, 255, 255, 0.9); }
+.row-dot:hover b { background: rgba(255, 255, 255, 0.6); }
+.row-dot i {
+  position: absolute; inset: 0; border-radius: 999px; background: rgba(255, 255, 255, 0.9);
+  transform: translateX(-101%); will-change: transform;
+}
 .row-dot.on { width: 44px; }
-.row-dot.on::before { background: rgba(255, 255, 255, 0.24); }
+.row-dot.on b { background: rgba(255, 255, 255, 0.24); }
 .row-dot:focus-visible { outline: none; }
-.row-dot:focus-visible::before { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7); }
-@keyframes row-dot-fill { from { width: 0; } to { width: calc(100% - 16px); } }
+.row-dot:focus-visible b { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7); }
+@keyframes row-dot-fill { from { transform: translateX(-101%); } to { transform: translateX(0); } }
 @media (max-width: 639px) { .row-dots-wrap { margin-top: 12px; } }
 
 /* 404 page */

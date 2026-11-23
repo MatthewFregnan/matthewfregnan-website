@@ -761,7 +761,13 @@ document.addEventListener('DOMContentLoaded', () => {
       else pickTile(tile, true);
       return;
     }
-    if (!fullyIn(tile, row)) row.scrollBy({ left: dx, behavior: reduce ? 'auto' : 'smooth' });
+    // the video moves into the second place in the row (the first one stays put at the start, and the
+    // row can't scroll past its ends), so the row keeps sliding along as it plays through
+    const list = [...row.children].filter(t => !t.hidden);
+    const step = list.length > 1 ? list[1].getBoundingClientRect().left - list[0].getBoundingClientRect().left : r.width;
+    const slot = box.left + (list.indexOf(tile) > 0 ? step : 0);
+    const shift = r.left - slot;
+    if (Math.abs(shift) > 2) row.scrollBy({ left: shift, behavior: reduce ? 'auto' : 'smooth' });
     chosen = tile; chosenAt = performance.now();
     pickTile(tile, true);
   };
@@ -779,7 +785,7 @@ document.addEventListener('DOMContentLoaded', () => {
       b.type = 'button';
       b.className = 'row-dot';
       b.setAttribute('aria-label', `Play ${t.querySelector('h2')?.textContent.trim() || 'video'}`);
-      b.innerHTML = '<i></i>';
+      b.innerHTML = '<b><i></i></b>';
       b.addEventListener('click', () => goTo(t));
       return b;
     });
@@ -799,7 +805,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (i < 0) continue;
       dots.forEach((d, k) => {
         d.classList.toggle('on', k === i);
-        const fill = d.firstChild;
+        const fill = d.querySelector('i');
         if (k !== i) { fill.style.animation = 'none'; return; }
         if (!ms) { fill.style.animationPlayState = 'paused'; return; }
         fill.style.animation = 'none';

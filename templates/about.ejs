@@ -44,7 +44,7 @@
             </li>
             <% if (site.social && site.social.linkedin) { %>
               <li>
-                <a href="<%= site.social.linkedin %>" class="about-link" target="_blank" rel="noopener">LinkedIn</a>
+                <a href="<%= site.social.linkedin %>" class="about-link with-icon" target="_blank" rel="noopener"><%- include('partials/icon-linkedin') %>LinkedIn</a>
               </li>
             <% } %>
             <li class="text-site-text-muted with-icon"><%- include('partials/icon-globe') %><%= site.location %></li>
