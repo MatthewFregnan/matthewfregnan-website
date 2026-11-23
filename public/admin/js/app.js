@@ -2205,7 +2205,8 @@ function storageKeyOf(url) {
 function openStorage() { go('storage'); }
 
 // ---------------------------------------------------------------- section page layouts (presets)
-// Saved in home.json as sections: { <categoryId>: { active, presets: [{ id, name, order: [projectIds] }] } }.
+// Saved in home.json as sections: { <categoryId>: { active, presets: [{ id, name, order: [projectIds] }] } },
+// plus the page's options (stored only when switched off): clientFilter, filterCounts.
 // "Standard" (no preset) is the normal project order, the same as the Projects list.
 
 const SP = { cat: null, preset: null, drag: null };
@@ -2235,10 +2236,24 @@ function editSections(catId, fn) {
     S.home.sections ||= {};
     const lay = S.home.sections[catId] ||= { active: '', presets: [] };
     fn(lay);
-    if (!lay.presets.length && !lay.active) delete S.home.sections[catId];
+    const options = Object.keys(lay).some(k => k !== 'active' && k !== 'presets');
+    if (!lay.presets.length && !lay.active && !options) delete S.home.sections[catId];
     if (!Object.keys(S.home.sections).length) delete S.home.sections;
   });
   renderSectionsPage();
+}
+
+/** On/off options for a section page (all on unless switched off here). */
+function sectionOptions(catId, lay, cat) {
+  const opt = (key, label, hint, disabled = false) => h('label', { class: `check${disabled ? ' is-off' : ''}`, title: hint },
+    h('input', { type: 'checkbox', checked: lay[key] !== false, disabled,
+      onchange: e => editSections(catId, l => { if (e.target.checked) delete l[key]; else l[key] = false; }) }),
+    ` ${label}`);
+  const filterOn = lay.clientFilter !== false;
+  return h('div', { class: 'sp-options' },
+    h('span', { class: 'muted small' }, `On the ${cat.name} page:`),
+    opt('clientFilter', 'Client filter', 'The row of client buttons above the projects (shows when at least two clients have two or more projects here)'),
+    opt('filterCounts', 'Project counts on the filter', 'The number beside each client name in the filter', !filterOn));
 }
 
 function renderSectionsPage() {
@@ -2311,6 +2326,7 @@ function renderSectionsPage() {
     h('div', { class: 'preview-bar' },
       h('div', { class: 'segs' }, S.data.categories.map(c => h('button', { class: `seg${c.id === SP.cat ? ' on' : ''}`,
         onclick: () => { SP.cat = c.id; SP.preset = null; SP._for = null; renderSectionsPage(); } }, c.name)))),
+    sectionOptions(SP.cat, lay, cat),
     h('div', { class: 'sp-presets' },
       h('span', { class: 'muted small' }, 'Layouts:'),
       chip('', 'Standard order'),

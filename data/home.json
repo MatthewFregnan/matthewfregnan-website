@@ -94,5 +94,12 @@
     "Oporto",
     "Victorian Government",
     "PTV"
-  ]
+  ],
+  "sections": {
+    "commercial": {
+      "active": "",
+      "presets": [],
+      "filterCounts": false
+    }
+  }
 }

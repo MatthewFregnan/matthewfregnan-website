@@ -1119,6 +1119,11 @@ async function buildPages() {
       activePage: category.slug,
       category,
       projects: categoryProjects,
+      // on/off options set on the admin's Pages screen (on unless switched off)
+      pageOptions: {
+        clientFilter: sectionLayouts[category.id]?.clientFilter !== false,
+        filterCounts: sectionLayouts[category.id]?.filterCounts !== false,
+      },
       pageDescription: galleryDescription,
       pageUrl: `/${category.slug}/`,
       pageImage: ogQueue(`/images/og/section-${category.slug}.jpg`, () => ogCollage(categoryProjects)),

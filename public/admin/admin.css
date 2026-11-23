@@ -783,3 +783,7 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
 .missing-logos h4 { margin: 0; }
 .missing-logos p { margin: 0; }
 .missing-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; cursor: default; }
+
+/* Pages screen: the section page's on/off options */
+.sp-options { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 4px 0 14px; }
+.sp-options .check.is-off { opacity: 0.45; }
