@@ -247,7 +247,7 @@ class VideoPlayer {
       <span class="vp-time"><span class="vp-cur">0:00</span><span class="vp-sep"> / </span><span class="vp-dur">0:00</span></span>
       <input class="vp-seek" type="range" min="0" max="1000" step="1" value="0" aria-label="Seek">
       <button class="vp-btn vp-mute" type="button" aria-label="Mute">${ICONS.volume}</button>
-      <input class="vp-vol" type="range" min="0" max="100" step="1" value="100" aria-label="Volume">
+      <input class="vp-vol" type="range" min="0" max="100" step="1" value="${PLAYER_VOLUME * 100}" aria-label="Volume">
       <button class="vp-btn vp-fs" type="button" aria-label="Full screen">${ICONS.expand}</button>`;
     const veil = document.createElement('div');
     veil.className = 'vp-veil';
@@ -258,7 +258,8 @@ class VideoPlayer {
     const $ = (sel) => bar.querySelector(sel);
     const seek = $('.vp-seek');
     const vol = $('.vp-vol');
-    vol.style.setProperty('--played', '100%');
+    video.volume = PLAYER_VOLUME;
+    vol.style.setProperty('--played', `${PLAYER_VOLUME * 100}%`);
 
     const on = (target, ev, fn) => {
       target.addEventListener(ev, fn);
@@ -330,6 +331,25 @@ class VideoPlayer {
     });
     on(document, 'fullscreenchange', () => this.updateFsIcon());
     on(document, 'webkitfullscreenchange', () => this.updateFsIcon());
+    this.resume();
+  }
+
+  // Arrived by clicking a playing preview of this same video: carry on from that moment. It starts by
+  // itself where the browser allows sound to (it usually does right after a click); otherwise it waits
+  // there, and pressing play continues from that point.
+  resume() {
+    let r = null;
+    try { r = JSON.parse(sessionStorage.getItem('mf-resume') || 'null'); sessionStorage.removeItem('mf-resume'); } catch { return; }
+    const v = this.video;
+    if (!r || !v || r.path !== location.pathname || Date.now() - r.at > 20000) return;
+    if (r.src !== v.currentSrc.split('#')[0] && r.src !== (v.getAttribute('src') || '').split('#')[0]) return;   // the preview was a separate clip
+    const go = () => {
+      v.currentTime = Math.max(0, r.t - 0.3);
+      this.update();
+      this.start();
+    };
+    v.preload = 'auto';
+    if (v.readyState >= 1) go(); else v.addEventListener('loadedmetadata', go, { once: true });
   }
 
   toggle() {
@@ -516,6 +536,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // (desktop) or, on the home page, while its row is in the middle of the screen (the first visible tile
 // of the row nearest the centre; works on phones too). Only one plays at a time, and a video only
 // loads when it's first needed. Off for reduced motion and data-saver.
+const PREVIEW_VOLUME = 0.6;
+const PLAYER_VOLUME = 0.8;   // project page videos start a little under full volume (the slider goes up)
 const Previews = (() => {
   let current = null;
   const videoFor = (tile) => {
@@ -592,21 +614,23 @@ const Previews = (() => {
   };
   // Sound fades in and out (about 0.6s) rather than switching abruptly. iPhones don't let pages change
   // a video's volume, so there it simply switches.
+  // Previews play a bit quieter than full volume (PREVIEW_VOLUME), easier on the ears while browsing.
   const fadeSound = (v, on, ms = 600) => {
     cancelAnimationFrame(v._fade);
+    const was = v.volume;
     v.volume = 0.5;
     const canFade = Math.abs(v.volume - 0.5) < 0.01;
     if (!canFade) { v.muted = !on; return; }
-    const from = on ? 0 : (v.muted ? 0 : 1);
+    const from = on ? 0 : (v.muted ? 0 : was);
     v.volume = from;
     if (on) v.muted = false;
     const t0 = performance.now();
     const step = (now) => {
       const x = Math.min(1, (now - t0) / ms);
       const eased = x * x * (3 - 2 * x);
-      v.volume = on ? eased : from * (1 - eased);
+      v.volume = on ? eased * PREVIEW_VOLUME : from * (1 - eased);
       if (x < 1) v._fade = requestAnimationFrame(step);
-      else if (!on) { v.muted = true; v.volume = 1; }
+      else if (!on) { v.muted = true; v.volume = PREVIEW_VOLUME; }
     };
     v._fade = requestAnimationFrame(step);
   };
@@ -635,6 +659,18 @@ const Previews = (() => {
       setTimeout(() => start(tile, v, tries + 1), 250 * (tries + 1));
     });
   };
+  // Opening a project from a playing preview: its page carries on from the same moment (see setupFile)
+  document.addEventListener('click', (e) => {
+    const tile = e.target.closest('a[data-preview]');
+    const v = tile && tile.querySelector('video.vp-preview');
+    if (!v || v.paused || v.currentTime < 0.5 || e.defaultPrevented) return;
+    try {
+      sessionStorage.setItem('mf-resume', JSON.stringify({
+        path: new URL(tile.href, location.href).pathname, src: tile.dataset.preview.split('#')[0],
+        t: v.currentTime, sound: soundOn, at: Date.now(),
+      }));
+    } catch { /* private browsing: start from the beginning as usual */ }
+  });
   const play = (tile, restart = true) => {
     if (current === tile) return;
     stop(current);
