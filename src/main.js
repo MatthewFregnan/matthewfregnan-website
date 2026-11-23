@@ -914,10 +914,15 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('[data-scroller]').forEach((box) => {
     const track = box.querySelector('.row-track');
-    // the first/last visible tiles grow inward on hover (see .row-first/.row-last in styles.css)
+    // the first/last visible tiles (the phones' snapping lines them up with the row's ends)
     const shown = [...track.children].filter(t => !t.hidden);
     shown[0]?.classList.add('row-first');
     shown[shown.length - 1]?.classList.add('row-last');
+    // a tile touching the right edge of the row grows leftwards on hover (see .edge-right in styles.css)
+    shown.forEach(t => t.addEventListener('mouseenter', () => {
+      const box = track.getBoundingClientRect();
+      t.classList.toggle('edge-right', t.getBoundingClientRect().right > box.right - 8);
+    }));
     const prev = box.querySelector('.scroller-btn.prev');
     const next = box.querySelector('.scroller-btn.next');
     // At the end of the row the arrow becomes "More <section>", for the section of the last video shown

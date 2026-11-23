@@ -418,20 +418,22 @@
 /* Hover (mouse only): the tile grows a little and its video plays silently, like a streaming service.
    The track gets some breathing room so the grown tile isn't clipped. */
 @media (hover: hover) and (pointer: fine) {
-  .row-track { padding: 22px 0; margin: -22px 0; }
-  /* The hovered tile grows and its neighbours slide aside to make room (like Netflix), so tiles never
-     overlap; overlapping relied on z-index, which Safari doesn't always honour with video layers.
-     Middle tiles grow from the centre (3% each side); the first/last visible tile grows inward (6%). */
-  .row-track > a { position: relative; z-index: 1; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+  /* room above and below for the grown tile and its whole shadow (the row clips anything outside it) */
+  .row-track { padding: 24px 0 56px; margin: -24px 0 -56px; }
+  /* The hovered tile grows to the right and the tiles after it slide along to make room, so tiles never
+     overlap (overlapping relied on z-index, which Safari doesn't always honour with video layers) and the
+     tiles before it never move, so nothing gets pushed out of the row on the left. A tile at the right
+     edge of the row (marked edge-right by src/main.js) grows to the left instead, and the ones before it
+     make room. */
+  .row-track > a { position: relative; z-index: 1; transition: transform 0.3s ease, box-shadow 0.3s ease; transform-origin: left center; }
   .row-track > a:hover { transform: scale(1.06); z-index: 3; box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65); }
-  .row-track > a:hover ~ a { transform: translateX(3%); }
-  .row-track > a:has(~ a:hover) { transform: translateX(-3%); }
-  /* first / last visible tile (marked by src/main.js; the shuffle hides some, so not simply :first-child) */
-  .row-track > a.row-first:hover { transform-origin: left center; }
-  .row-track > a.row-first:hover ~ a { transform: translateX(6%); }
-  .row-track > a.row-last:hover { transform-origin: right center; }
-  .row-track > a:has(~ a.row-last:hover) { transform: translateX(-6%); }
+  .row-track > a:hover ~ a { transform: translateX(6%); }
+  .row-track > a.edge-right { transform-origin: right center; }
+  .row-track > a.edge-right:hover ~ a { transform: none; }
+  .row-track > a:has(~ a.edge-right:hover) { transform: translateX(-6%); }
 }
+/* the dots sit over the row's extra bottom room, so they stay clickable */
+.row-dots-wrap { position: relative; z-index: 2; }
 @media (prefers-reduced-motion: reduce) { .row-track > a, .row-track > a:hover, .row-track > a:hover ~ a, .row-track > a:has(~ a:hover) { transform: none !important; } }
 .scroller-btn {
   position: absolute; top: 50%; z-index: 2; width: 40px; height: 40px; margin-top: -20px;
