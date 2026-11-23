@@ -919,8 +919,7 @@ html:active-view-transition footer { animation: none !important; }
 }
 
 /* Home page rows: Apple-style dots under each row. The long dot is the video playing; it fills over the
-   12 seconds before the row moves on. They stand in for the arrows. (src/main.js adds them.) */
-.row-scroller.has-dots .scroller-btn { display: none; }
+   time before the row moves on; the arrows stay alongside them. (src/main.js adds them.) */
 .row-dots-wrap { display: flex; justify-content: center; margin-top: 16px; }
 .row-dots {
   display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px;
