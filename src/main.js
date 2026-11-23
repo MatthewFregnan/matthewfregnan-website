@@ -573,6 +573,7 @@ const Previews = (() => {
         e.stopPropagation();   // the tile is a link; this mustn't open the project
         const v = tile.querySelector('video.vp-preview');
         soundOn = !soundOn;
+        mutedAt = 0;   // turned off (or on) by hand: the mouse doesn't bring it back
         if (v) {
           if (soundOn) {
             fadeSound(v, true);
@@ -647,15 +648,28 @@ const Previews = (() => {
     if (current) { const v = current.querySelector('video.vp-preview'); if (v && v.paused) start(current, v); }
   };
   window.addEventListener('touchstart', unlock, { passive: true, once: true });
-  // Turn sound off (fading out) for this visit, e.g. when the mouse leaves the tile that had it on
+  // Turn sound off (fading out), e.g. when the mouse leaves the tile that had it on. If the mouse comes
+  // back onto a video within a few seconds the sound comes back too (resume), so it follows the mouse
+  // rather than needing the button again.
+  const GRACE = 3000;
+  let mutedAt = 0;
   const mute = (tile) => {
     if (!soundOn) return;
     soundOn = false;
+    mutedAt = performance.now();
     const v = tile && tile.querySelector('video.vp-preview');
     if (v && !v.muted) fadeSound(v, false);
     if (tile) showSound(tile);
   };
-  return { play, stop, mute, get current() { return current; } };
+  const resume = (tile) => {
+    if (soundOn || !mutedAt || performance.now() - mutedAt > GRACE) return;
+    soundOn = true;
+    mutedAt = 0;
+    const v = tile.querySelector('video.vp-preview');
+    if (v && current === tile && !v.paused) fadeSound(v, true);   // a new video fades its sound in as it starts
+    showSound(tile);
+  };
+  return { play, stop, mute, resume, get current() { return current; } };
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -872,7 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tiles.forEach((tile) => {
       let timer = null;
       tile.addEventListener('mouseenter', () => {
-        timer = setTimeout(() => { hovered = tile; markDots(tile, 0); Previews.play(tile, tile !== scrollPick); }, 300);
+        timer = setTimeout(() => { hovered = tile; markDots(tile, 0); Previews.resume(tile); Previews.play(tile, tile !== scrollPick); }, 300);
       });
       tile.addEventListener('mouseleave', () => {
         clearTimeout(timer);
