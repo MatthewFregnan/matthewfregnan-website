@@ -6,8 +6,8 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    background: #0a0a0a;   /* the page colour from the very first paint, so nothing flashes before the page draws */
-    color-scheme: dark;
+    color-scheme: dark;   /* dark from the first paint. (No background here: the body's colour must stay on the
+                             page canvas, or it covers the home page's background video, which sits behind it.) */
   }
 
   body {
