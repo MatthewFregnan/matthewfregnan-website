@@ -732,7 +732,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let bestDist = Infinity;
     for (const row of rows) {
       const r = row.getBoundingClientRect();
-      if (r.bottom < window.innerHeight * 0.15 || r.top > window.innerHeight * 0.85) continue;  // not really on screen
+      // only a row at least half on screen (above Safari's floating bar on phones), so the first row
+      // peeking in under the hero doesn't start playing before you've scrolled to it
+      const seen = Math.min(r.bottom, window.innerHeight - (touch ? 90 : 0)) - Math.max(r.top, 0);
+      if (seen < r.height * 0.5) continue;
       const dist = Math.abs((r.top + r.bottom) / 2 - mid);
       if (dist < bestDist) { bestDist = dist; best = row; }
     }
