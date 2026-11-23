@@ -961,16 +961,16 @@ html:active-view-transition footer { animation: none !important; }
 .nf-actions { display: flex; gap: 10px; justify-content: center; margin-top: 28px; }
 .nf-actions .contact-btn { flex: 0 0 auto; padding: 11px 24px; }
 
-/* Big screens (e.g. a 4K monitor at 150%, about 2560 wide): the hero group grows with the screen and
-   spreads out a little, rather than staying laptop-sized in the middle of a lot of empty video. It
-   eases in from 1700px wide, so laptops and normal desktops are unchanged. The work row below stays put. */
+/* Big screens (e.g. a 4K monitor at 150%, about 2560 wide): the hero group spreads out (bigger gaps)
+   and grows only slightly, rather than sitting laptop-sized and bunched in the middle of a lot of
+   empty video. From 1700px wide, so laptops and normal desktops are unchanged; the work row below
+   stays put. (The tagline is targeted by class: the "Work includes" label is a <p> in the same group.) */
 @media (min-width: 1700px) and (min-height: 900px) {
-  .hero-content h1 { font-size: clamp(4.5rem, 4vw, 7rem); margin-bottom: clamp(24px, 1.3vw, 40px); }
-  .hero-content > p { font-size: clamp(1.5rem, 1.15vw, 2rem); }
-  .hero-content > .mt-12 { margin-top: clamp(48px, 2.8vw, 80px); }
-  .hero-content > .mt-12 > a { font-size: clamp(0.875rem, 0.62vw, 1.05rem); padding: 0.95em 2.6em; }
-  .hero-clients-label { margin-top: clamp(64px, 3.9vw, 110px); font-size: clamp(11px, 0.5vw, 14px); }
-  .hero-clients { width: min(1700px, 90vw); margin-top: clamp(18px, 1vw, 28px); }
-  .hero-clients img { zoom: 1.25; }
-  .hero-clients-set { gap: clamp(64px, 3.3vw, 96px); padding-right: clamp(64px, 3.3vw, 96px); }
+  .hero-content h1 { font-size: clamp(4.5rem, 3.3vw, 5.5rem); margin-bottom: clamp(24px, 1.2vw, 32px); }
+  .hero-content > .hero-tagline { font-size: clamp(1.5rem, 1vw, 1.75rem); }
+  .hero-content > .mt-12 { margin-top: clamp(48px, 2.6vw, 72px); }
+  .hero-clients-label { margin-top: clamp(64px, 3.9vw, 104px); }
+  .hero-clients { width: min(1600px, 88vw); margin-top: clamp(18px, 0.9vw, 24px); }
+  .hero-clients img { zoom: 1.1; }
+  .hero-clients-set { gap: clamp(64px, 3vw, 84px); padding-right: clamp(64px, 3vw, 84px); }
 }
