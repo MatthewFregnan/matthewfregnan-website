@@ -1058,11 +1058,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const cue = document.querySelector('.scroll-cue');
   if (!cue) return;
   const target = document.querySelector(cue.getAttribute('href'));
+  // Where the glide stops: the "Featured Work" heading a comfortable 36px under the menu bar (the section's
+  // own top leaves a much bigger gap, as that space is there for the first screen's layout)
+  const workY = () => {
+    const navH = document.querySelector('header')?.offsetHeight || 64;
+    const heading = target.querySelector('.work-head h2') || target;
+    return Math.max(0, heading.getBoundingClientRect().top + window.scrollY - navH - 36);
+  };
   document.querySelectorAll(`a[href="${cue.getAttribute('href')}"]`).forEach(link => link.addEventListener('click', (e) => {
     if (!target) return;
     e.preventDefault();
-    const navH = document.querySelector('header')?.offsetHeight || 64;
-    glideTo(target.getBoundingClientRect().top + window.scrollY - navH);
+    glideTo(workY());
   }));
   const update = () => cue.classList.toggle('is-hidden', window.scrollY > 40);
   window.addEventListener('scroll', update, { passive: true });
@@ -1079,8 +1085,7 @@ document.addEventListener('DOMContentLoaded', () => {
     timer = null;
     if (window.scrollY > 40 || document.hidden) return;
     done();
-    const navH = document.querySelector('header')?.offsetHeight || 64;
-    glideTo(target.getBoundingClientRect().top + window.scrollY - navH, 1500);
+    glideTo(workY(), 1500);
   }, 12000);
   const cancel = () => {
     if (!timer) return;
