@@ -134,16 +134,18 @@ class StorageDialog(QDialog):
             key = storage_key(p.get("videoFile", ""))
             if key:
                 files.append({"key": key, "url": p["videoFile"], "project": p})
-        hero = self._hero_url()
-        if storage_key(hero):
-            files.append({"key": storage_key(hero), "url": hero, "project": None})
+        for hero in self._hero_urls():
+            if storage_key(hero):
+                files.append({"key": storage_key(hero), "url": hero, "project": None})
         threading.Thread(target=self._work, args=(files,), daemon=True).start()
 
-    def _hero_url(self) -> str:
+    def _hero_urls(self) -> list[str]:
+        """The home page background video and its lighter phone copy."""
         try:
-            return json.loads((self.store.repo.root / "data" / "site.json").read_text()).get("heroVideo", "")
+            site = json.loads((self.store.repo.root / "data" / "site.json").read_text())
+            return [u for u in (site.get("heroVideo", ""), site.get("heroVideoMobile", "")) if u]
         except Exception:
-            return ""
+            return []
 
     def _work(self, files: list[dict]):
         try:

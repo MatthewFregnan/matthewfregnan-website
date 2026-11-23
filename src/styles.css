@@ -6,6 +6,8 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    background: #0a0a0a;   /* the page colour from the very first paint, so nothing flashes before the page draws */
+    color-scheme: dark;
   }
 
   body {
@@ -638,21 +640,17 @@
   .scroll-cue { bottom: -28px; }
 }
 
-/* Page load: a quick, punchy fade. Everything is in within 0.5s. Opacity only on whole sections (a
-   transform there would break the fixed backgrounds inside); the hero text also rises a few pixels,
-   using "translate" so it doesn't clash with its own transform. */
+/* Page load: pages appear straight away (no fade from black on every page, which read as a flash
+   when moving around the site). Only the home page's name, tagline, button and logos rise in, over
+   the background video, using "translate" so it doesn't clash with their own transforms. */
 @keyframes page-fade { from { opacity: 0; } }
 @keyframes page-rise { from { opacity: 0; translate: 0 10px; } }
-#site-header { animation: page-fade 0.3s ease-out backwards; }
-main > *:not(.page-backdrop) { animation: page-fade 0.35s ease-out backwards; }
-main > section:not(.hero) { animation-delay: 0.08s; }
 .hero-content > * { animation: page-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
 .hero-content > :nth-child(2) { animation-delay: 0.05s; }
 .hero-content > :nth-child(3) { animation-delay: 0.1s; }
 .hero-content > :nth-child(n+4) { animation-delay: 0.15s; }
-footer { animation: page-fade 0.35s ease-out 0.1s backwards; }
 @media (prefers-reduced-motion: reduce) {
-  #site-header, main > *, .hero-content > *, footer { animation: none !important; }
+  .hero-content > * { animation: none !important; }
 }
 
 /* Project pages: "More work" at the bottom (templates/project.ejs) */
@@ -787,9 +785,8 @@ footer { animation: page-fade 0.35s ease-out 0.1s backwards; }
 ::view-transition-old(project-media), ::view-transition-new(project-media) { height: 100%; object-fit: cover; }
 #site-header { view-transition-name: site-header; }
 .pp-media .player-shell { view-transition-name: project-media; }
-/* during a page transition the normal load-in fade would double up, so it's skipped */
-html:active-view-transition #site-header, html:active-view-transition main > *, html:active-view-transition .hero-content > *,
-html:active-view-transition footer { animation: none !important; }
+/* during a page transition the hero's rise would double up, so it's skipped */
+html:active-view-transition .hero-content > * { animation: none !important; }
 
 /* Section pages: client filter chips (templates/gallery.ejs) */
 .client-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: -16px auto 28px; max-width: 900px; }

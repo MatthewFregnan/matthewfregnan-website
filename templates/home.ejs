@@ -7,15 +7,16 @@
        It stays behind the whole page; as you scroll it zooms in, blurs and darkens (src/main.js). -->
   <div class="hero-bg" id="hero-bg" aria-hidden="true">
     <div class="hero-media" id="hero-media">
+      <%# A lighter 720p copy for phones (heroVideoMobile), the 1080p one otherwise; both silent, small
+          enough that the page doesn't wait on them (see data/site.json) %>
       <video
         id="hero-video"
         class="absolute inset-0 w-full h-full object-cover"
-        src="<%= site.heroVideo %>"
         poster="<%= site.heroPoster %>"
         autoplay muted loop playsinline disablepictureinpicture disableremoteplayback
         preload="auto"
         tabindex="-1"
-      ></video>
+      ><% if (site.heroVideoMobile) { %><source src="<%= site.heroVideoMobile %>" type="video/mp4" media="(max-width: 767px)"><% } %><source src="<%= site.heroVideo %>" type="video/mp4"></video>
     </div>
     <!-- Darkening: an even shade, plus a fade at the bottom of the hero into the work below -->
     <div class="hero-shade" id="hero-shade"></div>

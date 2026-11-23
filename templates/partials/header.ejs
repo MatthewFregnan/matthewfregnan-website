@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <%# dark from the very first paint (before the stylesheet arrives), so changing page never flashes %>
+  <meta name="color-scheme" content="dark">
+  <style>html{background:#0a0a0a}</style>
   <title><%= title %></title>
   <%- include('seo') %>
 
@@ -34,6 +37,7 @@
 
         <!-- Desktop Navigation -->
         <div class="hidden md:flex items-center space-x-8">
+          <a href="/" class="nav-link <%= activePage === 'home' ? 'active' : '' %>">Home</a>
           <% categories.forEach(cat => { %>
             <a href="/<%= cat.slug %>/" class="nav-link <%= activePage === cat.slug ? 'active' : '' %>">
               <%= cat.name %>
@@ -68,6 +72,7 @@
   <!-- Mobile Menu -->
   <div id="mobile-menu" class="hidden fixed inset-0 z-40 bg-site-bg pt-20">
     <nav class="flex flex-col items-center space-y-6 p-8">
+      <a href="/" class="text-2xl nav-link <%= activePage === 'home' ? 'active' : '' %>">Home</a>
       <% categories.forEach(cat => { %>
         <a href="/<%= cat.slug %>/" class="text-2xl nav-link <%= activePage === cat.slug ? 'active' : '' %>">
           <%= cat.name %>
