@@ -868,7 +868,8 @@ document.addEventListener('DOMContentLoaded', () => {
     dots[0].classList.add('on');
     dotRows.push({ list, dots });
   });
-  // ms: how long until the row moves on (the fill runs over it); 0 holds it (hovering a tile)
+  // ms: how long until the row moves on (the fill runs over it); 0 holds it (hovering a tile); null shows
+  // it empty (picked, video still loading)
   const markDots = (tile, ms) => {
     for (const { list, dots } of dotRows) {
       const i = list.indexOf(tile);
@@ -877,6 +878,7 @@ document.addEventListener('DOMContentLoaded', () => {
         d.classList.toggle('on', k === i);
         const fill = d.querySelector('i');
         if (k !== i) { fill.style.animation = 'none'; return; }
+        if (ms === null) { fill.style.animation = 'none'; return; }   // waiting for the video to start
         if (!ms) { fill.style.animationPlayState = 'paused'; return; }
         fill.style.animation = 'none';
         void fill.offsetWidth;
@@ -902,6 +904,16 @@ document.addEventListener('DOMContentLoaded', () => {
     Previews.play(tile);
     const row = tile.closest('.row-track');
     if (!row) return;
+    // The row's clock (the dot's fill and the move to the next video) starts once the video is actually
+    // playing, not when it was picked: on a phone it can take a few seconds to load.
+    markDots(tile, null);
+    const v = tile.querySelector('video.vp-preview');
+    const begin = () => { if (scrollPick === tile && !hovered) runClock(tile, row); };
+    if (v && !v.paused && v.readyState >= 3) begin();
+    else if (v) v.addEventListener('playing', begin, { once: true });
+  };
+  const runClock = (tile, row) => {
+    clearTimeout(advanceTimer);
     advanceTimer = setTimeout(() => {
       if (hovered || scrollPick !== tile || document.hidden) return;
       const list = [...row.children].filter(t => !t.hidden && t.dataset.preview);
@@ -1027,11 +1039,7 @@ function glideTo(y, duration = 1150) {
     return bez(t, 0, 1);
   };
   let stopped = false;
-  // page snapping (phones, home page) would fight a glide, so it's off while one runs
-  const snap = document.documentElement.classList.contains('snap-rows');
-  if (snap) document.documentElement.classList.remove('snap-rows');
-  const resume = () => { if (snap) document.documentElement.classList.add('snap-rows'); };
-  const stop = () => { stopped = true; resume(); };
+  const stop = () => { stopped = true; };
   const opts = { passive: true, once: true };
   ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.addEventListener(ev, stop, opts));
   const t0 = performance.now();
@@ -1040,7 +1048,7 @@ function glideTo(y, duration = 1150) {
     const x = Math.min(1, (now - t0) / duration);
     window.scrollTo({ top: startY + dist * ease(x), behavior: 'instant' });
     if (x < 1) requestAnimationFrame(step);
-    else { ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.removeEventListener(ev, stop)); resume(); }
+    else ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.removeEventListener(ev, stop));
   };
   requestAnimationFrame(step);
 }
@@ -1429,8 +1437,3 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(fit, 150); });
 });
 
-// Phones, home page: turn on the gentle snap to video rows (styles.css "snap-rows")
-document.addEventListener('DOMContentLoaded', () => {
-  if (!document.querySelector('.row-scroller') || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  document.documentElement.classList.add('snap-rows');
-});

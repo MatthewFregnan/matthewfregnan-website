@@ -915,14 +915,6 @@ html:active-view-transition footer { animation: none !important; }
 .vp-sound.is-on { background: rgba(255, 255, 255, 0.92); color: #111; }
 @media (max-width: 639px) { .vp-sound { width: 38px; height: 38px; } }   /* easier to tap */
 
-/* Phones, home page: stop scrolling with a video row partly in view and it eases into the middle of the
-   screen ("proximity": only when you're already close to it, so scrolling past is never held up).
-   src/main.js turns this on and pauses it while the page glides on its own. */
-@media (max-width: 767px) {
-  html.snap-rows { scroll-snap-type: y proximity; }
-  html.snap-rows .row-scroller { scroll-snap-align: center; scroll-margin-top: 30px; }
-}
-
 /* Home page rows: Apple-style dots under each row. The long dot is the video playing; it fills over the
    time before the row moves on; the arrows stay alongside them. (src/main.js adds them.) */
 .row-dots-wrap { display: flex; justify-content: center; margin-top: 16px; }
