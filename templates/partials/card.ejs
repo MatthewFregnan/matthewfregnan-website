@@ -19,7 +19,7 @@
   <% } %>
   <%# Client logo: in the top corner, or beside the title (logoPosition, set per home page set) %>
   <% const logo = logoOf(project); const pos = logoPosition(); const inTitle = logo && pos.startsWith('title-'); %>
-  <% if (logo && pos === 'corner') { %><img class="card-logo" src="<%= logo %>" alt="<%= project.client %>" loading="lazy"><% } %>
+  <% if (logo && pos === 'corner') { %><img class="card-logo" src="<%= logo %>" alt="<%= project.client %>" loading="lazy" style="--logo-k: <%= logoScale(project) %>"><% } %>
   <div class="portfolio-item-title<%= inTitle ? ` has-logo logo-${pos}` : '' %>">
     <% if (inTitle) { %><div class="title-text"><% } %>
     <%# tiles use the optional short title (set in the admin when the full one is too long for a tile) %>

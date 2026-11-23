@@ -525,11 +525,12 @@
 
 /* Client logo on a tile (optional, per client): small, white, top-left, readable on any picture */
 .portfolio-item .card-logo, .portfolio-item-vertical .card-logo {
-  position: absolute; top: 12px; left: 12px; z-index: 2; height: 24px; width: auto; max-width: 45%; transform: none;
+  /* sized by shape (--logo-k from build.js logoScale), so wide and square logos look about the same size */
+  position: absolute; top: 12px; left: 12px; z-index: 2; height: clamp(13px, calc(28px * var(--logo-k, 0.86)), 34px); width: auto; max-width: 45%; transform: none;
   object-fit: contain; object-position: left top; pointer-events: none;
   filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.55)); opacity: 0.82; transition: opacity 0.5s ease;
 }
-.portfolio-item-vertical .card-logo { height: 24px; top: 12px; left: 12px; }
+.portfolio-item-vertical .card-logo { top: 12px; left: 12px; }
 .portfolio-item:hover .card-logo, .portfolio-item-vertical:hover .card-logo { transform: none; }
 /* out of the way while the tile's video plays */
 .portfolio-item.is-previewing .card-logo, .portfolio-item-vertical.is-previewing .card-logo { opacity: 0; }

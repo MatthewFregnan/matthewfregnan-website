@@ -587,7 +587,7 @@ function fileHash(file) {
 async function renderTemplate(templateName, data) {
   const templatePath = path.join(TEMPLATES_DIR, `${templateName}.ejs`);
   const template = await fs.readFile(templatePath, 'utf8');
-  return ejs.render(template, { focusOf, logoOf, logoPosition, imageUrl, ...data }, { filename: templatePath });
+  return ejs.render(template, { focusOf, logoOf, logoScale, logoPosition, imageUrl, ...data }, { filename: templatePath });
 }
 
 // Build CSS with Tailwind
@@ -682,6 +682,15 @@ function logoOf(p) {
   if (!file || !fs.existsSync(path.join(IMAGES_DIR, 'logos', file))) return '';
   // the white copy made by makeWhiteLogos, versioned by the original file
   return imageUrl('logos', file).replace('/images/logos/', '/images/logos-white/');
+}
+
+/** How big a tile's corner logo is drawn, relative to a square one (1). Wide logos come out shorter and
+ *  tall ones taller, so every logo looks about the same size (a fixed height made wide ones like KIA
+ *  look big and near-square ones like RedOctane look small). */
+function logoScale(p) {
+  const file = CLIENT_LOGOS.get(String(p.client || '').trim().toLowerCase());
+  const aspect = (file && LOGO_ASPECT.get(file)) || 1.5;
+  return Math.round(Math.pow(aspect, -0.4) * 100) / 100;
 }
 
 // Client pages (/clients/<name>/): every client with two or more projects gets a page of all their work,
