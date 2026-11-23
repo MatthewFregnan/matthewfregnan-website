@@ -835,14 +835,20 @@ function categoryTiles(projects, set) {
   return projects.categories.map(category => {
     const items = projects.projects.filter(p => p.category === category.id && p.thumbnail && !barredThumbs.has(p.thumbnail));
     const ordered = items.filter(p => inSet.has(`${p.category}/${p.id}`)).concat(items.filter(p => !inSet.has(`${p.category}/${p.id}`)));
+    // Up to 6 pictures, one per client first (then others if there aren't enough clients). The page
+    // shuffles them and starts each tile on a random one (src/main.js), so it differs every visit.
     const thumbs = [];
     const clients = new Set();
-    for (const p of ordered) {
-      const client = (p.client || p.id).toLowerCase();
-      if (clients.has(client)) continue;
-      clients.add(client);
-      thumbs.push({ src: p.thumbnail, focus: focusOf(p) });
-      if (thumbs.length === 4) break;
+    const picked = new Set();
+    for (const pass of [0, 1]) {
+      for (const p of ordered) {
+        if (thumbs.length === 6) break;
+        const client = (p.client || p.id).toLowerCase();
+        if (picked.has(p) || (pass === 0 && clients.has(client))) continue;
+        clients.add(client);
+        picked.add(p);
+        thumbs.push({ src: p.thumbnail, focus: focusOf(p) });
+      }
     }
     const count = projects.projects.filter(p => p.category === category.id).length;
     return { category, count, thumbs };

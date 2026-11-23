@@ -1157,19 +1157,26 @@ document.addEventListener('DOMContentLoaded', () => {
     entries.forEach((e) => (e.isIntersecting ? visible.add(e.target) : visible.delete(e.target)));
   });
   tiles.forEach((t) => io.observe(t));
-  const STEP = 4200;
-  tiles.forEach((tile, i) => {
-    const imgs = [...tile.querySelectorAll('.category-tile-images img')];
+  // Each tile shuffles its pictures, starts on a random one, and changes on its own loose rhythm
+  // (every 3.5 to 6 seconds, different each time), so the tiles never fall into a pattern.
+  const shuffle = (list) => {
+    for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+    return list;
+  };
+  tiles.forEach((tile) => {
+    const imgs = shuffle([...tile.querySelectorAll('.category-tile-images img')]);
     if (imgs.length < 2) return;
+    imgs.forEach((img, k) => img.classList.toggle('is-on', k === 0));
     let n = 0;
-    setTimeout(() => {
-      setInterval(() => {
-        if (!visible.has(tile) || document.hidden) return;
+    const next = () => setTimeout(() => {
+      if (visible.has(tile) && !document.hidden) {
         imgs[n].classList.remove('is-on');
         n = (n + 1) % imgs.length;
         imgs[n].classList.add('is-on');
-      }, STEP);
-    }, (STEP / tiles.length) * (Number(tile.dataset.cycleOffset) || i));
+      }
+      next();
+    }, 3500 + Math.random() * 2500);
+    setTimeout(next, Math.random() * 3000);
   });
 });
 
