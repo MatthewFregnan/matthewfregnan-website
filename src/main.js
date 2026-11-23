@@ -692,6 +692,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else if (best) {
       tile = [...best.children].find(t => !t.hidden && t.dataset.preview && fullyIn(t, best)) || null;
+      // a tile picked with the dots (or the row moving on by itself) stays while it's mostly in view
+      if (chosen && (chosen.parentElement === best || performance.now() - chosenAt < 1500) && mostlyIn(chosen)) tile = chosen;
     } else if (!rows.length && touch) {
       // Section and project pages on phones (no hover): the tile nearest where the eye rests, a little
       // above the middle, among tiles mostly in view between the menu bar and Safari's bottom bar.
@@ -727,15 +729,85 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     setTimeout(settle, 60);
   }, { passive: true }));
+  const mostlyIn = (t) => {
+    const row = t.parentElement;
+    const box = row.getBoundingClientRect(), r = t.getBoundingClientRect();
+    const v = row.getBoundingClientRect();
+    if (v.bottom < window.innerHeight * 0.1 || v.top > window.innerHeight * 0.9) return false;
+    return Math.min(r.right, box.right) - Math.max(r.left, box.left) >= r.width * 0.6;
+  };
   const fullyIn = (t, row) => {
     const box = row.getBoundingClientRect();
     const r = t.getBoundingClientRect();
     return r.left >= box.left - 4 && r.right <= box.right + 4;
   };
   // Play a tile for the scroll position, and after 12 seconds move on to the next video in the row
-  // (the next one on screen; on phones, where one fills the row, the row slides along to it).
+  // (sliding the row along to it; after the last it goes back to the first).
   let advanceTimer = null;
   let dwellTimer = null;
+  const ADVANCE = 12000;
+  let chosen = null;
+  let chosenAt = 0;
+  // Play a tile in a row, sliding the row so it's in view (to the middle on phones, where the row's
+  // scroll then picks it; on desktop only if it isn't already showing).
+  const goTo = (tile) => {
+    const row = tile.parentElement;
+    const box = row.getBoundingClientRect(), r = tile.getBoundingClientRect();
+    const dx = (r.left + r.right) / 2 - (box.left + box.right) / 2;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (touch) {
+      swipedRow = row; swipedAt = performance.now();
+      if (Math.abs(dx) > 2) row.scrollBy({ left: dx, behavior: reduce ? 'auto' : 'smooth' });
+      else pickTile(tile, true);
+      return;
+    }
+    if (!fullyIn(tile, row)) row.scrollBy({ left: dx, behavior: reduce ? 'auto' : 'smooth' });
+    chosen = tile; chosenAt = performance.now();
+    pickTile(tile, true);
+  };
+  // Dots under each home page row (Apple-style): one per video; the long one is the video playing and
+  // fills over its 12 seconds. Click one to jump to that video.
+  const dotRows = [];
+  rows.forEach((row) => {
+    const box = row.closest('[data-scroller]');
+    const list = [...row.children].filter(t => !t.hidden && t.dataset.preview);
+    if (!box || list.length < 2) return;
+    const pill = document.createElement('div');
+    pill.className = 'row-dots';
+    const dots = list.map((t) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'row-dot';
+      b.setAttribute('aria-label', `Play ${t.querySelector('h2')?.textContent.trim() || 'video'}`);
+      b.innerHTML = '<i></i>';
+      b.addEventListener('click', () => goTo(t));
+      return b;
+    });
+    pill.append(...dots);
+    const wrap = document.createElement('div');
+    wrap.className = 'row-dots-wrap';
+    wrap.append(pill);
+    box.after(wrap);
+    box.classList.add('has-dots');
+    dots[0].classList.add('on');
+    dotRows.push({ list, dots });
+  });
+  // ms: how long until the row moves on (the fill runs over it); 0 holds it (hovering a tile)
+  const markDots = (tile, ms) => {
+    for (const { list, dots } of dotRows) {
+      const i = list.indexOf(tile);
+      if (i < 0) continue;
+      dots.forEach((d, k) => {
+        d.classList.toggle('on', k === i);
+        const fill = d.firstChild;
+        if (k !== i) { fill.style.animation = 'none'; return; }
+        if (!ms) { fill.style.animationPlayState = 'paused'; return; }
+        fill.style.animation = 'none';
+        void fill.offsetWidth;
+        fill.style.animation = `row-dot-fill ${ms}ms linear forwards`;
+      });
+    }
+  };
   // Scrolling picks a tile, but it only starts once the page has been still for 0.9s: long enough to
   // take in the opening shot and read the title, and nothing starts while someone is scrolling past.
   const DWELL = 900;
@@ -757,14 +829,10 @@ document.addEventListener('DOMContentLoaded', () => {
     advanceTimer = setTimeout(() => {
       if (hovered || scrollPick !== tile || document.hidden) return;
       const list = [...row.children].filter(t => !t.hidden && t.dataset.preview);
-      const next = list[list.indexOf(tile) + 1];
-      if (next && !touch && fullyIn(next, row)) pickTile(next, true);   // phones always slide it to the middle
-      else if (next && touch) {   // slide it to the middle; the row's scroll then picks it
-        const r = next.getBoundingClientRect(), box = row.getBoundingClientRect();
-        row.scrollBy({ left: (r.left + r.right) / 2 - (box.left + box.right) / 2, behavior: 'smooth' });
-      }
-      else pickTile(list.find(t => fullyIn(t, row)) || tile, true);
-    }, 12000);
+      // the next video in the row (sliding it into view), and back to the first after the last
+      goTo(list[list.indexOf(tile) + 1] || list[0]);
+    }, ADVANCE);
+    markDots(tile, ADVANCE);
   };
   if (rows.length || touch) {
     let ticking = false;
@@ -788,7 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tiles.forEach((tile) => {
       let timer = null;
       tile.addEventListener('mouseenter', () => {
-        timer = setTimeout(() => { hovered = tile; Previews.play(tile, tile !== scrollPick); }, 300);
+        timer = setTimeout(() => { hovered = tile; markDots(tile, 0); Previews.play(tile, tile !== scrollPick); }, 300);
       });
       tile.addEventListener('mouseleave', () => {
         clearTimeout(timer);

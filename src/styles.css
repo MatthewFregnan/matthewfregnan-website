@@ -917,3 +917,28 @@ html:active-view-transition footer { animation: none !important; }
   html.snap-rows { scroll-snap-type: y proximity; }
   html.snap-rows .row-scroller { scroll-snap-align: center; scroll-margin-top: 30px; }
 }
+
+/* Home page rows: Apple-style dots under each row. The long dot is the video playing; it fills over the
+   12 seconds before the row moves on. They stand in for the arrows. (src/main.js adds them.) */
+.row-scroller.has-dots .scroller-btn { display: none; }
+.row-dots-wrap { display: flex; justify-content: center; margin-top: 16px; }
+.row-dots {
+  display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+.row-dot {
+  position: relative; width: 22px; height: 22px; padding: 0; border: 0; background: none; cursor: pointer;
+  transition: width 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.row-dot::before, .row-dot i {
+  content: ''; position: absolute; top: 50%; left: 8px; right: 8px; height: 6px; margin-top: -3px; border-radius: 999px;
+}
+.row-dot::before { background: rgba(255, 255, 255, 0.32); transition: background 0.3s; }
+.row-dot:hover::before { background: rgba(255, 255, 255, 0.6); }
+.row-dot i { right: auto; width: 0; background: rgba(255, 255, 255, 0.9); }
+.row-dot.on { width: 44px; }
+.row-dot.on::before { background: rgba(255, 255, 255, 0.24); }
+.row-dot:focus-visible { outline: none; }
+.row-dot:focus-visible::before { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7); }
+@keyframes row-dot-fill { from { width: 0; } to { width: calc(100% - 16px); } }
+@media (max-width: 639px) { .row-dots-wrap { margin-top: 12px; } }
