@@ -552,6 +552,7 @@ const Previews = (() => {
     if (!tile) return;
     tile.classList.remove('is-previewing');
     const v = tile.querySelector('video.vp-preview');
+    if (v && !v.muted) fadeSound(v, false, 400);   // the sound eases out with the picture
     if (v) setTimeout(() => { if (!tile.classList.contains('is-previewing') && current !== tile) release(v); }, 500);   // after the fade
     if (current === tile) current = null;
   };
@@ -573,8 +574,12 @@ const Previews = (() => {
         const v = tile.querySelector('video.vp-preview');
         soundOn = !soundOn;
         if (v) {
-          v.muted = !soundOn;
-          if (soundOn) v.play().catch(() => { soundOn = false; v.muted = true; showSound(tile); });
+          if (soundOn) {
+            fadeSound(v, true);
+            v.play().catch(() => { soundOn = false; v.muted = true; showSound(tile); });
+          } else {
+            fadeSound(v, false);
+          }
         }
         showSound(tile);
       };
@@ -583,6 +588,26 @@ const Previews = (() => {
       tile.append(b);
     }
     return b;
+  };
+  // Sound fades in and out (about 0.6s) rather than switching abruptly. iPhones don't let pages change
+  // a video's volume, so there it simply switches.
+  const fadeSound = (v, on, ms = 600) => {
+    cancelAnimationFrame(v._fade);
+    v.volume = 0.5;
+    const canFade = Math.abs(v.volume - 0.5) < 0.01;
+    if (!canFade) { v.muted = !on; return; }
+    const from = on ? 0 : (v.muted ? 0 : 1);
+    v.volume = from;
+    if (on) v.muted = false;
+    const t0 = performance.now();
+    const step = (now) => {
+      const x = Math.min(1, (now - t0) / ms);
+      const eased = x * x * (3 - 2 * x);
+      v.volume = on ? eased : from * (1 - eased);
+      if (x < 1) v._fade = requestAnimationFrame(step);
+      else if (!on) { v.muted = true; v.volume = 1; }
+    };
+    v._fade = requestAnimationFrame(step);
   };
   const showSound = (tile) => {
     const b = soundButton(tile);
@@ -594,14 +619,18 @@ const Previews = (() => {
   // allowed yet), try again a few times, falling back to silent, so a preview always gets going.
   const start = (tile, v, tries = 0) => {
     if (current !== tile) return;
-    v.muted = !soundOn;
+    v.muted = true;
     v.play().then(() => {
+      if (soundOn && current === tile) {
+        fadeSound(v, true);
+        // phones may pause a video that turns its sound on by itself: carry on silently instead
+        setTimeout(() => { if (current === tile && v.paused) { soundOn = false; v.muted = true; v.play().catch(() => {}); showSound(tile); } }, 200);
+      }
       if (current !== tile) return;
       tile.classList.add('is-previewing');
       showSound(tile);
     }).catch(() => {
       if (current !== tile || tries >= 4) return;
-      if (!v.muted) { soundOn = false; }   // sound wasn't allowed: carry on silently
       setTimeout(() => start(tile, v, tries + 1), 250 * (tries + 1));
     });
   };
@@ -840,7 +869,11 @@ function glideTo(y, duration = 1150) {
     return bez(t, 0, 1);
   };
   let stopped = false;
-  const stop = () => { stopped = true; };
+  // page snapping (phones, home page) would fight a glide, so it's off while one runs
+  const snap = document.documentElement.classList.contains('snap-rows');
+  if (snap) document.documentElement.classList.remove('snap-rows');
+  const resume = () => { if (snap) document.documentElement.classList.add('snap-rows'); };
+  const stop = () => { stopped = true; resume(); };
   const opts = { passive: true, once: true };
   ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.addEventListener(ev, stop, opts));
   const t0 = performance.now();
@@ -849,7 +882,7 @@ function glideTo(y, duration = 1150) {
     const x = Math.min(1, (now - t0) / duration);
     window.scrollTo({ top: startY + dist * ease(x), behavior: 'instant' });
     if (x < 1) requestAnimationFrame(step);
-    else ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.removeEventListener(ev, stop));
+    else { ['wheel', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.removeEventListener(ev, stop)); resume(); }
   };
   requestAnimationFrame(step);
 }
@@ -1236,4 +1269,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.fonts?.ready.then(fit);   // re-measure once Poppins has loaded
   let t;
   window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(fit, 150); });
+});
+
+// Phones, home page: turn on the gentle snap to video rows (styles.css "snap-rows")
+document.addEventListener('DOMContentLoaded', () => {
+  if (!document.querySelector('.row-scroller') || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.documentElement.classList.add('snap-rows');
 });

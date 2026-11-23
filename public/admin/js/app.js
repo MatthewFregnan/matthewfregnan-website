@@ -1889,7 +1889,49 @@ function clientStripEditor() {
     others.length ? h('label', { class: 'strip-add' }, 'Add ',
       h('select', { onchange: e => { if (e.target.value) save([...shown, e.target.value]); } },
         h('option', { value: '' }, 'a client…'), others.map(n => h('option', { value: n }, n)))) : null,
-    h('p', { class: 'muted small' }, 'Clients get a logo in a project’s Client logo row.'));
+    missingLogos());
+}
+
+// Clients with projects but no logo yet, most projects first, each with an Add Logo button
+const NOT_CLIENTS = new Set(['short film']);   // same as build.js: "client" values that aren't a client
+function missingLogos() {
+  const counts = new Map();
+  for (const p of projects()) {
+    const name = String(p.client || '').trim();
+    if (!name || NOT_CLIENTS.has(name.toLowerCase()) || clientEntry(name)?.[1]?.logo) continue;
+    const k = clientKey(name);
+    const e = counts.get(k) || { name, n: 0, p };
+    e.n += 1;
+    counts.set(k, e);
+  }
+  const list = [...counts.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+  const addLogo = async (name) => {
+    const [file] = await pickFiles(false);
+    if (!file) return;
+    try {
+      const { blob, ext } = await I.convert(file, 480);
+      const fileName = `${slugify(name)}.${ext}`;
+      I.addPending(I.repoPath('logos', fileName), blob);
+      mutate(() => {
+        S.data.clients ||= {};
+        const existing = clientEntry(name);
+        const key = existing ? existing[0] : name;
+        S.data.clients[key] = { ...(S.data.clients[key] || {}), logo: fileName };
+      });
+      toast(`Added a logo for ${name}. Publish to put it live.`);
+      renderHomeDialog();
+    } catch (e) { toast(e.message); }
+  };
+  return h('div', { class: 'missing-logos' },
+    h('h4', {}, `Clients without a logo (${list.length})`),
+    list.length ? [
+      h('p', { class: 'muted small' }, 'A PNG or SVG with a transparent background works best. Logos show white on the site.'),
+      h('div', { class: 'home-list' }, list.map(c => h('div', { class: 'row missing-row' },
+        h('span', { class: 'row-text' }, h('span', { class: 'row-title' }, c.name),
+          h('span', { class: 'row-sub' }, `${c.n} project${c.n === 1 ? '' : 's'}`)),
+        h('button', { class: 'btn link', title: 'Open one of their projects', onclick: () => { clearSearchFor(c.p); go('projects'); select(c.p); } }, 'View'),
+        h('button', { class: 'btn', onclick: () => addLogo(c.name) }, 'Add Logo…'))))]
+      : h('p', { class: 'muted small' }, 'Every client has a logo.'));
 }
 
 // ---------------------------------------------------------------- project page preview
