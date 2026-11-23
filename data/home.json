@@ -99,7 +99,8 @@
     "commercial": {
       "active": "",
       "presets": [],
-      "filterCounts": false
+      "filterCounts": false,
+      "clientFilter": false
     }
   }
 }
