@@ -15,6 +15,8 @@ bucket_name = "matthewfregnan-videos"
 
 [vars]
 REPO = "MatthewFregnan/matthewfregnan-website"
+MAIL_FROM = "website@matthewfregnan.com"
+MAIL_TO = "matthewfregnan@outlook.com"
 
 # Anonymous visit stats for the admin's Traffic page (schema.sql)
 [[d1_databases]]
@@ -22,14 +24,8 @@ binding = "STATS"
 database_name = "matthewfregnan-stats"
 database_id = "f34f23ec-4560-4bb7-ba71-6474aac27396"
 
-# Contact form messages are emailed through Cloudflare Email Routing. To switch it on:
-#   1. Cloudflare dashboard → matthewfregnan.com → Email → Email Routing: enable it, and add + verify
-#      the address messages should go to (Destination addresses).
-#   2. Uncomment the lines below (MAIL_TO must be that verified address) and deploy.
-# Until then messages are still saved and shown in the admin's Inbox.
-# [[send_email]]
-# name = "MAIL"
-# destination_address = "you@example.com"
-# [vars] additions (put these in the [vars] table above):
-#   MAIL_FROM = "website@matthewfregnan.com"
-#   MAIL_TO = "you@example.com"
+# Contact form messages are emailed to MAIL_TO through Cloudflare Email Routing (it must be a
+# verified Destination address there). They're also saved and shown in the admin's Inbox.
+[[send_email]]
+name = "MAIL"
+destination_address = "matthewfregnan@outlook.com"
