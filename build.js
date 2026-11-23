@@ -587,7 +587,7 @@ function fileHash(file) {
 async function renderTemplate(templateName, data) {
   const templatePath = path.join(TEMPLATES_DIR, `${templateName}.ejs`);
   const template = await fs.readFile(templatePath, 'utf8');
-  return ejs.render(template, { focusOf, logoOf, logoScale, logoPosition, imageUrl, ...data }, { filename: templatePath });
+  return ejs.render(template, { focusOf, logoOf, logoScale, logoPosition, imageUrl, rolesOf, ...data }, { filename: templatePath });
 }
 
 // Build CSS with Tailwind
@@ -682,6 +682,50 @@ function logoOf(p) {
   if (!file || !fs.existsSync(path.join(IMAGES_DIR, 'logos', file))) return '';
   // the white copy made by makeWhiteLogos, versioned by the original file
   return imageUrl('logos', file).replace('/images/logos/', '/images/logos-white/');
+}
+
+// What I did on a project (the "role" text, ticked in the admin as chips): each role's name, older
+// wording that means the same, and a small line icon for the project page. Same list as
+// public/admin/js/roles.js.
+const ROLE_ICON = {
+  scissors: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/>',
+  grade: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/>',
+  sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M2 14h4M10 8h4M18 16h4"/>',
+  wave: '<path d="M2 12h2M6 8v8M10 4v16M14 7v10M18 10v4M22 12h-2"/>',
+  spark: '<path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z"/>',
+  wand: '<path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5"/>',
+  captions: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 15h4M15 15h2M7 11h2M13 11h4"/>',
+  crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14M18 22V8a2 2 0 0 0-2-2H2"/>',
+  check: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/>',
+  camera: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 10.5"/>',
+  clapper: '<rect x="3" y="9" width="18" height="12" rx="1.5"/><path d="M3 9l1.6-4.6a1 1 0 0 1 1.2-.6L20.2 7.6M8.5 5.2 7 9.3M14 6.6 12.6 9"/>',
+};
+const ROLES = [
+  { label: 'Edit', icon: 'scissors', also: ['editor', 'editing', 'offline edit'] },
+  { label: 'Colour grade', icon: 'grade', also: ['colourist', 'colorist', 'colour', 'color', 'colour grading', 'grade', 'grading'] },
+  { label: 'Sound mix', icon: 'sliders', also: ['sound', 'audio mix', 'mix', 'mixing'] },
+  { label: 'Sound design', icon: 'wave', also: ['sfx'] },
+  { label: 'Motion graphics', icon: 'spark', also: ['motion', 'mograph', 'animation', 'graphics'] },
+  { label: 'VFX & clean-up', icon: 'wand', also: ['vfx', 'compositing', 'clean-up', 'cleanup'] },
+  { label: 'Captions', icon: 'captions', also: ['subtitles', 'supers'] },
+  { label: 'Cut-downs', icon: 'crop', also: ['cutdowns', 'cut downs', 'social cut-downs', 'versioning'] },
+  { label: 'Finishing & delivery', icon: 'check', also: ['finishing', 'online', 'delivery', 'mastering', 'conform'] },
+  { label: 'Filming', icon: 'camera', also: ['camera', 'shooting', 'shot', 'videography', 'dop'] },
+  { label: 'Directing', icon: 'clapper', also: ['director', 'direction'] },
+];
+
+/** A project's roles in list order: [{ label, icon }] (icon is SVG inner markup, or '' for other wording). */
+function rolesOf(p) {
+  const parts = String(p.role || '').split(/\s*(?:,|&(?! clean)|\+|·|\/)\s*/).map(s => s.trim()).filter(Boolean);
+  const found = new Set();
+  const other = [];
+  for (const part of parts) {
+    const n = part.toLowerCase();
+    const r = ROLES.find(x => x.label.toLowerCase() === n || x.also.includes(n));
+    if (r) found.add(r); else if (!other.some(o => o.toLowerCase() === n)) other.push(part);
+  }
+  return [...ROLES.filter(r => found.has(r)).map(r => ({ label: r.label, icon: ROLE_ICON[r.icon] })),
+    ...other.map(label => ({ label, icon: '' }))];
 }
 
 /** How big a tile's corner logo is drawn, relative to a square one (1). Wide logos come out shorter and

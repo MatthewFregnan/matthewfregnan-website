@@ -3,6 +3,7 @@
 // in this browser until you press Publish (one commit to GitHub, live in 1–2 minutes).
 
 import * as V from './video.js';
+import * as R from './roles.js';
 import * as I from './images.js';
 import * as U from './upload.js';
 import * as P from './preview.js';
@@ -361,7 +362,7 @@ function addProject(p, after = null) {
 }
 
 function blankProject(cat) {
-  const p = { id: uniqueId('new-project', cat), title: 'New Project', category: cat, client: '', role: 'Editor',
+  const p = { id: uniqueId('new-project', cat), title: 'New Project', category: cat, client: '', role: 'Edit',
     production: '', year: '', description: '', thumbnail: '' };
   touch(p);
   return p;
@@ -649,6 +650,30 @@ function renderTitleFit(box, p, keepField = false) {
       } }, 'Remove')) : null].filter(Boolean));
 }
 
+/** What I did: a chip per role (ticked = on), saved in the project's role text in a fixed order. */
+function roleChips(p) {
+  const box = h('div', { class: 'role-chips', role: 'group', 'aria-label': 'What I did' });
+  const draw = () => {
+    const { picked, other } = R.parseRoles(p.role);
+    box.replaceChildren(
+      ...R.ROLES.map(r => {
+        const on = picked.includes(r.label);
+        return h('button', { type: 'button', class: `chip${on ? ' on' : ''}`, 'aria-pressed': String(on), onclick: () => {
+          const next = on ? picked.filter(l => l !== r.label) : [...picked, r.label];
+          mutate(() => { p.role = R.roleText(next, other); });
+          draw();
+        } }, on ? '✓ ' : '', r.label);
+      }),
+      // wording from before that isn't on the list: shown so it can be removed
+      ...other.map(o => h('button', { type: 'button', class: 'chip on', title: 'Not on the list: click to remove', onclick: () => {
+        mutate(() => { p.role = R.roleText(picked, other.filter(x => x !== o)); });
+        draw();
+      } }, `${o} ×`)));
+  };
+  draw();
+  return box;
+}
+
 function textField(p, key, opts = {}) {
   const tag = opts.multiline ? 'textarea' : 'input';
   const el = h(tag, {
@@ -724,7 +749,7 @@ function detailsForm(p) {
     header: h('div', { class: 'pe-header' }, lists, title, titleFitBox(p), client,
       h('div', { class: 'pe-logo' }, h('span', { class: 'muted small' }, 'Client logo'), h('div', { id: 'client-logo' }, clientLogoRow(p)))),
     info: h('div', { class: 'form' },
-    h('label', { for: 'f-role' }, 'Role'), textField(p, 'role', { list: true, placeholder: 'e.g. Editor' }),
+    h('label', { class: 'top' }, 'What I did'), roleChips(p),
     h('label', { for: 'f-production' }, 'Production'), textField(p, 'production', { list: true, placeholder: 'e.g. ThinkHQ' }),
     h('label', { for: 'f-agency' }, 'Agency'), textField(p, 'agency', { list: true, placeholder: 'If you worked through an agency' }),
     h('label', { for: 'f-year' }, 'Year'), textField(p, 'year', { class: 'year', placeholder: 'YYYY', inputmode: 'numeric', digits: true }),

@@ -22,10 +22,10 @@
               <dd><%= project.production %></dd>
             </div>
           <% } %>
-          <% if (project.role) { %>
-            <div>
-              <dt class="text-site-text-muted">Role</dt>
-              <dd><%= project.role %></dd>
+          <% const roles = rolesOf(project); if (roles.length) { %>
+            <div class="md:col-span-2">
+              <dt class="text-site-text-muted mb-2">What I did</dt>
+              <dd><%- include('roles', { roles }) %></dd>
             </div>
           <% } %>
           <% if (project.year) { %>

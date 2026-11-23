@@ -1,3 +1,4 @@
+import { parseRoles } from './roles.js';
 // Live previews of the site, drawn inside the admin from the data being edited (no build needed).
 // They copy the real site's layout rules (templates/home.ejs, project.ejs and src/styles.css) at a
 // fixed "virtual" screen width, then scale down to fit the panel, so what you see is what the
@@ -211,7 +212,8 @@ export function projectPreview(h, opts) {
 
   let details;
   if (layout === 'detailed') {
-    const roles = String(p.role || '').split(/\s*(?:,|&|\+|·|\/)\s*/).filter(Boolean);
+    const { picked, other } = parseRoles(p.role);
+    const roles = [...picked, ...other];
     const platforms = String(p.platform || '').split(/\s*(?:,|·|\/)\s*/).filter(Boolean);
     const facts = [['Client', p.client], ['Agency', p.agency], ['Production', p.production],
       ['Deliverables', p.deliverables], ['Year', p.year], ['Views', statsText(p)]].filter(([, v]) => v);

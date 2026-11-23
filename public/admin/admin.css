@@ -817,3 +817,7 @@ dialog.wide { width: min(980px, calc(100vw - 32px)); }
   .msg-preview { display: none; }
   .msg-body { padding-left: 14px; }
 }
+
+/* Project editor: What I did */
+.role-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.role-chips .chip { font-size: 12.5px; padding: 4px 11px; }

@@ -373,6 +373,14 @@
 .ctx-chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 0; }
 .ctx-chips li { font-size: 0.875rem; padding: 5px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); color: #fff; }
 .ctx-chips.is-quiet li { background: none; border: 1px solid rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.85); }
+/* What I did (partials/roles.ejs): a quiet pill per role with a small line icon */
+.role-list { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 0; }
+.role-list li {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 13px 6px 11px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.92); font-size: 0.85rem; line-height: 1.2; white-space: nowrap;
+}
+.role-list svg { width: 15px; height: 15px; flex: none; opacity: 0.75; }
 .ctx-facts { margin: 0; display: grid; gap: 14px; align-content: start; }
 .ctx-facts div { display: grid; grid-template-columns: 110px 1fr; gap: 12px; font-size: 0.9375rem; }
 .ctx-facts dt { color: #a0a0a0; }

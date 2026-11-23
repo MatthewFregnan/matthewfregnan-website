@@ -1104,6 +1104,7 @@ function glideTo(y, duration = 1150) {
 }
 
 // Home page scroll nudge and "View my work": glide to the work, and fade the arrow out once the page scrolls.
+// (The page doesn't glide down by itself: visitors scroll when they're ready.)
 document.addEventListener('DOMContentLoaded', () => {
   const cue = document.querySelector('.scroll-cue');
   if (!cue) return;
@@ -1123,28 +1124,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const update = () => cue.classList.toggle('is-hidden', window.scrollY > 40);
   window.addEventListener('scroll', update, { passive: true });
   update();
-
-  // After 12 seconds sitting at the top, glide down to the work on its own. Only once per visit:
-  // if you scroll yourself (or come back up to the top), it leaves you alone for the rest of the visit.
-  const KEY = 'mf-auto-scroll';
-  let seen = false;
-  try { seen = sessionStorage.getItem(KEY) === '1'; } catch { /* storage blocked: still fine */ }
-  if (!target || seen || window.scrollY > 40 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const done = () => { try { sessionStorage.setItem(KEY, '1'); } catch { /* ignore */ } };
-  let timer = setTimeout(() => {
-    timer = null;
-    if (window.scrollY > 40 || document.hidden) return;
-    done();
-    glideTo(workY(), 1500);
-  }, 12000);
-  const cancel = () => {
-    if (!timer) return;
-    clearTimeout(timer);
-    timer = null;
-    done();
-  };
-  window.addEventListener('scroll', () => { if (window.scrollY > 40) cancel(); }, { passive: true });
-  ['wheel', 'touchstart', 'keydown'].forEach(ev => window.addEventListener(ev, cancel, { passive: true, once: true }));
 });
 
 // "All work" section tiles: slowly crossfade through each tile's pictures, staggered so the

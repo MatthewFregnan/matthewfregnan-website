@@ -1,7 +1,7 @@
 <%# Project page details: Detailed layout (description, what I did, made for, credits). %>
     <!-- Project context: what it was, what I did, who for. Empty fields are simply left out. -->
     <%
-      const roles = String(project.role || '').split(/\s*(?:,|&|\+|·|\/)\s*/).filter(Boolean);
+      const roles = rolesOf(project);
       const platforms = String(project.platform || '').split(/\s*(?:,|·|\/)\s*/).filter(Boolean);
       const facts = [
         ['Client', project.client],
@@ -20,7 +20,7 @@
           <% if (roles.length) { %>
             <div class="ctx-group">
               <h2 class="ctx-label">What I did</h2>
-              <ul class="ctx-chips"><% roles.forEach(r => { %><li><%= r %></li><% }) %></ul>
+              <%- include('roles', { roles }) %>
             </div>
           <% } %>
           <% if (platforms.length) { %>
