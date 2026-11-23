@@ -1,0 +1,60 @@
+<%- include('partials/header') %>
+
+<%# Page not found: a guess at what the address was after (filled in below from its last part), a way home,
+    and a few featured projects so a broken link still lands somewhere worth watching. %>
+<section class="py-16 md:py-24">
+  <div class="container mx-auto px-4">
+    <div class="nf-head">
+      <p class="nf-code">404</p>
+      <h1 class="text-3xl md:text-4xl font-light">This page has moved or doesn't exist</h1>
+      <p class="nf-guess" id="nf-guess" hidden>Were you looking for <a href="/" id="nf-guess-link"></a>?</p>
+      <div class="nf-actions">
+        <a href="/" class="contact-btn primary">Back to home</a>
+        <a href="/my-work/" class="contact-btn">See all work</a>
+      </div>
+    </div>
+
+    <% if (featured.length) { %>
+      <h2 class="text-base font-light text-site-text-muted mt-16 mb-4">Featured work</h2>
+      <div class="portfolio-grid">
+        <% featured.forEach(({ project, category }) => { %>
+          <%- include('partials/card', { project, category, vertical: false }) %>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<script>
+  (function () {
+    var list = <%- JSON.stringify(lookup) %>;
+    var norm = function (s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); };
+    var parts = location.pathname.split('/').filter(Boolean).map(function (p) { try { return norm(decodeURIComponent(p)); } catch (e) { return norm(p); } });
+    var best = null, score = 0;
+    parts.reverse().forEach(function (part, depth) {
+      if (part.length < 3) return;
+      list.forEach(function (item) {
+        item.k.forEach(function (key) {
+          var k = norm(key), s = 0;
+          if (k === part) s = 100;
+          else if (part.length >= 4 && k.indexOf(part) >= 0) s = 60 * part.length / k.length;
+          else if (k.length >= 4 && part.indexOf(k) >= 0) s = 50 * k.length / part.length;
+          else {   // shared words ("stage-tour-trailer" finds "Stage Tour "Play Your Way" Trailer")
+            var kw = k.split('-'), pw = part.split('-').filter(function (w) { return w.length >= 3; });
+            var shared = pw.filter(function (w) { return kw.indexOf(w) >= 0; }).length;
+            if (shared >= 2) s = 25 + 30 * shared / pw.length + 5 * shared / kw.length;
+          }
+          s -= depth * 5;
+          if (s > score) { score = s; best = item; }
+        });
+      });
+    });
+    if (!best || score < 20) return;
+    var a = document.getElementById('nf-guess-link');
+    a.href = best.u;
+    a.textContent = best.t;
+    document.getElementById('nf-guess').hidden = false;
+  })();
+</script>
+
+<%- include('partials/footer') %>

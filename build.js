@@ -360,8 +360,15 @@ function buildItemListSchema(category, categoryProjects, siteConfig) {
   };
 }
 
-// Social share images: link previews (LinkedIn, Facebook etc.) are most reliable
-// with JPEG, so make a 1200px JPEG copy of each WebP thumbnail.
+// Link previews (iMessage, WhatsApp, Slack, LinkedIn, Facebook): one 1200x630 JPEG per page, the shape
+// they all show. Projects get their thumbnail (cropped at its focus point; vertical ones sit on a blurred,
+// darkened copy of themselves); sections and clients get a collage of their work; the home page gets the
+// hero frame. Pages are rendered first and queue their image here (OG_JOBS); generateOgImages makes them.
+const OG_W = 1200;
+const OG_H = 630;
+const OG_BG = '#0f0f0f';
+const OG_JOBS = [];
+
 function ogImagePath(project) {
   return `/images/og/${project.category}/${project.id}.jpg`;
 }
@@ -371,21 +378,80 @@ async function ensureFile(file) {
   return file;
 }
 
+const thumbFile = p => p && p.thumbnail && path.join(IMAGES_DIR, 'thumbnails', p.thumbnail);
+
+/** An image cropped to w x h around a focus point ("x% y%", default the middle). */
+async function ogCover(file, w, h, focus) {
+  const meta = await sharp(file).metadata();
+  const scale = Math.max(w / meta.width, h / meta.height);
+  const rw = Math.max(w, Math.round(meta.width * scale));
+  const rh = Math.max(h, Math.round(meta.height * scale));
+  const m = /^([\d.]+)% ([\d.]+)%$/.exec(focus || '');
+  const fx = m ? +m[1] / 100 : 0.5;
+  const fy = m ? +m[2] / 100 : 0.5;
+  return sharp(file).resize(rw, rh)
+    .extract({ left: Math.round((rw - w) * fx), top: Math.round((rh - h) * fy), width: w, height: h })
+    .toBuffer();
+}
+
+const isPortrait = async file => { const m = await sharp(file).metadata(); return m.height > m.width * 1.1; };
+
+/** A single image filling the card; a portrait one sits whole on a blurred, darkened copy of itself. */
+async function ogSingle(file, focus) {
+  if (!(await isPortrait(file))) return ogCover(file, OG_W, OG_H, focus);
+  const back = await sharp(await ogCover(file, OG_W, OG_H)).blur(28).modulate({ brightness: 0.45 }).toBuffer();
+  const front = await sharp(file).resize({ height: OG_H }).toBuffer();
+  const fw = (await sharp(front).metadata()).width;
+  return sharp(back).composite([{ input: front, left: Math.round((OG_W - fw) / 2), top: 0 }]).toBuffer();
+}
+
+/** A collage: four portrait thumbnails side by side, four landscape ones in a 2x2 grid, else just the first. */
+async function ogCollage(items) {
+  const usable = [];
+  for (const p of items) {
+    const f = thumbFile(p);
+    if (f && fs.existsSync(f) && !barredThumbs.has(p.thumbnail)) usable.push({ f, focus: focusOf(p), portrait: await isPortrait(f) });
+  }
+  if (!usable.length) return null;
+  const gap = 4;
+  const tall = usable.filter(u => u.portrait);
+  const wide = usable.filter(u => !u.portrait);
+  let tiles = null;
+  if (tall.length >= 4 && (tall.length >= wide.length || wide.length < 4)) {
+    const w = (OG_W - gap * 3) / 4;
+    tiles = tall.slice(0, 4).map((u, i) => ({ u, w: Math.round(w), h: OG_H, left: Math.round(i * (w + gap)), top: 0 }));
+  } else if (wide.length >= 4) {
+    const w = (OG_W - gap) / 2, h = (OG_H - gap) / 2;
+    tiles = wide.slice(0, 4).map((u, i) => ({ u, w: Math.round(w), h: Math.round(h), left: Math.round((i % 2) * (w + gap)), top: Math.round(Math.floor(i / 2) * (h + gap)) }));
+  }
+  if (!tiles) return ogSingle(usable[0].f, usable[0].focus);
+  const parts = await Promise.all(tiles.map(async t => ({ input: await ogCover(t.u.f, t.w, t.h, t.u.focus), left: t.left, top: t.top })));
+  return sharp({ create: { width: OG_W, height: OG_H, channels: 3, background: OG_BG } }).composite(parts).png().toBuffer();
+}
+
+/** Queue a link preview image for a page; returns its address. */
+function ogQueue(out, make) {
+  OG_JOBS.push({ out, make });
+  return out;
+}
+
 async function generateOgImages(projects) {
   for (const project of projects.projects) {
-    if (!project.thumbnail) continue;
-    const src = path.join(IMAGES_DIR, 'thumbnails', project.thumbnail);
-    if (!(await fs.pathExists(src))) {
-      console.warn(`  Missing thumbnail for ${project.id}: ${project.thumbnail}`);
-      continue;
-    }
-    await sharp(src)
-      .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
-      .flatten({ background: '#000000' })
-      .jpeg({ quality: 82, mozjpeg: true })
-      .toFile(await ensureFile(path.join(DIST_DIR, ogImagePath(project))));
+    const f = thumbFile(project);
+    if (f && fs.existsSync(f)) ogQueue(ogImagePath(project), () => ogSingle(f, focusOf(project)));
+    else if (project.thumbnail) console.warn(`  Missing thumbnail for ${project.id}: ${project.thumbnail}`);
   }
-  console.log('Generated social share images');
+  const fallback = path.join(IMAGES_DIR, 'hero-poster.webp');
+  let made = 0;
+  for (const job of OG_JOBS) {
+    let img = null;
+    try { img = await job.make(); } catch (e) { console.warn(`  Link preview ${job.out}: ${e.message}`); }
+    if (!img) img = await ogCover(fallback, OG_W, OG_H);
+    await sharp(img).flatten({ background: OG_BG }).jpeg({ quality: 82, mozjpeg: true })
+      .toFile(await ensureFile(path.join(DIST_DIR, job.out)));
+    made += 1;
+  }
+  console.log(`Generated ${made} link preview images`);
 }
 
 // Category descriptions for SEO
@@ -962,6 +1028,9 @@ async function buildPages() {
   LOGO_POSITION = home.logoPosition || 'corner';
   if (LOGO_POSITION !== 'corner') console.log(`  Client logos: ${LOGO_POSITION}`);
 
+  // The site-wide link preview: the opening frame of the home page video
+  const SITE_OG = ogQueue('/images/og/site.jpg', () => ogCover(path.join(IMAGES_DIR, 'hero-poster.webp'), OG_W, OG_H));
+
   // Build home page with Person + LocalBusiness schema
   console.log('Building home page...');
   const homeStructuredData = [
@@ -976,6 +1045,7 @@ async function buildPages() {
     activePage: 'home',
     pageDescription: `${siteConfig.title} - Melbourne video editor and colourist. View my portfolio of commercial, branded, and colour grading work for clients like KIA, Deakin University, and Australian government agencies.`,
     pageUrl: '/',
+    pageImage: SITE_OG,
     pageType: 'website',
     structuredData: homeStructuredData
   });
@@ -999,6 +1069,7 @@ async function buildPages() {
       noindex: true,
       pageDescription: `${siteConfig.title} - Melbourne video editor and colourist.`,
       pageUrl: '/',
+      pageImage: SITE_OG,
       pageType: 'website',
       structuredData: homeStructuredData
     });
@@ -1015,6 +1086,7 @@ async function buildPages() {
     activePage: 'about',
     pageDescription: `Learn about ${siteConfig.title}, a Melbourne-based video editor with 5+ years experience. Swinburne University graduate specializing in commercial editing and colour grading.`,
     pageUrl: '/about/',
+    pageImage: ogQueue('/images/og/about.jpg', () => ogSingle(path.join(IMAGES_DIR, 'headshot.jpg'), '50% 30%')),
     pageType: 'profile',
     structuredData: buildPersonSchema(siteConfig)
   });
@@ -1028,6 +1100,7 @@ async function buildPages() {
     activePage: 'my-work',
     pageDescription: `Explore ${siteConfig.title}'s video editing portfolio featuring commercial campaigns, branded content, vertical social media, and professional colour grading work.`,
     pageUrl: '/my-work/',
+    pageImage: SITE_OG,
     pageType: 'website'
   });
   await fs.outputFile(path.join(DIST_DIR, 'my-work', 'index.html'), myWorkHtml);
@@ -1048,6 +1121,7 @@ async function buildPages() {
       projects: categoryProjects,
       pageDescription: galleryDescription,
       pageUrl: `/${category.slug}/`,
+      pageImage: ogQueue(`/images/og/section-${category.slug}.jpg`, () => ogCollage(categoryProjects)),
       pageType: 'website',
       structuredData: buildItemListSchema(category, categoryProjects, siteConfig)
     });
@@ -1103,12 +1177,36 @@ async function buildPages() {
       otherClients: allLogoClients.filter(o => !(logoFile && o.src.includes(`/${logoFile}?`)) && o.name.toLowerCase() !== c.name.toLowerCase()),
       pageDescription: `${c.name}: ${c.items.length} projects edited by ${siteConfig.title}, Melbourne video editor and colourist.`,
       pageUrl: `/clients/${c.slug}/`,
+      pageImage: ogQueue(`/images/og/client-${c.slug}.jpg`, () => ogCollage(c.items.map(i => i.project))),
       pageType: 'website'
     });
     await fs.outputFile(path.join(DIST_DIR, 'clients', c.slug, 'index.html'), html);
     clientPages += 1;
   }
   console.log(`  Client pages: ${clientPages}`);
+
+  // 404 page: GitHub Pages shows dist/404.html for any address that doesn't exist. It offers a guess at
+  // what the address was after (from its last part: a project or client name), then some featured work.
+  const lookup = [
+    ...projects.projects.map(p => {
+      const cat = projects.categories.find(c => c.id === p.category);
+      return cat && { k: [p.id, p.title], t: p.title, u: `/${cat.slug}/${p.id}/` };
+    }),
+    ...[...CLIENT_INDEX.values()].filter(c => c.items.length >= 2).map(c => ({ k: [c.slug, c.name], t: `${c.name} (all work)`, u: `/clients/${c.slug}/` })),
+    ...projects.categories.map(c => ({ k: [c.slug, c.id, c.name], t: c.name, u: `/${c.slug}/` })),
+  ].filter(Boolean);
+  const notFoundHtml = await renderTemplate('404', {
+    ...commonData,
+    title: `Page not found | ${siteConfig.title}`,
+    activePage: '404',
+    noindex: true,
+    featured: home.landscape.filter(i => i.shown !== false).slice(0, 3),
+    lookup,
+    pageUrl: '/',
+    pageImage: SITE_OG,
+    pageType: 'website'
+  });
+  await fs.outputFile(path.join(DIST_DIR, '404.html'), notFoundHtml);
 
   await generateOgImages(projects);
   await generateRedirects(projects, siteConfig);

@@ -942,3 +942,12 @@ html:active-view-transition footer { animation: none !important; }
 .row-dot:focus-visible::before { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7); }
 @keyframes row-dot-fill { from { width: 0; } to { width: calc(100% - 16px); } }
 @media (max-width: 639px) { .row-dots-wrap { margin-top: 12px; } }
+
+/* 404 page */
+.nf-head { max-width: 34em; margin: 0 auto; text-align: center; }
+.nf-code { font-size: 0.8rem; letter-spacing: 0.3em; color: #7a7a7a; margin-bottom: 14px; }
+.nf-guess { margin-top: 18px; color: #a0a0a0; }
+.nf-guess a { color: #fff; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255, 255, 255, 0.4); }
+.nf-guess a:hover { text-decoration-color: #fff; }
+.nf-actions { display: flex; gap: 10px; justify-content: center; margin-top: 28px; }
+.nf-actions .contact-btn { flex: 0 0 auto; padding: 11px 24px; }
