@@ -38,7 +38,7 @@ const S = {
   trafficDays: 30,
 };
 
-const PAGES = ['overview', 'home', 'projects', 'sections', 'text', 'traffic', 'storage'];
+const PAGES = ['overview', 'inbox', 'home', 'projects', 'sections', 'text', 'traffic', 'storage'];
 
 /** Switch the main area to one of the pages in the left menu. */
 function go(page, { push = true } = {}) {
@@ -53,6 +53,7 @@ function go(page, { push = true } = {}) {
   if (page === 'home') renderHomeDialog();
   if (page === 'storage' && changedPage) renderStoragePage();
   if (page === 'traffic' && changedPage) renderTrafficPage();
+  if (page === 'inbox' && changedPage) renderInboxPage(true);
   if (page === 'sections') renderSectionsPage();
   if (page === 'text' && changedPage) renderTextPage();
   if (page === 'projects' && changedPage) { renderList({ scroll: true }); renderEditor(); }
@@ -2021,6 +2022,7 @@ function renderOverview() {
     h('div', { class: 'page-head' }, h('h2', {}, 'Overview'),
       h('p', { class: 'muted' }, `${projects().length} projects on matthewfregnan.com`)),
     h('div', { class: 'ov-grid' }, h('div', { class: 'ov-col' },
+      inboxCard(card),
       card(n.length ? `${n.length} unpublished change${n.length === 1 ? '' : 's'}` : 'Everything is live',
         n.length ? h('ul', { class: 'ov-changes' }, n.slice(0, 6).map(c => h('li', {}, c)), n.length > 6 ? h('li', { class: 'muted' }, `…and ${n.length - 6} more`) : null)
           : h('p', { class: 'muted' }, 'The site matches what you see here.'),
@@ -2375,6 +2377,8 @@ const SITE_TEXT = [
     ['availability', 'Availability (optional)', '', 'Shown with a green dot in the contact panel, e.g. “Taking on work from January”. Leave empty to hide.'],
     ['contactHeading', 'Contact panel: heading', 'Let’s work together'],
     ['contactText', 'Contact panel: line under it', 'Tell me a bit about the project: what it is, when it’s due and where it’ll live.'],
+    ['messagePlaceholder', 'Contact form: hint in the message box', 'What are you working on? When is it due?'],
+    ['messageSent', 'Contact form: thank-you after sending', 'Thanks, your message is on its way. I’ll get back to you soon.'],
     ['ctaHeading', 'Closing band: heading', 'Have a project in mind?', 'The band at the bottom of every page except About.'],
     ['ctaText', 'Closing band: line', 'I edit and colour commercials, branded content and social. Let’s make something together.'],
     ['ctaButton', 'Closing band: button', 'Get in touch'],
@@ -2529,6 +2533,114 @@ async function fillTrafficSummary(box) {
   } catch (e) {
     box.replaceChildren(h('p', { class: 'muted small' }, e.message));
   }
+}
+
+// ---------------------------------------------------------------- inbox (contact form messages)
+
+S.inbox = null;   // { messages, at }
+
+let inboxLoading = null;   // one request at a time (start-up and the Inbox page can both ask)
+async function loadInbox(force = false) {
+  if (!uploadConfig()) return [];
+  if (!force && S.inbox && Date.now() - S.inbox.at < 60 * 1000) return S.inbox.messages;
+  if (inboxLoading) return inboxLoading;
+  inboxLoading = U.messages(uploadConfig()).then(({ messages }) => {
+    S.inbox = { messages, at: Date.now() };
+    showInboxCount();
+    return messages;
+  }).finally(() => { inboxLoading = null; });
+  return inboxLoading;
+}
+
+/** Overview: new messages, if there are any. */
+function inboxCard(card) {
+  const fresh = (S.inbox?.messages || []).filter(m => !m.read);
+  if (!fresh.length) return null;
+  return card(`${fresh.length} new message${fresh.length === 1 ? '' : 's'}`,
+    h('div', { class: 'ov-list' }, fresh.slice(0, 3).map(m => h('button', { class: 'ov-row', onclick: () => go('inbox') },
+      h('span', {}, h('b', {}, m.name), ` · ${m.message.replace(/\s+/g, ' ').slice(0, 70)}`)))),
+    h('div', { class: 'vrow-tools' }, h('button', { class: 'btn primary', onclick: () => go('inbox') }, 'Open Inbox')));
+}
+
+function showInboxCount() {
+  const n = (S.inbox?.messages || []).filter(m => !m.read).length;
+  const el = $('#inbox-count');
+  if (!el) return;
+  el.hidden = !n;
+  el.textContent = n > 99 ? '99+' : String(n);
+  if (S.page === 'overview' && !!$('#page-overview .ov-grid') && !document.querySelector('#page-overview')?.contains(document.activeElement)) renderOverview();
+}
+
+const when = ts => {
+  const d = new Date(ts);
+  const mins = (Date.now() - ts) / 60000;
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${Math.round(mins)} min ago`;
+  if (mins < 24 * 60 && d.getDate() === new Date().getDate()) return `today ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  return d.toLocaleString([], { day: 'numeric', month: 'short', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric', hour: 'numeric', minute: '2-digit' });
+};
+
+async function renderInboxPage(force = false) {
+  const page = $('#page-inbox');
+  if (S.page !== 'inbox') return;
+  const body = h('div', { class: 'inbox' }, h('p', { class: 'muted' }, 'Loading messages…'));
+  page.replaceChildren(h('div', { class: 'page-inner' },
+    h('div', { class: 'page-head' }, h('h2', {}, 'Inbox'),
+      h('p', { class: 'muted' }, 'Messages sent with the form in the Contact panel on your site. Reply goes straight to the sender’s email.')),
+    h('div', { class: 'vrow-tools' }, h('button', { class: 'btn', onclick: () => renderInboxPage(true) }, 'Refresh')),
+    body));
+  if (!uploadConfig()) { body.replaceChildren(h('p', { class: 'muted' }, 'Sign in to see messages.')); return; }
+  let list;
+  try { list = await loadInbox(force); } catch (e) { body.replaceChildren(h('p', { class: 'error' }, e.message)); return; }
+  if (!list.length) {
+    body.replaceChildren(h('div', { class: 'inbox-empty' }, h('p', {}, 'No messages yet.'),
+      h('p', { class: 'muted small' }, 'When someone writes to you with the form on your site, it shows up here (and in your email, once that’s set up).')));
+    return;
+  }
+  const setRead = async (m, read) => {
+    m.read = read;
+    (S.inbox?.messages || []).forEach(x => { if (x.id === m.id) x.read = read; });
+    showInboxCount();
+    try { await U.markMessage(uploadConfig(), m.id, read); } catch (e) { toast(`Couldn’t update the message: ${e.message}`, 6000); }
+  };
+  const row = (m) => {
+    const where = [m.city, m.country].filter(Boolean).join(', ');
+    const subject = encodeURIComponent('Re: your message on matthewfregnan.com');
+    const quote = encodeURIComponent(`\n\n—\nOn ${new Date(m.ts).toLocaleString()}, ${m.name} wrote:\n${m.message.split('\n').map(l => `> ${l}`).join('\n')}`);
+    const el = h('details', { class: `msg${m.read ? '' : ' unread'}` },
+      h('summary', {},
+        h('span', { class: 'msg-dot', title: m.read ? 'Read' : 'New' }),
+        h('span', { class: 'msg-from' }, h('b', {}, m.name), h('small', {}, m.email)),
+        h('span', { class: 'msg-preview' }, m.message.replace(/\s+/g, ' ').slice(0, 140)),
+        h('span', { class: 'msg-when' }, when(m.ts))),
+      h('div', { class: 'msg-body' },
+        h('p', { class: 'msg-text' }, m.message),
+        h('p', { class: 'muted small' }, [m.page ? `Sent from ${titleOfPath(m.page)}` : null, where || null, m.device || null].filter(Boolean).join(' · ')),
+        h('div', { class: 'vrow-tools' },
+          h('a', { class: 'btn primary', href: `mailto:${m.email}?subject=${subject}&body=${quote}`, onclick: () => setRead(m, true) }, 'Reply'),
+          h('button', { class: 'btn msg-toggle', onclick: async () => { await setRead(m, !m.read); renderInboxPage(); } }, m.read ? 'Mark as Unread' : 'Mark as Read'),
+          h('button', { class: 'btn', onclick: async () => { try { await navigator.clipboard.writeText(m.email); toast('Email address copied.'); } catch { /* ignore */ } } }, 'Copy Email'),
+          h('button', { class: 'btn danger', onclick: async () => {
+            if (!(await confirmDialog('Delete message?', `Delete the message from ${m.name}? This can’t be undone.`, 'Delete', true))) return;
+            try {
+              await U.deleteMessage(uploadConfig(), m.id);
+              S.inbox.messages = S.inbox.messages.filter(x => x !== m);
+              showInboxCount();
+              renderInboxPage();
+            } catch (e) { toast(`Couldn’t delete it: ${e.message}`, 6000); }
+          } }, 'Delete'))));
+    el.addEventListener('toggle', () => {
+      if (!el.open || m.read) return;
+      setRead(m, true);
+      el.classList.remove('unread');
+      el.querySelector('.msg-toggle').textContent = 'Mark as Unread';
+    });
+    return el;
+  };
+  const unread = list.filter(m => !m.read).length;
+  body.replaceChildren(
+    h('p', { class: 'muted small' }, `${list.length} message${list.length === 1 ? '' : 's'}${unread ? ` · ${unread} new` : ''}`),
+    h('div', { class: 'msg-list' }, list.map(row)));
 }
 
 async function renderStoragePage(force = false) {
@@ -2686,6 +2798,7 @@ async function start(backend) {
   renderEditor();
   renderToolbar();
   go((location.hash || '').slice(1) || 'overview', { push: false });
+  loadInbox().catch(() => {});   // for the unread count beside Inbox
 
   // Link checks finish in the background: refresh dots in one batch per frame, and never
   // rebuild the video panel while you're typing in it.

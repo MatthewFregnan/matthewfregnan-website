@@ -880,6 +880,8 @@ const SITE_TEXT = {
   contactHeading: 'Let’s work together',
   contactText: 'Tell me a bit about the project: what it is, when it’s due and where it’ll live.',
   availability: '',
+  messagePlaceholder: 'What are you working on? When is it due?',
+  messageSent: 'Thanks, your message is on its way. I’ll get back to you soon.',
   // one line under each section page's heading (key: intro_<section id>)
   'intro_commercial': 'TV and online campaigns for brands, agencies and government.',
   'intro_branded': 'Stories, profiles and series made with organisations and brands.',

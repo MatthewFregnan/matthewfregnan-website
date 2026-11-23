@@ -709,6 +709,30 @@
 .contact-btn:hover { opacity: 1; background: #fff; color: #111; }
 .contact-where { margin: 18px 0 0; color: #8a8a8a; font-size: 0.85rem; }
 @media (prefers-reduced-motion: reduce) { .contact-panel[open], .contact-panel::backdrop { animation: none; } }
+/* Contact panel: the message form */
+.contact-form { display: grid; gap: 10px; }
+.contact-form[hidden] { display: none; }
+.cf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 420px) { .cf-row { grid-template-columns: 1fr; } }
+.cf-field input, .cf-field textarea {
+  width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06); color: #fff; font: inherit; font-size: 16px;   /* 16px: phones don't zoom in */
+  transition: border-color 0.2s, background 0.2s;
+}
+.cf-field textarea { resize: vertical; min-height: 104px; line-height: 1.5; }
+.cf-field input::placeholder, .cf-field textarea::placeholder { color: #8a8a8a; }
+.cf-field input:focus, .cf-field textarea:focus { outline: none; border-color: rgba(255, 255, 255, 0.45); background: rgba(255, 255, 255, 0.09); }
+.cf-field .is-wrong { border-color: #ff7a6b; }
+.cf-trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.cf-error { margin: 0; color: #ff9b8f; font-size: 0.85rem; }
+.cf-send { margin-top: 2px; }
+.cf-send[disabled] { opacity: 0.6; cursor: wait; }
+.cf-sent { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: rgba(61, 220, 132, 0.1); color: #d7f5df; }
+.cf-sent[hidden] { display: none; }
+.cf-sent svg { flex: none; width: 22px; height: 22px; color: #3ddc84; margin-top: 1px; }
+.cf-sent p { margin: 0; line-height: 1.5; font-size: 0.95rem; }
+.contact-or { display: flex; align-items: center; gap: 12px; margin: 20px 0 12px; color: #7a7a7a; font-size: 0.8rem; }
+.contact-or::before, .contact-or::after { content: ''; flex: 1; height: 1px; background: rgba(255, 255, 255, 0.1); }
 
 /* Home page close: about me | get in touch, side by side (stacked on phones) */
 .closing-cta.is-duo { padding: 0 0 40px; text-align: left; border-top: 0; }

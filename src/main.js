@@ -1232,6 +1232,50 @@ document.addEventListener('DOMContentLoaded', () => {
   panel.addEventListener('click', (e) => {
     if (e.target === panel || e.target.closest('[data-close]')) panel.close();   // backdrop or ×
   });
+  // Message form: sent to the upload service, which saves it for the admin's Inbox and emails it on.
+  const form = panel.querySelector('[data-message-form]');
+  if (form) {
+    let openedAt = 0;
+    new MutationObserver(() => { if (panel.open) openedAt = Date.now(); }).observe(panel, { attributes: true, attributeFilter: ['open'] });
+    const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+    const endpoint = local ? sessionStorage.getItem('mf_track') : 'https://upload.matthewfregnan.com';
+    const error = form.querySelector('.cf-error');
+    const send = form.querySelector('.cf-send');
+    const fail = (msg, field) => {
+      error.textContent = msg;
+      error.hidden = false;
+      if (field) { field.classList.add('is-wrong'); field.focus(); }
+    };
+    form.addEventListener('input', (e) => { e.target.classList.remove('is-wrong'); error.hidden = true; });
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = form.elements;
+      const name = f.name.value.trim(), email = f.email.value.trim(), message = f.message.value.trim();
+      if (!name) return fail('Please add your name.', f.name);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('That email address doesn’t look right.', f.email);
+      if (message.length < 5) return fail('Please write a message.', f.message);
+      if (!endpoint) return fail('Messages can’t be sent from this test copy of the site.');
+      send.disabled = true;
+      send.textContent = 'Sending…';
+      try {
+        const res = await fetch(`${endpoint}/message`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, message, page: location.pathname, website: f.website.value, ms: Date.now() - (openedAt || Date.now()) }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || 'Your message couldn’t be sent just now. Please email me directly, below.');
+        form.hidden = true;
+        panel.querySelector('.cf-sent').hidden = false;
+        window.mfTrack?.('/message-sent/');   // shows in the visit log on the Traffic page
+      } catch (err) {
+        fail(err instanceof TypeError ? 'Your message couldn’t be sent (no connection?). Please email me directly, below.' : err.message);
+      } finally {
+        send.disabled = false;
+        send.textContent = 'Send Message';
+      }
+    });
+  }
   const copy = panel.querySelector('[data-copy]');
   copy?.addEventListener('click', async () => {
     const email = panel.querySelector('[data-email]').textContent.trim();

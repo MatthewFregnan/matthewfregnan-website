@@ -106,6 +106,21 @@ export async function resetStats({ token, endpoint = UPLOAD_ENDPOINT }) {
   return call(endpoint, token, 'DELETE', '/stats');
 }
 
+/** Messages sent with the site's contact form, newest first: { messages: [...] }. */
+export async function messages({ token, endpoint = UPLOAD_ENDPOINT }) {
+  return call(endpoint, token, 'GET', '/messages');
+}
+
+/** Mark a message read (or unread again). */
+export async function markMessage({ token, endpoint = UPLOAD_ENDPOINT }, id, read) {
+  return call(endpoint, token, 'POST', `/messages/${id}/read`, JSON.stringify({ read }), { 'Content-Type': 'application/json' });
+}
+
+/** Delete a message for good. */
+export async function deleteMessage({ token, endpoint = UPLOAD_ENDPOINT }, id) {
+  return call(endpoint, token, 'DELETE', `/messages/${id}`);
+}
+
 /** Everything in video storage: { objects: [{ key, size, uploaded }], total }. */
 export async function usage({ token, endpoint = UPLOAD_ENDPOINT }) {
   return call(endpoint, token, 'GET', '/usage');

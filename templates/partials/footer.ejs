@@ -90,12 +90,29 @@
     <h2 id="contact-title" class="contact-title"><%= text.contactHeading %></h2>
     <% if (text.availability) { %><p class="contact-availability"><span class="contact-dot" aria-hidden="true"></span><%= text.availability %></p><% } %>
     <p class="contact-text"><%= text.contactText %></p>
+    <%# Message form: sent to the upload service (upload-worker, POST /message), saved for the admin's Inbox
+        and emailed to me. The "website" field is hidden from people; only bots fill it in. %>
+    <form class="contact-form" data-message-form novalidate>
+      <div class="cf-row">
+        <label class="cf-field"><span class="sr-only">Your name</span><input name="name" type="text" placeholder="Your name" autocomplete="name" maxlength="100" required></label>
+        <label class="cf-field"><span class="sr-only">Your email</span><input name="email" type="email" placeholder="Your email" autocomplete="email" maxlength="200" required></label>
+      </div>
+      <label class="cf-field"><span class="sr-only">Message</span><textarea name="message" rows="4" placeholder="<%= text.messagePlaceholder %>" maxlength="5000" required></textarea></label>
+      <label class="cf-trap" aria-hidden="true">Website <input name="website" type="text" tabindex="-1" autocomplete="off"></label>
+      <p class="cf-error" role="alert" hidden></p>
+      <button type="submit" class="contact-btn primary cf-send">Send Message</button>
+    </form>
+    <div class="cf-sent" role="status" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      <p><%= text.messageSent %></p>
+    </div>
+    <p class="contact-or"><span>or email me</span></p>
     <div class="contact-email">
       <span class="with-icon"><%- include('icon-mail') %><span data-email><%= site.email %></span></span>
       <button type="button" class="contact-copy" data-copy>Copy</button>
     </div>
     <div class="contact-actions">
-      <a href="mailto:<%= site.email %>" class="contact-btn primary">Open in Mail</a>
+      <a href="mailto:<%= site.email %>" class="contact-btn">Open in Mail</a>
       <% if (site.social && site.social.linkedin) { %><a href="<%= site.social.linkedin %>" class="contact-btn" target="_blank" rel="noopener">LinkedIn</a><% } %>
     </div>
     <p class="contact-where with-icon"><%- include('icon-globe') %><%= site.location %></p>

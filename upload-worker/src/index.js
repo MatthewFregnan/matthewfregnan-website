@@ -15,6 +15,13 @@
 //   POST   /hit       (from the site, no sign-in)  body = {t:'view'|'leave', v, s, p, r, secs}
 //   GET    /stats?days=30   (signed in)            -> { rows: [[ts, visit, seq, path, source, country, device, secs, city]] }
 //   DELETE /stats           (signed in)            -> { deleted } (reset: removes every recorded visit)
+//
+// Messages from the site's contact form (schema.sql "messages"):
+//   POST   /message                    (from the site, no sign-in) body = {name, email, message, page, website, ms}
+//   GET    /messages                   (signed in) -> { messages: [{ id, ts, name, email, message, page, country, city, device, read }] }
+//   POST   /messages/<id>/read         (signed in) body = { read: true|false }
+//   DELETE /messages/<id>              (signed in)
+// Each new message is also emailed (when the MAIL binding is set up in wrangler.toml; see there).
 
 const ALLOWED_ORIGINS = ['https://matthewfregnan.com', 'https://www.matthewfregnan.com'];
 const KEY_PATTERN = /^(commercial|branded|vertical|colour-grading|home)\/[a-z0-9][a-z0-9-]{0,120}\.mp4$/;
@@ -130,6 +137,99 @@ async function recordHit(request, env) {
   return ok;
 }
 
+// ---------------------------------------------------------------------------- contact messages
+
+const EMAIL_RE = /^[^\s@<>()",;:]{1,64}@[^\s@<>()",;:]{1,190}\.[a-z]{2,24}$/i;
+const PER_HOUR = 3;   // messages one sender can send in an hour
+
+/** A message from the contact form: checked, saved, then emailed to Matthew. */
+async function receiveMessage(request, env) {
+  if (!SITE_ORIGIN.test(request.headers.get('Origin') || '')) return json(request, { error: 'Not allowed.' }, 403);
+  let b;
+  try { b = await request.json(); } catch { return json(request, { error: 'Couldn’t read that message.' }, 400); }
+  // Spam traps: a hidden field only bots fill in, and a form sent faster than a person could type it.
+  // Both get a normal "sent" reply so the bot learns nothing.
+  if (String(b.website || '').trim() || !(Number(b.ms) >= 2500)) return json(request, { ok: true });
+  const name = String(b.name || '').trim().slice(0, 100);
+  const email = String(b.email || '').trim().slice(0, 200);
+  const message = String(b.message || '').trim().slice(0, 5000);
+  const page = /^\/[a-z0-9\-/]{0,200}$/.test(String(b.page || '')) ? String(b.page) : null;
+  if (!name) return json(request, { error: 'Please add your name.' }, 400);
+  if (!EMAIL_RE.test(email)) return json(request, { error: 'That email address doesn’t look right.' }, 400);
+  if (message.length < 5) return json(request, { error: 'Please write a message.' }, 400);
+
+  // Limit how often one sender can write: a one-way fingerprint of their connection that changes every
+  // day (the IP address itself is never stored).
+  const day = new Date().toISOString().slice(0, 10);
+  const who = (await sha256(`${request.headers.get('CF-Connecting-IP') || ''}|${day}|${env.REPO}`)).slice(0, 24);
+  const now = Date.now();
+  const { n } = await env.STATS.prepare('SELECT COUNT(*) AS n FROM messages WHERE who = ? AND ts > ?').bind(who, now - 3600000).first();
+  if (n >= PER_HOUR) return json(request, { error: 'You’ve sent a few messages already. Please email me directly instead.' }, 429);
+
+  const cf = request.cf || {};
+  const device = deviceOf(request.headers.get('User-Agent') || '');
+  const city = typeof cf.city === 'string' ? cf.city.slice(0, 60) : null;
+  const row = await env.STATS.prepare(
+    'INSERT INTO messages (ts, name, email, message, page, country, city, device, who) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
+  ).bind(now, name, email, message, page, cf.country || null, city, device, who).first();
+  try { await emailMessage(env, { id: row?.id, name, email, message, page, city, country: cf.country }); } catch (e) { console.log('email failed', e.message || e); }
+  return json(request, { ok: true });
+}
+
+/** Email a new message to Matthew (Cloudflare Email Routing; Reply goes straight to the sender). */
+async function emailMessage(env, m) {
+  if (!env.MAIL || !env.MAIL_FROM || !env.MAIL_TO) return;
+  // loaded only once email is set up: the module isn't there without the MAIL binding
+  const { EmailMessage } = await import('cloudflare:email');
+  const clean = s => String(s).replace(/[\r\n]+/g, ' ');
+  const subject = `New message from ${clean(m.name)} (matthewfregnan.com)`;
+  const where = [m.city, m.country].filter(Boolean).join(', ');
+  const text = [
+    m.message, '', '—',
+    `From: ${m.name} <${m.email}>`,
+    m.page ? `Sent from: https://matthewfregnan.com${m.page}` : null,
+    where ? `Roughly: ${where}` : null,
+    'Reply to this email to answer them. All messages: https://matthewfregnan.com/admin/#inbox',
+  ].filter(x => x !== null).join('\r\n');
+  const b64 = str => btoa(String.fromCharCode(...new TextEncoder().encode(str)));
+  const raw = [
+    `From: "matthewfregnan.com" <${env.MAIL_FROM}>`,
+    `To: <${env.MAIL_TO}>`,
+    `Reply-To: "${clean(m.name).replace(/"/g, '')}" <${clean(m.email)}>`,
+    `Subject: =?UTF-8?B?${b64(subject)}?=`,
+    `Date: ${new Date().toUTCString()}`,
+    `Message-ID: <msg-${m.id || Date.now()}-${Math.random().toString(36).slice(2)}@matthewfregnan.com>`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=utf-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    b64(text).replace(/.{76}/g, '$&\r\n'),
+  ].join('\r\n');
+  await env.MAIL.send(new EmailMessage(env.MAIL_FROM, env.MAIL_TO, raw));
+}
+
+async function messages(request, env, parts) {
+  if (request.method === 'GET' && parts.length === 1) {
+    const { results } = await env.STATS.prepare(
+      'SELECT id, ts, name, email, message, page, country, city, device, read FROM messages ORDER BY ts DESC LIMIT 1000',
+    ).all();
+    return json(request, { messages: results.map(r => ({ ...r, read: !!r.read })) });
+  }
+  const id = Number(parts[1]);
+  if (!Number.isInteger(id) || id < 1) return json(request, { error: 'Not found' }, 404);
+  if (request.method === 'POST' && parts[2] === 'read') {
+    let b = {};
+    try { b = await request.json(); } catch { /* default: mark read */ }
+    await env.STATS.prepare('UPDATE messages SET read = ? WHERE id = ?').bind(b.read === false ? 0 : 1, id).run();
+    return json(request, { ok: true });
+  }
+  if (request.method === 'DELETE' && parts.length === 2) {
+    await env.STATS.prepare('DELETE FROM messages WHERE id = ?').bind(id).run();
+    return json(request, { ok: true });
+  }
+  return json(request, { error: 'Not found' }, 404);
+}
+
 async function stats(request, env, url) {
   const days = Math.min(400, Math.max(1, parseInt(url.searchParams.get('days'), 10) || 30));
   const since = Date.now() - days * 86400000;
@@ -159,12 +259,21 @@ export default {
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(request) });
 
+    // Contact form messages come from the public site (no sign-in)
+    if (url.pathname === '/message') {
+      if (request.method !== 'POST') return json(request, { error: 'Not found' }, 404);
+      try { return await receiveMessage(request, env); } catch (e) {
+        return json(request, { error: 'Your message couldn’t be sent just now. Please email me directly.' }, 500);
+      }
+    }
+
     const parts = url.pathname.split('/').filter(Boolean); // ['uploads', id?, part|'complete'?]
-    if (!['uploads', 'usage', 'stats'].includes(parts[0])) return json(request, { error: 'Not found' }, 404);
+    if (!['uploads', 'usage', 'stats', 'messages'].includes(parts[0])) return json(request, { error: 'Not found' }, 404);
     if (!(await authorised(request, env))) {
       return json(request, { error: 'Not signed in, or this GitHub token can’t write to the website repo.' }, 401);
     }
 
+    if (parts[0] === 'messages') return messages(request, env, parts);
     if (parts[0] === 'stats' && request.method === 'GET') return stats(request, env, url);
     if (parts[0] === 'stats' && request.method === 'DELETE') {
       const r = await env.STATS.prepare('DELETE FROM views').run();
