@@ -195,6 +195,7 @@ class VideoPlayer {
 
   /** Pressing play glides the player to the middle of the screen (and fits it on phones). */
   centre() {
+    if (this.root.closest('.pm')) return;   // in the home page's project window: it's already in view
     const r = this.shell.getBoundingClientRect();
     const navH = document.querySelector('header')?.offsetHeight || 64;
     const room = window.innerHeight - navH;
@@ -589,6 +590,8 @@ document.addEventListener('DOMContentLoaded', () => {
 const PREVIEW_VOLUME = 0.6;
 const RESUME_GRACE = 3000;   // a preview left and come back to within this long carries on where it was
 const PLAYER_VOLUME = 0.8;   // project page videos start a little under full volume (the slider goes up)
+// The home page's floating project window is open (or opening): previews and the rows hold still behind it
+const pmActive = () => document.documentElement.classList.contains('pm-active');
 const Previews = (() => {
   let current = null;
   const videoFor = (tile) => {
@@ -726,7 +729,7 @@ const Previews = (() => {
     } catch { /* private browsing: start from the beginning as usual */ }
   });
   const play = (tile, restart = true) => {
-    if (current === tile) return;
+    if (current === tile || pmActive()) return;
     stop(current);
     current = tile;
     const v = videoFor(tile);
@@ -944,7 +947,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearTimeout(dwellTimer);
     if (scrollPick && scrollPick !== tile && Previews.current === scrollPick) Previews.stop(scrollPick);
     scrollPick = tile;
-    if (!tile) return;
+    if (!tile || pmActive()) return;
     if (!now) {
       // you swiped to it yourself: start sooner
       const wait = touch && tile.closest('.row-track') === swipedRow && performance.now() - swipedAt < 4000 ? 400 : DWELL;
@@ -965,7 +968,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const runClock = (tile, row) => {
     clearTimeout(advanceTimer);
     advanceTimer = setTimeout(() => {
-      if (hovered || scrollPick !== tile || document.hidden) return;
+      if (hovered || scrollPick !== tile || document.hidden || pmActive()) return;
       const list = [...row.children].filter(t => !t.hidden && t.dataset.preview);
       // the next video in the row (sliding it into view), and back to the first after the last
       goTo(list[list.indexOf(tile) + 1] || list[0]);
@@ -987,6 +990,9 @@ document.addEventListener('DOMContentLoaded', () => {
     rows.forEach(r => r.addEventListener('scroll', onScroll, { passive: true }));
     window.addEventListener('resize', onScroll);
     pickFromScroll();
+    // the project window: everything stops while it's open, and picks up again from the page when it closes
+    document.addEventListener('pm:open', () => { clearTimeout(advanceTimer); clearTimeout(dwellTimer); });
+    document.addEventListener('pm:close', () => { hovered = null; scrollPick = null; pickFromScroll(); });
   }
 
   // Mouse: hovering a tile plays it instead (after a moment, so passing over doesn't flicker)
@@ -1161,11 +1167,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Anonymous visit stats for the admin's Traffic page. No cookies and nothing that identifies a
 // person: a random visit ID lives in this tab only (sessionStorage) and resets after 30 idle minutes.
-// Skipped when the browser asks not to be tracked (Global Privacy Control / Do Not Track).
-(() => {
+// Skipped when the browser asks not to be tracked (Global Privacy Control / Do Not Track), and in a
+// browser that's signed in to the admin (Matthew's own visits).
+// A page the browser loads ahead of time (Chrome does this for the homepage while "matthewfregnan.com/admin"
+// is still being typed) only counts once it's actually opened.
+const startStats = () => {
   try {
     if (navigator.globalPrivacyControl || navigator.doNotTrack === '1') return;
     const local = ['localhost', '127.0.0.1'].includes(location.hostname);
+    try { if (!local && localStorage.getItem('pm-github-token')) return; } catch { /* storage blocked */ }
     const testEndpoint = new URLSearchParams(location.search).get('track');
     if (local && testEndpoint) sessionStorage.setItem('mf_track', testEndpoint);
     const endpoint = local ? sessionStorage.getItem('mf_track') : 'https://upload.matthewfregnan.com';
@@ -1207,7 +1217,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   } catch { /* stats are optional */ }
-})();
+};
+if (document.prerendering) document.addEventListener('prerenderingchange', startStats, { once: true });
+else startStats();
 
 // Phones and tablets, once the video has been played: a small pill under the menu bar.
 //   scrolled past the video  -> "Back to video" (glides the player back to the middle of the screen)
@@ -1522,3 +1534,241 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(fit, 150); });
 });
 
+
+// Home page: a project opened from the Featured or Reels rows comes up in a floating window over the home
+// page instead of going to its own page: the video fills the top of the window (carrying on from the
+// preview if one was playing), with the title and details under it. It's the project page's own content
+// (fetched, and fetched ahead on hover), its address goes in the address bar so it can be shared or
+// reloaded, and Back, Esc, the close button or a click outside close it again. Where the browser can,
+// the tile grows into the window's video and shrinks back into the tile on close (View Transitions).
+document.addEventListener('DOMContentLoaded', () => {
+  const rows = [...document.querySelectorAll('.row-track')];
+  if (!rows.length || !window.fetch || !window.DOMParser) return;
+  const root = document.documentElement;
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const TILE = 'a.portfolio-item, a.portfolio-item-vertical';
+  const pathOf = (a) => new URL(a.href, location.href).pathname;
+  const isProject = (path) => /^\/[^/]+\/[^/]+\/$/.test(path);
+  const homeTitle = document.title;
+
+  const cache = new Map();
+  const load = (path) => {
+    if (!cache.has(path)) {
+      cache.set(path, fetch(path, { credentials: 'same-origin' })
+        .then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then((html) => new DOMParser().parseFromString(html, 'text/html'))
+        .catch((e) => { cache.delete(path); throw e; }));
+    }
+    return cache.get(path);
+  };
+  // fetch ahead: a mouse resting on a tile, or a finger touching one
+  let aheadTimer = null;
+  rows.forEach((row) => {
+    row.addEventListener('pointerover', (e) => {
+      const a = e.target.closest(TILE);
+      clearTimeout(aheadTimer);
+      if (a) aheadTimer = setTimeout(() => load(pathOf(a)).catch(() => {}), e.pointerType === 'mouse' ? 120 : 0);
+    }, { passive: true });
+  });
+
+  const ICON_CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  const ICON_NEXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+
+  // The window, built from the project page: landscape videos sit edge to edge across the top with the
+  // details below; portrait ones keep their page layout (video beside the details on wider screens).
+  const build = (doc, path) => {
+    const main = doc.querySelector('.project-main');
+    if (!main) return null;
+    const portrait = main.classList.contains('portrait-page');
+    const title = (doc.querySelector('.pp-title')?.textContent || '').trim();
+    const el = document.createElement('div');
+    el.className = `pm${portrait ? ' pm-portrait' : ''}`;
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-label', title || 'Project');
+    el.innerHTML = `<div class="pm-scrim" data-pm-close></div>
+      <div class="pm-panel" tabindex="-1">
+        <button type="button" class="pm-close" data-pm-close aria-label="Close">${ICON_CLOSE}</button>
+        <div class="pm-info"></div>
+        <div class="pm-foot"><a class="pm-page" href="${path}">Open project page</a></div>
+      </div>`;
+    const panel = el.querySelector('.pm-panel');
+    const node = document.importNode(main, true);
+    if (!portrait) {
+      const media = node.querySelector('.pp-media');
+      if (media) panel.insertBefore(media, panel.querySelector('.pm-info'));
+      else el.classList.add('pm-no-media');
+    }
+    panel.querySelector('.pm-info').append(node);
+    const next = doc.querySelector('.more-next');
+    if (next && isProject(new URL(next.href, location.href).pathname)) {
+      const a = document.createElement('a');
+      a.className = 'pm-next';
+      a.href = next.getAttribute('href');
+      a.innerHTML = `<span class="pm-next-label">Next project</span><span class="pm-next-title"></span>${ICON_NEXT}`;
+      a.querySelector('.pm-next-title').textContent = next.querySelector('.more-next-title')?.textContent.trim() || '';
+      el.querySelector('.pm-foot').append(a);
+    }
+    return el;
+  };
+
+  let box = null;      // the open window
+  let player = null;
+  let opener = null;   // the tile it came from
+  let openPath = null;
+  let leaving = false; // Back has been pressed for it (close button / Esc), waiting for the browser
+  // something is opening, changing or closing: clicks wait, and Back / Forward queue up behind it
+  let pending = 0;
+  let queue = Promise.resolve();
+  const run = (job) => {
+    pending++;
+    queue = queue.then(job).catch((e) => console.warn('Project window:', e)).finally(() => { pending--; });
+    return queue;
+  };
+
+  // Run a change of what's on screen as a view transition where the browser has them; otherwise just do it.
+  // The change always happens exactly once, even if the browser skips or abandons the transition (e.g. the
+  // tab is switched away mid-way).
+  const transition = (change, cls) => {
+    let ran = false;
+    const once = () => { if (!ran) { ran = true; change(); } };
+    if (!document.startViewTransition || reduce.matches || document.hidden) { once(); return { ready: Promise.resolve(), done: Promise.resolve() }; }
+    root.classList.add(cls);
+    let t;
+    try { t = document.startViewTransition(once); } catch { once(); root.classList.remove(cls); return { ready: Promise.resolve(), done: Promise.resolve() }; }
+    t.ready.catch(() => {});
+    const ready = t.updateCallbackDone.catch(() => {}).then(once);
+    const done = t.finished.catch(() => {}).then(once).finally(() => root.classList.remove(cls));
+    return { ready, done };
+  };
+  const clearNames = () => document.querySelectorAll('[style*="view-transition-name"]').forEach((n) => { n.style.viewTransitionName = ''; });
+  const tileMedia = (tile) => tile?.querySelector('img:not(.card-logo), video.card-still');
+
+  const mount = (el, doc, path) => {
+    box = el;
+    openPath = path;
+    document.title = doc.title || homeTitle;
+    let resuming = false;
+    try { resuming = JSON.parse(sessionStorage.getItem('mf-resume') || 'null')?.path === path; } catch { /* fine */ }
+    const vp = el.querySelector('.video-player[data-video-sources]');
+    player = null;
+    if (vp) { try { player = new VideoPlayer(vp); } catch (e) { console.warn('Video player failed to start', e); } }
+    return () => { if (player?.video && !resuming && box === el) player.start(); };   // it opened to be watched
+  };
+  const unmount = () => {
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    try { player?.teardown(); } catch { /* gone anyway */ }
+    player = null;
+  };
+
+  const open = async (path, tile, push = true) => {
+    if (box) return;
+    root.classList.add('pm-active');   // previews and the rows hold still from here
+    tile?.classList.add('is-opening');
+    let doc;
+    try { doc = await load(path); } catch { doc = null; }
+    tile?.classList.remove('is-opening');
+    const el = doc && build(doc, path);
+    if (!el) { location.href = path; return; }
+    opener = tile;
+    let play = () => {};
+    const morph = !!document.startViewTransition && !reduce.matches;
+    // the tile grows into the window: its picture (or playing preview, named on click) is the starting point
+    const m = tileMedia(tile);
+    if (morph && m && !tile.querySelector('[style*="view-transition-name"]')) m.style.viewTransitionName = 'project-media';
+    const t = transition(() => {
+      if (Previews.current) Previews.stop(Previews.current);
+      document.dispatchEvent(new Event('pm:open'));
+      clearNames();
+      if (push) history.pushState({ pm: path }, '', path);
+      [...document.body.children].forEach((c) => { c.inert = true; });
+      if (!morph) el.classList.add('pm-animate');
+      document.body.append(el);
+      root.classList.add('pm-open');
+      play = mount(el, doc, path);
+      el.querySelector('.pm-panel').focus({ preventScroll: true });
+    }, 'pm-opening');
+    await t.ready;
+    play();
+    window.mfTrack?.(path);
+    // done once it's on screen: closing straight away cuts the opening animation short rather than waiting
+  };
+
+  // Next project, from inside the window: the window stays, its contents change
+  const swap = async (path, push = 'replace') => {
+    if (!box || path === openPath) return;
+    let doc;
+    try { doc = await load(path); } catch { doc = null; }
+    const el = doc && build(doc, path);
+    if (!el) { location.href = path; return; }
+    let play = () => {};
+    const old = box;
+    const t = transition(() => {
+      unmount();
+      if (push === 'replace') history.replaceState({ pm: path }, '', path);
+      old.replaceWith(el);
+      play = mount(el, doc, path);
+      el.querySelector('.pm-panel').focus({ preventScroll: true });
+    }, 'pm-swapping');
+    opener = rows.flatMap((r) => [...r.querySelectorAll(TILE)]).find((a) => pathOf(a) === path && !a.hidden) || null;
+    await t.ready;
+    play();
+    window.mfTrack?.(path);
+    // done once it's on screen: closing straight away cuts the opening animation short rather than waiting
+  };
+
+  const close = async (fromHistory = false) => {
+    if (!box) return;
+    // the window has its own place in the browser's history: closing it is going Back
+    if (!fromHistory && history.state?.pm) { if (!leaving) { leaving = true; history.back(); } return; }
+    const el = box;
+    const tile = opener && opener.isConnected && !opener.hidden ? opener : null;
+    const finish = () => {
+      unmount();
+      el.remove();
+      box = null; openPath = null; opener = null; leaving = false;
+      [...document.body.children].forEach((c) => { c.inert = false; });
+      root.classList.remove('pm-open', 'pm-active');
+      document.title = homeTitle;
+      const m = tileMedia(tile);
+      if (m && canMorph) m.style.viewTransitionName = 'project-media';
+    };
+    const canMorph = !!document.startViewTransition && !reduce.matches;
+    if (canMorph) {
+      await transition(finish, 'pm-closing').done;
+    } else {
+      el.classList.add('pm-leaving');
+      await new Promise((r) => setTimeout(r, reduce.matches ? 0 : 220));
+      finish();
+    }
+    clearNames();
+    tile?.focus({ preventScroll: true });
+    document.dispatchEvent(new Event('pm:close'));
+  };
+
+  document.addEventListener('click', (e) => {
+    if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (box) {
+      if (e.target.closest('[data-pm-close]')) { e.preventDefault(); run(() => close()); return; }
+      const next = e.target.closest('.pm a.pm-next');
+      if (next) { e.preventDefault(); if (!pending) run(() => swap(pathOf(next))); }
+      return;
+    }
+    const a = e.target.closest(TILE);
+    if (!a || e.defaultPrevented || !a.closest('.row-track') || !isProject(pathOf(a))) return;
+    e.preventDefault();
+    if (!pending) run(() => open(pathOf(a), a));
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && box && !document.fullscreenElement && !document.webkitFullscreenElement) { e.preventDefault(); run(() => close()); }
+  });
+  // Back closes it; Forward (after closing) opens it again
+  window.addEventListener('popstate', (e) => {
+    const p = e.state?.pm;
+    run(() => {
+      if (p && box) return swap(p, 'none');
+      if (p) return open(p, rows.flatMap((r) => [...r.querySelectorAll(TILE)]).find((a) => pathOf(a) === p && !a.hidden) || null, false);
+      if (box) return close(true);
+    });
+  });
+});

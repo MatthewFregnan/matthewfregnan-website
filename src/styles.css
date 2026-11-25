@@ -996,3 +996,103 @@ html:active-view-transition .hero-content > * { animation: none !important; }
   .hero-clients img { zoom: 1.1; }
   .hero-clients-set { gap: clamp(64px, 3vw, 84px); padding-right: clamp(64px, 3vw, 84px); }
 }
+
+/* ----------------------------------------------------------------------------------------
+   Home page: floating project window (src/main.js). The page dims and blurs behind it; landscape
+   videos run edge to edge across the top with the details under them, portrait ones keep the
+   video-beside-details layout. Phones get the whole screen.
+   ---------------------------------------------------------------------------------------- */
+html.pm-open { overflow: hidden; }
+a.is-opening { cursor: progress; }
+.pm {
+  position: fixed; inset: 0; z-index: 60; display: flex;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: clamp(24px, 5vh, 64px) 24px;
+}
+.pm-scrim {
+  position: fixed; inset: 0;
+  background: rgba(4, 4, 4, 0.74);
+  -webkit-backdrop-filter: blur(18px) saturate(115%);
+  backdrop-filter: blur(18px) saturate(115%);
+}
+.pm-panel {
+  position: relative; margin: auto; outline: none;
+  width: min(1180px, 100%, calc((100vh - 230px) * 16 / 9));
+  min-width: min(680px, 100%);
+  background: #121212; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.07);
+  view-transition-name: pm-panel;
+}
+.pm-close {
+  position: absolute; top: 14px; right: 14px; z-index: 5;
+  width: 40px; height: 40px; border-radius: 999px; display: grid; place-items: center;
+  color: #fff; background: rgba(10, 10, 10, 0.55); border: 1px solid rgba(255, 255, 255, 0.16);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  transition: background 0.2s, transform 0.2s;
+}
+.pm-close:hover { background: rgba(45, 45, 45, 0.85); transform: scale(1.06); }
+.pm-close:focus-visible { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7); outline: none; }
+.pm-close svg { width: 18px; height: 18px; }
+
+/* landscape: the video across the top of the window */
+.pm .pp-media { margin: 0; }
+.pm > .pm-panel > .pp-media .player-shell,
+.pm > .pm-panel > .pp-media .custom-player { border-radius: 0; }
+.pm-no-media .pm-info { padding-top: 64px; }
+.pm-panel { --pad-t: 30px; --pad-x: 40px; }
+.pm-info { padding: var(--pad-t) var(--pad-x) 4px; }
+.pm .pp-title { font-size: clamp(1.6rem, 2.2vw, 2.1rem); margin: 0 0 6px; padding-right: 40px; }
+.pm .pp-client { margin-bottom: 26px; }
+.pm .pp-details > .mt-8:first-child { margin-top: 0; }
+
+/* portrait: keep the page's side-by-side layout, sized to the window */
+.pm-portrait .pm-panel { width: min(1020px, 100%); min-width: 0; }
+.pm-portrait .pm-panel { --pad-t: 36px; }
+.pm-portrait .pm-info { padding-bottom: 8px; }
+.pm .portrait-page { --pp-video: min(420px, calc((100vh - 200px) * 9 / 16)); column-gap: 44px; }
+.pm .portrait-page .player-shell { border-radius: 10px; overflow: hidden; }
+@media (max-width: 899px) {
+  /* narrower: the video first, then the words */
+  .pm-portrait .project-main { display: flex; flex-direction: column; }
+  .pm-portrait .pp-media { order: -1; margin: calc(-1 * var(--pad-t)) calc(-1 * var(--pad-x)) 24px; background: #000; }
+  .pm-portrait .portrait-page .player-shell { border-radius: 0; }
+}
+
+.pm-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  margin-top: 30px; padding: 18px var(--pad-x) 26px; border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.pm-page { font-size: 0.875rem; color: #a0a0a0; transition: color 0.2s; }
+.pm-page:hover { color: #fff; }
+.pm-next { display: inline-flex; align-items: center; gap: 10px; color: #fff; margin-left: auto; text-align: right; }
+.pm-next-label { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: #8a8a8a; }
+.pm-next-title { font-size: 0.95rem; max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-next svg { width: 18px; height: 18px; transition: transform 0.2s; }
+.pm-next:hover svg { transform: translateX(3px); }
+
+@media (max-width: 639px) {
+  .pm { padding: 0; }
+  .pm-panel { width: 100%; min-width: 0; min-height: 100%; margin: 0; align-self: flex-start; border-radius: 0; box-shadow: none; }
+  .pm-panel, .pm-portrait .pm-panel { --pad-t: 22px; --pad-x: 20px; }
+  .pm-close { top: calc(12px + env(safe-area-inset-top)); right: 12px; }
+  /* the next project first, as a full-width row, with the page link under it */
+  .pm-foot { flex-direction: column-reverse; align-items: stretch; gap: 14px; padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  .pm-next { margin-left: 0; justify-content: space-between; text-align: left; padding: 14px 16px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); }
+  .pm-next-title { flex: 1; max-width: none; }
+  .pm-page { align-self: flex-start; }
+}
+
+/* Opening and closing. With view transitions the tile grows into the window's video while the
+   window rises in behind it; without them the window simply rises in and sinks away. */
+@keyframes pm-fade { from { opacity: 0; } }
+@keyframes pm-rise { from { opacity: 0; transform: translateY(28px) scale(0.97); } }
+.pm-animate .pm-scrim { animation: pm-fade 0.3s ease both; }
+.pm-animate .pm-panel { animation: pm-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.pm-leaving .pm-scrim { animation: pm-fade 0.22s ease reverse both; }
+.pm-leaving .pm-panel { animation: pm-rise 0.22s ease-in reverse both; }
+html.pm-opening::view-transition-group(project-media),
+html.pm-closing::view-transition-group(project-media) { animation-duration: 0.45s; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+html.pm-opening::view-transition-old(root), html.pm-opening::view-transition-new(root),
+html.pm-closing::view-transition-old(root), html.pm-closing::view-transition-new(root) { animation-duration: 0.32s; }
+::view-transition-new(pm-panel):only-child { animation: pm-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+::view-transition-old(pm-panel):only-child { animation: pm-rise 0.3s ease-in reverse both; }

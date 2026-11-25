@@ -12,7 +12,8 @@
 
     <%# Social (portrait) projects: on wider screens the video sits on the left, sized to fit the
         screen, with the title and details beside it (see .portrait-page in src/styles.css). %>
-    <div class="<%= category.id === 'vertical' ? 'portrait-page' : '' %>">
+    <%# .project-main is also what the home page lifts into its floating project window (src/main.js) %>
+    <div class="project-main<%= category.id === 'vertical' ? ' portrait-page' : '' %>">
     <!-- Project Title -->
     <h1 class="pp-title text-3xl md:text-4xl font-light mb-4">
       <%= project.title %>
