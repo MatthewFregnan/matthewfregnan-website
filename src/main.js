@@ -130,7 +130,7 @@ async function sourcePlays(source) {
 }
 
 class VideoPlayer {
-  constructor(root) {
+  constructor(root, { video: given } = {}) {
     this.root = root;
     this.sources = JSON.parse(root.dataset.videoSources || '[]');
     this.index = Number(root.dataset.active) || 0;
@@ -141,7 +141,17 @@ class VideoPlayer {
     this.container = root.querySelector('.video-container');
 
     const src = this.sources[this.index];
-    if (src && src.kind === 'file') this.setupFile(this.container.querySelector('video'));
+    if (src && src.kind === 'file' && given) {
+      // a video that's already playing (the home page's preview, moved in): it carries straight on
+      const old = this.container.querySelector('video');
+      for (const a of ['muted', 'autoplay', 'disablepictureinpicture', 'disableremoteplayback']) given.removeAttribute(a);
+      given.defaultMuted = false;
+      given.loop = false;
+      if (this.poster) given.poster = this.poster;
+      old.replaceWith(given);   // same task as it left the tile, so it never pauses
+      this.setupFile(given, true);
+      if (!given.paused) this.setPlaying(true);
+    } else if (src && src.kind === 'file') this.setupFile(this.container.querySelector('video'));
     else if (this.container.querySelector('iframe')) this.watchEmbed(this.container.querySelector('iframe'));
     else this.verify();
   }
@@ -216,7 +226,7 @@ class VideoPlayer {
   }
 
   // ------------------------------------------------------------------ hosted file
-  setupFile(video) {
+  setupFile(video, handed = false) {
     this.video = video;
     // How far people watch (Traffic → Watching): a play, then 25%, 50%, 75% and the end, each counted
     // once per page view. Sent as made-up addresses like /watch/commercial/warning-levels/50/.
@@ -259,7 +269,7 @@ class VideoPlayer {
     const $ = (sel) => bar.querySelector(sel);
     const seek = $('.vp-seek');
     const vol = $('.vp-vol');
-    video.volume = PLAYER_VOLUME;
+    if (!handed) video.volume = PLAYER_VOLUME;   // a handed-over video fades its own sound up (project window)
     vol.style.setProperty('--played', `${PLAYER_VOLUME * 100}%`);
 
     const on = (target, ev, fn) => {
@@ -332,7 +342,7 @@ class VideoPlayer {
     });
     on(document, 'fullscreenchange', () => this.updateFsIcon());
     on(document, 'webkitfullscreenchange', () => this.updateFsIcon());
-    this.resume();
+    if (!handed) this.resume();
   }
 
   // Arrived by clicking a playing preview of this same video: carry on from that moment. It starts by
@@ -765,7 +775,19 @@ const Previews = (() => {
     if (v && current === tile && !v.paused) fadeSound(v, true);   // a new video fades its sound in as it starts
     showSound(tile);
   };
-  return { play, stop, mute, resume, get current() { return current; } };
+  // The home page's project window takes the playing preview itself (it carries on playing, now bigger,
+  // instead of a fresh copy loading from the start): the tile lets go of it without stopping it.
+  const handOff = (tile) => {
+    const v = tile && current === tile && tile.querySelector('video.vp-preview');
+    if (!v || v.paused || v.readyState < 2) return null;
+    cancelAnimationFrame(v._fade);
+    v.classList.remove('vp-preview');
+    v.style.viewTransitionName = '';
+    tile.classList.remove('is-previewing');
+    current = null;
+    return { video: v, sound: soundOn && !v.muted };
+  };
+  return { play, stop, mute, resume, handOff, get current() { return current; } };
 })();
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1644,16 +1666,49 @@ document.addEventListener('DOMContentLoaded', () => {
   const clearNames = () => document.querySelectorAll('[style*="view-transition-name"]').forEach((n) => { n.style.viewTransitionName = ''; });
   const tileMedia = (tile) => tile?.querySelector('img:not(.card-logo), video.card-still');
 
-  const mount = (el, doc, path) => {
+  // Sound up gently to the player's level; if the browser won't allow sound without a fresh tap, it
+  // carries on silently (the player's speaker button turns it on).
+  const soundUp = (v) => {
+    if (!v.paused && !v.muted && v.volume > 0.05) { v.volume = PLAYER_VOLUME; return; }   // already audible
+    player.ramping = true;
+    v.volume = 0;
+    v.muted = false;
+    const silent = () => { player.ramping = false; v.volume = PLAYER_VOLUME; v.muted = true; v.play().catch(() => {}); };
+    const ok = () => { if (box && player?.video === v) player.fadeVolume(PLAYER_VOLUME, 700); };
+    if (v.paused) v.play().then(ok, silent);
+    else {
+      ok();
+      // some browsers pause a video that turns its sound on without a fresh tap: carry on silently
+      setTimeout(() => { if (box && player?.video === v && v.paused) silent(); }, 250);
+    }
+  };
+  const mount = (el, doc, path, handed = null) => {
     box = el;
     openPath = path;
     document.title = doc.title || homeTitle;
-    let resuming = false;
-    try { resuming = JSON.parse(sessionStorage.getItem('mf-resume') || 'null')?.path === path; } catch { /* fine */ }
     const vp = el.querySelector('.video-player[data-video-sources]');
     player = null;
-    if (vp) { try { player = new VideoPlayer(vp); } catch (e) { console.warn('Video player failed to start', e); } }
-    return () => { if (player?.video && !resuming && box === el) player.start(); };   // it opened to be watched
+    if (vp?.dataset.poster) {
+      // the thumbnail sits behind the video, so there's never a black frame while it loads
+      const c = vp.querySelector('.video-container');
+      if (c) c.style.background = `#000 url("${vp.dataset.poster}") center / contain no-repeat`;
+    }
+    if (vp) { try { player = new VideoPlayer(vp, { video: handed?.video }); } catch (e) { console.warn('Video player failed to start', e); } }
+    if (handed && player?.video !== handed.video) { handed.video.pause(); handed.video.remove(); handed = null; }
+    if (handed) try { sessionStorage.removeItem('mf-resume'); } catch { /* fine */ }
+    return () => {
+      const v = player?.video;
+      if (!v || box !== el) return;
+      if (handed) { soundUp(v); return; }
+      // it opened to be watched: play now, from where a preview of it got to if there was one
+      let r = null;
+      try { r = JSON.parse(sessionStorage.getItem('mf-resume') || 'null'); sessionStorage.removeItem('mf-resume'); } catch { /* fine */ }
+      if (r && r.path === path && Date.now() - r.at < 20000 && r.src === (v.getAttribute('src') || '').split('#')[0]) {
+        try { v.currentTime = Math.max(0, r.t); } catch { /* not ready: from the start */ }
+      }
+      v.preload = 'auto';
+      soundUp(v);
+    };
   };
   const unmount = () => {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
@@ -1677,6 +1732,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const m = tileMedia(tile);
     if (morph && m && !tile.querySelector('[style*="view-transition-name"]')) m.style.viewTransitionName = 'project-media';
     const t = transition(() => {
+      const handed = tile && tile.dataset.preview && Previews.handOff(tile);
       if (Previews.current) Previews.stop(Previews.current);
       document.dispatchEvent(new Event('pm:open'));
       clearNames();
@@ -1685,7 +1741,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!morph) el.classList.add('pm-animate');
       document.body.append(el);
       root.classList.add('pm-open');
-      play = mount(el, doc, path);
+      // only when the preview is the same video as the project's (some long videos preview a short clip)
+      const want = el.querySelector('.video-player video')?.getAttribute('src');
+      const same = handed && want && new URL(want, location.href).href === new URL(tile.dataset.preview.split('#')[0], location.href).href;
+      if (handed && !same) { handed.video.pause(); handed.video.remove(); }
+      play = mount(el, doc, path, same ? handed : null);
       el.querySelector('.pm-panel').focus({ preventScroll: true });
     }, 'pm-opening');
     await t.ready;
