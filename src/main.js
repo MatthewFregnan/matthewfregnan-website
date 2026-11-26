@@ -1561,8 +1561,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // page instead of going to its own page: the video fills the top of the window (carrying on from the
 // preview if one was playing), with the title and details under it. It's the project page's own content
 // (fetched, and fetched ahead on hover), its address goes in the address bar so it can be shared or
-// reloaded, and Back, Esc, the close button or a click outside close it again. Where the browser can,
-// the tile grows into the window's video and shrinks back into the tile on close (View Transitions).
+// reloaded, and Back, Esc, the close button or a click outside close it again. The tile's video grows into
+// the window and shrinks back into the tile on close.
 document.addEventListener('DOMContentLoaded', () => {
   const rows = [...document.querySelectorAll('.row-track')];
   if (!rows.length || !window.fetch || !window.DOMParser) return;
@@ -1648,21 +1648,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return queue;
   };
 
-  // Run a change of what's on screen as a view transition where the browser has them; otherwise just do it.
-  // The change always happens exactly once, even if the browser skips or abandons the transition (e.g. the
-  // tab is switched away mid-way).
-  const transition = (change, cls) => {
-    let ran = false;
-    const once = () => { if (!ran) { ran = true; change(); } };
-    if (!document.startViewTransition || reduce.matches || document.hidden) { once(); return { ready: Promise.resolve(), done: Promise.resolve() }; }
-    root.classList.add(cls);
-    let t;
-    try { t = document.startViewTransition(once); } catch { once(); root.classList.remove(cls); return { ready: Promise.resolve(), done: Promise.resolve() }; }
-    t.ready.catch(() => {});
-    const ready = t.updateCallbackDone.catch(() => {}).then(once);
-    const done = t.finished.catch(() => {}).then(once).finally(() => root.classList.remove(cls));
-    return { ready, done };
-  };
   const clearNames = () => document.querySelectorAll('[style*="view-transition-name"]').forEach((n) => { n.style.viewTransitionName = ''; });
   const tileMedia = (tile) => tile?.querySelector('img:not(.card-logo), video.card-still');
 
@@ -1691,7 +1676,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (vp?.dataset.poster) {
       // the thumbnail sits behind the video, so there's never a black frame while it loads
       const c = vp.querySelector('.video-container');
-      if (c) c.style.background = `#000 url("${vp.dataset.poster}") center / contain no-repeat`;
+      if (c) {
+        c.style.background = `#000 url("${vp.dataset.poster}") center / contain no-repeat`;
+        c.querySelector('video')?.addEventListener('playing', () => { c.style.background = '#000'; }, { once: true });
+      }
     }
     if (vp) { try { player = new VideoPlayer(vp, { video: handed?.video }); } catch (e) { console.warn('Video player failed to start', e); } }
     if (handed && player?.video !== handed.video) { handed.video.pause(); handed.video.remove(); handed = null; }
@@ -1716,6 +1704,23 @@ document.addEventListener('DOMContentLoaded', () => {
     player = null;
   };
 
+  // The grow: the real video player (live, never a still picture, so it can't flash black) flies from
+  // the tile's spot to its place in the window while the window fills in around it; closing flies it back.
+  const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+  const flight = (from, to) => [
+    `translate(${from.left + from.width / 2 - (to.left + to.width / 2)}px, ${from.top + from.height / 2 - (to.top + to.height / 2)}px) scale(${from.width / to.width}, ${from.height / to.height})`,
+    'none',
+  ];
+  const shellOf = (el) => el.querySelector('.pp-media .player-shell');
+  const tileRadius = (tile) => getComputedStyle(tile).borderTopLeftRadius || '6px';
+  // the corners it lands with: the window's own top corners (landscape), or the player's (portrait)
+  const endRadius = (el, shell) => {
+    if (el.classList.contains('pm-portrait')) return getComputedStyle(shell).borderTopLeftRadius;
+    const r = getComputedStyle(el.querySelector('.pm-panel')).borderTopLeftRadius;
+    return `${r} ${r} 0 0`;
+  };
+  const onScreen = (r) => r && r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+
   const open = async (path, tile, push = true) => {
     if (box) return;
     root.classList.add('pm-active');   // previews and the rows hold still from here
@@ -1726,55 +1731,49 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = doc && build(doc, path);
     if (!el) { location.href = path; return; }
     opener = tile;
-    let play = () => {};
-    const morph = !!document.startViewTransition && !reduce.matches;
-    // the tile grows into the window: its picture (or playing preview, named on click) is the starting point
-    const m = tileMedia(tile);
-    if (morph && m && !tile.querySelector('[style*="view-transition-name"]')) m.style.viewTransitionName = 'project-media';
-    const t = transition(() => {
-      const handed = tile && tile.dataset.preview && Previews.handOff(tile);
-      if (Previews.current) Previews.stop(Previews.current);
-      document.dispatchEvent(new Event('pm:open'));
-      clearNames();
-      if (push) history.pushState({ pm: path }, '', path);
-      [...document.body.children].forEach((c) => { c.inert = true; });
-      if (!morph) el.classList.add('pm-animate');
-      document.body.append(el);
-      root.classList.add('pm-open');
-      // only when the preview is the same video as the project's (some long videos preview a short clip)
-      const want = el.querySelector('.video-player video')?.getAttribute('src');
-      const same = handed && want && new URL(want, location.href).href === new URL(tile.dataset.preview.split('#')[0], location.href).href;
-      if (handed && !same) { handed.video.pause(); handed.video.remove(); }
-      play = mount(el, doc, path, same ? handed : null);
-      el.querySelector('.pm-panel').focus({ preventScroll: true });
-    }, 'pm-opening');
-    await t.ready;
+    const from = tile ? (tileMedia(tile) || tile).getBoundingClientRect() : null;
+    const handed = tile && tile.dataset.preview && Previews.handOff(tile);
+    if (Previews.current) Previews.stop(Previews.current);
+    document.dispatchEvent(new Event('pm:open'));
+    clearNames();
+    if (push) history.pushState({ pm: path }, '', path);
+    [...document.body.children].forEach((c) => { c.inert = true; });
+    const shell0 = shellOf(el);
+    const fly = !reduce.matches && onScreen(from) && shell0;
+    el.classList.add(fly ? 'pm-flip' : 'pm-animate');
+    document.body.append(el);
+    root.classList.add('pm-open');
+    // only when the preview is the same video as the project's (some long videos preview a short clip)
+    const want = el.querySelector('.video-player video')?.getAttribute('src');
+    const same = handed && want && new URL(want, location.href).href === new URL(tile.dataset.preview.split('#')[0], location.href).href;
+    if (handed && !same) { handed.video.pause(); handed.video.remove(); }
+    const play = mount(el, doc, path, same ? handed : null);
+    el.querySelector('.pm-panel').focus({ preventScroll: true });
     play();
     window.mfTrack?.(path);
-    // done once it's on screen: closing straight away cuts the opening animation short rather than waiting
+    if (fly) {
+      const shell = shellOf(el);
+      const a = shell.animate({ transform: flight(from, shell.getBoundingClientRect()), borderRadius: [tileRadius(tile), endRadius(el, shell)] }, { duration: 520, easing: EASE });
+      a.finished.catch(() => {}).then(() => el.classList.remove('pm-flip'));
+    }
   };
 
-  // Next project, from inside the window: the window stays, its contents change
+  // Next project, from inside the window: the window stays, its contents fade across
   const swap = async (path, push = 'replace') => {
     if (!box || path === openPath) return;
     let doc;
     try { doc = await load(path); } catch { doc = null; }
     const el = doc && build(doc, path);
     if (!el) { location.href = path; return; }
-    let play = () => {};
-    const old = box;
-    const t = transition(() => {
-      unmount();
-      if (push === 'replace') history.replaceState({ pm: path }, '', path);
-      old.replaceWith(el);
-      play = mount(el, doc, path);
-      el.querySelector('.pm-panel').focus({ preventScroll: true });
-    }, 'pm-swapping');
+    unmount();
+    if (push === 'replace') history.replaceState({ pm: path }, '', path);
+    if (!reduce.matches) el.classList.add('pm-swapped');
+    box.replaceWith(el);
+    const play = mount(el, doc, path);
+    el.querySelector('.pm-panel').focus({ preventScroll: true });
     opener = rows.flatMap((r) => [...r.querySelectorAll(TILE)]).find((a) => pathOf(a) === path && !a.hidden) || null;
-    await t.ready;
     play();
     window.mfTrack?.(path);
-    // done once it's on screen: closing straight away cuts the opening animation short rather than waiting
   };
 
   const close = async (fromHistory = false) => {
@@ -1783,25 +1782,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!fromHistory && history.state?.pm) { if (!leaving) { leaving = true; history.back(); } return; }
     const el = box;
     const tile = opener && opener.isConnected && !opener.hidden ? opener : null;
-    const finish = () => {
-      unmount();
-      el.remove();
-      box = null; openPath = null; opener = null; leaving = false;
-      [...document.body.children].forEach((c) => { c.inert = false; });
-      root.classList.remove('pm-open', 'pm-active');
-      document.title = homeTitle;
-      const m = tileMedia(tile);
-      if (m && canMorph) m.style.viewTransitionName = 'project-media';
-    };
-    const canMorph = !!document.startViewTransition && !reduce.matches;
-    if (canMorph) {
-      await transition(finish, 'pm-closing').done;
-    } else {
+    const to = tile ? (tileMedia(tile) || tile).getBoundingClientRect() : null;
+    const shell = shellOf(el);
+    if (!reduce.matches && shell && onScreen(to) && onScreen(shell.getBoundingClientRect()) && !document.fullscreenElement) {
+      // back into its tile, fading out as it lands so the tile's picture shows through
+      el.classList.add('pm-flip-out');
+      const [moved] = flight(to, shell.getBoundingClientRect());
+      const r0 = endRadius(el, shell);
+      const r1 = tileRadius(tile);
+      await shell.animate([
+        { transform: 'none', borderRadius: r0, opacity: 1 },
+        { transform: moved, borderRadius: r1, opacity: 1, offset: 0.8 },
+        { transform: moved, borderRadius: r1, opacity: 0 },
+      ], { duration: 440, easing: EASE, fill: 'forwards' }).finished.catch(() => {});
+    } else if (!reduce.matches) {
       el.classList.add('pm-leaving');
-      await new Promise((r) => setTimeout(r, reduce.matches ? 0 : 220));
-      finish();
+      await new Promise((r) => setTimeout(r, 220));
     }
-    clearNames();
+    unmount();
+    el.remove();
+    box = null; openPath = null; opener = null; leaving = false;
+    [...document.body.children].forEach((c) => { c.inert = false; });
+    root.classList.remove('pm-open', 'pm-active');
+    document.title = homeTitle;
     tile?.focus({ preventScroll: true });
     document.dispatchEvent(new Event('pm:close'));
   };

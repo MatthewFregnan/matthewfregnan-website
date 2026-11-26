@@ -652,7 +652,7 @@ function renderTitleFit(box, p, keepField = false) {
 
 /** What I did: a chip per role (ticked = on), saved in the project's role text in a fixed order. */
 function roleChips(p) {
-  const box = h('div', { class: 'role-chips', role: 'group', 'aria-label': 'What I did' });
+  const box = h('div', { class: 'role-chips', role: 'group', 'aria-label': 'Roles' });
   const draw = () => {
     const { picked, other } = R.parseRoles(p.role);
     box.replaceChildren(
@@ -749,7 +749,7 @@ function detailsForm(p) {
     header: h('div', { class: 'pe-header' }, lists, title, titleFitBox(p), client,
       h('div', { class: 'pe-logo' }, h('span', { class: 'muted small' }, 'Client logo'), h('div', { id: 'client-logo' }, clientLogoRow(p)))),
     info: h('div', { class: 'form' },
-    h('label', { class: 'top' }, 'What I did'), roleChips(p),
+    h('label', { class: 'top' }, 'Roles'), roleChips(p),
     h('label', { for: 'f-production' }, 'Production'), textField(p, 'production', { list: true, placeholder: 'e.g. ThinkHQ' }),
     h('label', { for: 'f-agency' }, 'Agency'), textField(p, 'agency', { list: true, placeholder: 'If you worked through an agency' }),
     h('label', { for: 'f-year' }, 'Year'), textField(p, 'year', { class: 'year', placeholder: 'YYYY', inputmode: 'numeric', digits: true }),

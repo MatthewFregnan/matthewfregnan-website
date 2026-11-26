@@ -1082,17 +1082,25 @@ a.is-opening { cursor: progress; }
   .pm-page { align-self: flex-start; }
 }
 
-/* Opening and closing. With view transitions the tile grows into the window's video while the
-   window rises in behind it; without them the window simply rises in and sinks away. */
+/* Opening and closing. The video itself flies from its tile into place (src/main.js) while the window
+   fills in around it: the backdrop darkens, the window's panel and words fade up. Closing reverses it.
+   Without a tile to fly from (or with reduced motion) the window simply rises in and sinks away. */
 @keyframes pm-fade { from { opacity: 0; } }
 @keyframes pm-rise { from { opacity: 0; transform: translateY(28px) scale(0.97); } }
+@keyframes pm-soft { from { opacity: 0; transform: translateY(12px); } }
+@keyframes pm-fill { from { background-color: rgba(18, 18, 18, 0); box-shadow: 0 30px 90px rgba(0, 0, 0, 0), 0 0 0 1px rgba(255, 255, 255, 0); } }
+.pm .video-container video { background: transparent; }   /* the thumbnail behind it shows until it plays */
 .pm-animate .pm-scrim { animation: pm-fade 0.3s ease both; }
 .pm-animate .pm-panel { animation: pm-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .pm-leaving .pm-scrim { animation: pm-fade 0.22s ease reverse both; }
 .pm-leaving .pm-panel { animation: pm-rise 0.22s ease-in reverse both; }
-html.pm-opening::view-transition-group(project-media),
-html.pm-closing::view-transition-group(project-media) { animation-duration: 0.45s; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
-html.pm-opening::view-transition-old(root), html.pm-opening::view-transition-new(root),
-html.pm-closing::view-transition-old(root), html.pm-closing::view-transition-new(root) { animation-duration: 0.32s; }
-::view-transition-new(pm-panel):only-child { animation: pm-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
-::view-transition-old(pm-panel):only-child { animation: pm-rise 0.3s ease-in reverse both; }
+.pm-flip .pm-panel, .pm-flip-out .pm-panel { overflow: visible; }
+.pm-flip .player-shell, .pm-flip-out .player-shell { z-index: 3; }
+.pm-flip .vp-bar, .pm-flip .vp-big, .pm-flip-out .vp-bar, .pm-flip-out .vp-big { opacity: 0 !important; }
+.pm-flip .pm-scrim { animation: pm-fade 0.4s ease both; }
+.pm-flip .pm-panel { animation: pm-fill 0.52s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.pm-flip .project-main > :not(.pp-media), .pm-flip .pm-foot, .pm-flip .pm-close { animation: pm-soft 0.5s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.pm-flip-out .pm-scrim { animation: pm-fade 0.42s ease reverse both; }
+.pm-flip-out .pm-panel { animation: pm-fill 0.36s ease reverse both; }
+.pm-flip-out .project-main > :not(.pp-media), .pm-flip-out .pm-foot, .pm-flip-out .pm-close { animation: pm-fade 0.18s ease reverse both; }
+.pm-swapped .pm-panel > *, .pm-swapped .project-main > * { animation: pm-fade 0.3s ease both; }

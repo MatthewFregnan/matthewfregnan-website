@@ -221,7 +221,7 @@ export function projectPreview(h, opts) {
       ? h('div', { class: `pv-context${phone ? ' one' : ''}` },
         h('div', {},
           p.description ? h('p', { class: 'pv-desc' }, p.description) : null,
-          roles.length ? h('div', { class: 'pv-group' }, h('div', { class: 'pv-label' }, 'What I did'),
+          roles.length ? h('div', { class: 'pv-group' }, h('div', { class: 'pv-label' }, 'Roles'),
             h('div', { class: 'pv-chips' }, roles.map(r => h('span', {}, r)))) : null,
           platforms.length ? h('div', { class: 'pv-group' }, h('div', { class: 'pv-label' }, 'Made for'),
             h('div', { class: 'pv-chips quiet' }, platforms.map(r => h('span', {}, r)))) : null),
