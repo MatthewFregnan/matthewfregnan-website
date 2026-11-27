@@ -1604,6 +1604,78 @@ document.addEventListener('DOMContentLoaded', () => {
   const ICON_CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   const ICON_NEXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 
+  // Phones, portrait videos: a full-screen player like Reels / TikTok. The name, title and a line of
+  // description sit over the bottom of the video, the post's numbers (likes, comments, views) run down
+  // the right with share and sound, tapping the words brings up the full details in a sheet, and
+  // swiping up goes to the next project (its picture already waiting underneath). Landscape videos on
+  // phones stay pinned at the top while the details scroll under them, as in the YouTube app.
+  const phone = window.matchMedia('(max-width: 639px)');
+  const svg = (paths, cls = '') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  const RAIL = {
+    like: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+    comment: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+    view: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+    share: '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/>',
+    details: '<path d="M15 12H3"/><path d="M17 18H3"/><path d="M21 6H3"/>',
+    sound: '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.4 18.4a9 9 0 0 0 0-12.8"/>',
+    muted: '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M22 9l-6 6M16 9l6 6"/>',
+  };
+  const reelParts = (el, doc, panel, node) => {
+    el.classList.add('pm-can-reel');
+    const text = (sel) => (node.querySelector(sel)?.textContent || '').trim();
+    const esc = (t) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const desc = text('.ctx-description, .pp-details .prose p')
+      || [...node.querySelectorAll('.role-list li')].map((li) => li.textContent.trim()).join(' · ');
+    const order = { like: 0, comment: 1, view: 2 };
+    const stats = [...node.querySelectorAll('.stats-fact li[data-kind]')].sort((a, b) => order[a.dataset.kind] - order[b.dataset.kind]).map((li) => {
+      const n = li.querySelector('.stats-n')?.textContent.trim() || '';
+      const k = li.dataset.kind;
+      return `<span class="pm-rail-item${k === 'view' ? '' : ' is-fill'}" aria-label="${esc(`${n} ${li.querySelector('.stats-w')?.textContent.trim() || ''}`)}">${svg(RAIL[k] || '')}<span>${esc(n)}</span></span>`;
+    }).join('');
+    const hud = document.createElement('div');
+    hud.className = 'pm-hud';
+    hud.innerHTML = `<button type="button" class="pm-cap" data-pm-sheet aria-label="Show details">
+        ${text('.pp-client') ? `<span class="pm-cap-client">${esc(text('.pp-client'))}</span>` : ''}
+        <span class="pm-cap-title">${esc(text('.pp-title'))}</span>
+        ${desc ? `<span class="pm-cap-desc">${esc(desc)}</span>` : ''}
+        <span class="pm-cap-more">more</span>
+      </button>
+      <div class="pm-rail">${stats}
+        <button type="button" class="pm-rail-item" data-pm-share aria-label="Share">${svg(RAIL.share)}<span>Share</span></button>
+        <button type="button" class="pm-rail-item" data-pm-sheet aria-label="Details">${svg(RAIL.details)}<span>Details</span></button>
+        <button type="button" class="pm-rail-item" data-pm-sound aria-label="Sound">${svg(RAIL.sound)}<span>Sound</span></button>
+      </div>`;
+    const peek = document.createElement('div');
+    peek.className = 'pm-peek';
+    peek.setAttribute('aria-hidden', 'true');
+    peek.innerHTML = '<span class="pm-peek-title"></span>';
+    const sheetScrim = document.createElement('div');
+    sheetScrim.className = 'pm-sheet-scrim';
+    sheetScrim.dataset.pmSheetClose = '';
+    panel.append(hud, sheetScrim, peek);
+    // where the video goes back to when the screen is wide enough for the page layout
+    const media = node.querySelector('.pp-media');
+    const slot = document.createElement('span');
+    slot.className = 'pm-media-slot';
+    slot.hidden = true;
+    media.before(slot);
+  };
+  // move the video between the page layout and the full-screen one as the screen changes size
+  const arrange = (el) => {
+    if (!el.classList.contains('pm-can-reel')) return;
+    const reel = phone.matches;
+    const panel = el.querySelector('.pm-panel');
+    const media = el.querySelector('.pp-media');
+    const slot = el.querySelector('.pm-media-slot');
+    el.classList.toggle('pm-reel', reel);
+    if (!reel) el.classList.remove('pm-sheet-open');
+    if (!media || !slot) return;
+    if (reel && media.parentElement !== panel) panel.insertBefore(media, panel.querySelector('.pm-sheet'));
+    else if (!reel && media.parentElement === panel) slot.after(media);
+  };
+  phone.addEventListener?.('change', () => { if (box) arrange(box); });
+  const reelOn = () => box?.classList.contains('pm-reel');
+
   // The window, built from the project page: landscape videos sit edge to edge across the top with the
   // details below; portrait ones keep their page layout (video beside the details on wider screens).
   const build = (doc, path) => {
@@ -1619,17 +1691,18 @@ document.addEventListener('DOMContentLoaded', () => {
     el.innerHTML = `<div class="pm-scrim" data-pm-close></div>
       <div class="pm-panel" tabindex="-1">
         <button type="button" class="pm-close" data-pm-close aria-label="Close">${ICON_CLOSE}</button>
-        <div class="pm-info"></div>
-        <div class="pm-foot"><span class="pm-cta">Have a project like this? ${contactLink('Get in touch', 'pm-cta-link')}</span></div>
+        <div class="pm-sheet"><div class="pm-info"></div>
+          <div class="pm-foot"><span class="pm-cta">Have a project like this? ${contactLink('Get in touch', 'pm-cta-link')}</span></div></div>
       </div>`;
     const panel = el.querySelector('.pm-panel');
     const node = document.importNode(main, true);
     if (!portrait) {
       const media = node.querySelector('.pp-media');
-      if (media) panel.insertBefore(media, panel.querySelector('.pm-info'));
+      if (media) panel.insertBefore(media, panel.querySelector('.pm-sheet'));
       else el.classList.add('pm-no-media');
     }
     panel.querySelector('.pm-info').append(node);
+    if (portrait && node.querySelector('.pp-media video')) reelParts(el, doc, panel, node);
     const next = doc.querySelector('.more-next');
     if (next && isProject(new URL(next.href, location.href).pathname)) {
       const a = document.createElement('a');
@@ -1638,7 +1711,10 @@ document.addEventListener('DOMContentLoaded', () => {
       a.innerHTML = `<span class="pm-next-label">Next project</span><span class="pm-next-title"></span>${ICON_NEXT}`;
       a.querySelector('.pm-next-title').textContent = next.querySelector('.more-next-title')?.textContent.trim() || '';
       el.querySelector('.pm-foot').append(a);
+      const peek = el.querySelector('.pm-peek-title');
+      if (peek) peek.textContent = a.querySelector('.pm-next-title').textContent;
     }
+    arrange(el);
     return el;
   };
 
@@ -1709,6 +1785,26 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       v.addEventListener('play', () => { end.classList.remove('is-shown'); end.hidden = true; });
       end.querySelector('[data-again]').addEventListener('click', () => player.toggle());
+    }
+    // full-screen phone layout: the sound button follows the video, and the next project's picture
+    // waits underneath for a swipe up
+    const sound = el.querySelector('[data-pm-sound]');
+    if (sound && v) {
+      const sync = () => {
+        sound.querySelector('svg').innerHTML = v.muted ? RAIL.muted : RAIL.sound;
+        sound.querySelector('span').textContent = v.muted ? 'Muted' : 'Sound';
+        sound.setAttribute('aria-label', v.muted ? 'Turn sound on' : 'Mute');
+      };
+      v.addEventListener('volumechange', sync);
+      sync();
+    }
+    const nx = el.querySelector('.pm-next');
+    const pk = el.querySelector('.pm-peek');
+    if (nx && pk) {
+      load(pathOf(nx)).then((d) => {
+        const p = d.querySelector('.video-player[data-poster]')?.dataset.poster;
+        if (p) pk.style.backgroundImage = `url("${p}")`;
+      }).catch(() => {});
     }
     return () => {
       const v = player?.video;
@@ -1785,7 +1881,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Next project, from inside the window: the window stays, its contents fade across
-  const swap = async (path, push = 'replace') => {
+  const swap = async (path, push = 'replace', slid = false) => {
     if (!box || path === openPath) return;
     let doc;
     try { doc = await load(path); } catch { doc = null; }
@@ -1793,7 +1889,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!el) { location.href = path; return; }
     unmount();
     if (push === 'replace') history.replaceState({ pm: path }, '', path);
-    if (!reduce.matches) el.classList.add('pm-swapped');
+    if (!reduce.matches) el.classList.add(slid && el.classList.contains('pm-reel') ? 'pm-slid' : 'pm-swapped');
     box.replaceWith(el);
     const play = mount(el, doc, path);
     el.querySelector('.pm-panel').focus({ preventScroll: true });
@@ -1859,13 +1955,43 @@ document.addEventListener('DOMContentLoaded', () => {
   // Phones: pull the window down (from the top of it) to close. It follows your finger with the page
   // showing through behind; let go far enough (or flick it) and it flies back into its tile, otherwise it
   // springs back into place.
+  // Full-screen phone layout (portrait videos): swipe up for the next project, and the details sheet
+  // pulls down to put it away.
   let drag = null;
   const SPRING = 'cubic-bezier(0.22, 1, 0.36, 1)';
+  const sheetOf = () => box?.querySelector('.pm-sheet');
+  const showSheet = (on) => {
+    if (!box) return;
+    const sh = sheetOf();
+    if (sh) sh.style.transform = '';
+    box.classList.toggle('pm-sheet-open', on);
+    if (on && sh) sh.scrollTop = 0;
+  };
+  const nextPath = () => { const a = box?.querySelector('.pm-next'); return a ? pathOf(a) : null; };
+  const springBack = (node, scrim) => {
+    node.style.transition = `transform 0.4s ${SPRING}`;
+    if (scrim) scrim.style.transition = 'opacity 0.4s ease';
+    node.style.transform = '';
+    if (scrim) scrim.style.opacity = '';
+    setTimeout(() => {
+      node.style.transition = '';
+      if (scrim) scrim.style.transition = '';
+      if (!drag) box?.classList.remove('pm-dragging', 'pm-up');
+    }, 420);
+  };
   document.addEventListener('touchstart', (e) => {
     if (!box || pending || e.touches.length !== 1 || box.scrollTop > 0) return;
-    if (e.target.closest('.vp-bar, input, iframe, .pm-foot')) return;
+    if (e.target.closest('.vp-bar, input, iframe')) return;
     const t = e.touches[0];
-    drag = { x: t.clientX, y: t.clientY, dy: 0, on: false, at: 0, panel: box.querySelector('.pm-panel'), scrim: box.querySelector('.pm-scrim') };
+    const base = { x: t.clientX, y: t.clientY, dy: 0, on: false, at: 0, v: 0 };
+    if (box.classList.contains('pm-sheet-open')) {
+      const sh = sheetOf();
+      // in the sheet, from the top of it: pull it down to put it away (a tap outside it does too)
+      if (sh && e.target.closest('.pm-sheet') && sh.scrollTop <= 0) drag = { ...base, sheet: sh };
+      return;
+    }
+    if (e.target.closest('.pm-foot')) return;
+    drag = { ...base, panel: box.querySelector('.pm-panel'), scrim: box.querySelector('.pm-scrim'), reel: reelOn() };
   }, { passive: true });
   document.addEventListener('touchmove', (e) => {
     if (!drag || !box) return;
@@ -1874,36 +2000,58 @@ document.addEventListener('DOMContentLoaded', () => {
       const dx = t.clientX - drag.x;
       const dy = t.clientY - drag.y;
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      if (dy <= 0 || Math.abs(dx) > dy || box.scrollTop > 0) { drag = null; return; }   // scrolling, not pulling
+      const up = dy < 0 && drag.reel && !drag.sheet;
+      if ((dy <= 0 && !up) || Math.abs(dx) > Math.abs(dy) || box.scrollTop > 0 || (drag.sheet && drag.sheet.scrollTop > 0)) { drag = null; return; }   // scrolling, not pulling
       drag.on = true;
+      drag.up = up;
       drag.y = t.clientY;
       drag.at = performance.now();
-      drag.panel.getAnimations().forEach((a) => a.finish());
-      box.classList.remove('pm-flip');
-      box.classList.add('pm-dragging');
+      if (!drag.sheet) {
+        drag.next = up ? nextPath() : null;
+        drag.panel.getAnimations().forEach((a) => a.finish());
+        box.classList.remove('pm-flip');
+        box.classList.add('pm-dragging');
+        box.classList.toggle('pm-up', up);
+      }
     }
     e.preventDefault();
-    const d = Math.max(0, t.clientY - drag.y);
-    drag.v = (d - drag.dy) / Math.max(1, performance.now() - (drag.last || drag.at));   // px per ms, for a flick
-    drag.last = performance.now();
+    let d = t.clientY - drag.y;
+    d = drag.up ? Math.min(0, d) : Math.max(0, d);
+    if (drag.up && !drag.next) d *= 0.25;   // nothing after this one: it gives a little, then springs back
+    const now = performance.now();
+    drag.v = (d - drag.dy) / Math.max(1, now - (drag.last || drag.at));   // px per ms, for a flick
+    drag.last = now;
     drag.dy = d;
+    if (drag.sheet) { drag.sheet.style.transition = 'none'; drag.sheet.style.transform = `translateY(${d}px)`; return; }
     drag.panel.style.transform = `translateY(${d}px)`;
-    drag.scrim.style.opacity = String(Math.max(0.2, 1 - d / 600));
+    if (!drag.up) drag.scrim.style.opacity = String(Math.max(0.2, 1 - d / 600));
   }, { passive: false });
   const letGo = () => {
     const d = drag;
     drag = null;
     if (!d || !d.on || !box) return;
+    if (d.sheet) {
+      d.sheet.style.transition = '';
+      if (d.dy > 90 || (d.dy > 30 && d.v > 0.5)) showSheet(false);
+      else d.sheet.style.transform = '';
+      return;
+    }
+    if (d.up) {
+      if (d.next && (d.dy < -110 || (d.dy < -36 && d.v < -0.5))) {
+        // on up and away: the next one's picture, already underneath, fills the screen and plays
+        const el = box;
+        const go = !reduce.matches
+          ? d.panel.animate({ transform: [`translateY(${d.dy}px)`, `translateY(${-window.innerHeight}px)`] }, { duration: 260, easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)', fill: 'forwards' }).finished.catch(() => {})
+          : Promise.resolve();
+        player?.video?.pause();
+        run(async () => { await go; if (box === el) await swap(d.next, 'replace', true); });
+        return;
+      }
+      springBack(d.panel);
+      return;
+    }
     if (d.dy > 130 || (d.dy > 40 && d.v > 0.6)) { run(() => close()); return; }
-    d.panel.style.transition = `transform 0.4s ${SPRING}`;
-    d.scrim.style.transition = 'opacity 0.4s ease';
-    d.panel.style.transform = '';
-    d.scrim.style.opacity = '';
-    setTimeout(() => {
-      d.panel.style.transition = '';
-      d.scrim.style.transition = '';
-      if (!drag) box?.classList.remove('pm-dragging');
-    }, 420);
+    springBack(d.panel, d.scrim);
   };
   document.addEventListener('touchend', letGo);
   document.addEventListener('touchcancel', letGo);
@@ -1913,6 +2061,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (box) {
       if (e.target.closest('.pm a[data-contact]')) { player?.video?.pause(); return; }
       if (e.target.closest('[data-pm-close]')) { e.preventDefault(); run(() => close()); return; }
+      if (e.target.closest('[data-pm-sheet]')) { showSheet(true); return; }
+      if (e.target.closest('[data-pm-sheet-close]')) { showSheet(false); return; }
+      if (e.target.closest('[data-pm-sound]')) {
+        const v = player?.video;
+        if (v) { v.muted = !v.muted; if (!v.muted && v.volume < 0.05) v.volume = PLAYER_VOLUME; }
+        return;
+      }
+      const share = e.target.closest('[data-pm-share]');
+      if (share) {
+        const url = location.origin + (openPath || location.pathname);
+        const label = share.querySelector('span');
+        if (navigator.share) navigator.share({ title: document.title, url }).catch(() => {});
+        else navigator.clipboard?.writeText(url).then(() => {
+          label.textContent = 'Copied';
+          setTimeout(() => { label.textContent = 'Share'; }, 1600);
+        }).catch(() => {});
+        return;
+      }
       const next = e.target.closest('.pm a.pm-next');
       if (next) { e.preventDefault(); if (!pending) run(() => swap(pathOf(next))); }
       return;
@@ -1923,7 +2089,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!pending) run(() => open(pathOf(a), a));
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && box && !contact?.open && !document.fullscreenElement && !document.webkitFullscreenElement) { e.preventDefault(); run(() => close()); }
+    if (e.key !== 'Escape' || !box || contact?.open || document.fullscreenElement || document.webkitFullscreenElement) return;
+    e.preventDefault();
+    if (box.classList.contains('pm-sheet-open')) showSheet(false);
+    else run(() => close());
   });
   // Back closes it; Forward (after closing) opens it again
   window.addEventListener('popstate', (e) => {

@@ -11,7 +11,7 @@
   <dt class="text-site-text-muted"><% if (s.where) { %>On <% if (s.link) { %><a href="<%= s.link %>" target="_blank" rel="noopener" class="stats-link"><%= s.where %></a><% } else { %><%= s.where %><% } %><% } else { %>Reach<% } %></dt>
   <dd>
     <ul class="stats-lines">
-      <% s.lines.forEach(l => { %><li><svg class="stats-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><%- icon[l.kind] %></svg><span class="stats-n"><%= l.n %></span> <span class="stats-w"><%= l.word %></span></li><% }) %>
+      <% s.lines.forEach(l => { %><li data-kind="<%= l.kind %>"><svg class="stats-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><%- icon[l.kind] %></svg><span class="stats-n"><%= l.n %></span> <span class="stats-w"><%= l.word %></span></li><% }) %>
     </ul>
   </dd>
 </div>
