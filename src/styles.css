@@ -1062,8 +1062,29 @@ a.is-opening { cursor: progress; }
   display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
   margin-top: 30px; padding: 18px var(--pad-x) 26px; border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
-.pm-page { font-size: 0.875rem; color: #a0a0a0; transition: color 0.2s; }
-.pm-page:hover { color: #fff; }
+.pm-cta { font-size: 0.875rem; color: #a0a0a0; }
+.pm-cta-link { color: #fff; border-bottom: 1px solid rgba(255, 255, 255, 0.35); padding-bottom: 1px; transition: border-color 0.2s; }
+.pm-cta-link:hover { border-color: #fff; }
+
+/* Watched to the end: a quiet prompt over the last frame */
+.pm-end {
+  position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  padding: 20px; text-align: center; background: rgba(8, 8, 8, 0.62);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  opacity: 0; transition: opacity 0.5s ease;
+}
+.pm-end.is-shown { opacity: 1; }
+.pm-end[hidden] { display: none; }
+.pm-end-q { margin: 0; font-size: clamp(1rem, 1.6vw, 1.25rem); font-weight: 300; color: #fff; transform: translateY(6px); transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+.pm-end-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; transform: translateY(8px); transition: transform 0.6s 0.05s cubic-bezier(0.22, 1, 0.36, 1); }
+.pm-end.is-shown .pm-end-q, .pm-end.is-shown .pm-end-btns { transform: none; }
+.pm-end-btn {
+  font-size: 0.85rem; padding: 9px 18px; border-radius: 999px; color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.04); transition: background 0.2s, border-color 0.2s;
+}
+.pm-end-btn:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.5); }
+.pm-end-btn.is-main { background: #fff; color: #111; border-color: #fff; }
+.pm-end-btn.is-main:hover { background: #e6e6e6; }
 .pm-next { display: inline-flex; align-items: center; gap: 10px; color: #fff; margin-left: auto; text-align: right; }
 .pm-next-label { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: #8a8a8a; }
 .pm-next-title { font-size: 0.95rem; max-width: 34ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1079,7 +1100,7 @@ a.is-opening { cursor: progress; }
   .pm-foot { flex-direction: column-reverse; align-items: stretch; gap: 14px; padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
   .pm-next { margin-left: 0; justify-content: space-between; text-align: left; padding: 14px 16px; border-radius: 10px; background: rgba(255, 255, 255, 0.06); }
   .pm-next-title { flex: 1; max-width: none; }
-  .pm-page { align-self: flex-start; }
+  .pm-cta { align-self: flex-start; }
 }
 
 /* Phones: a small handle at the top says the window can be pulled down to close; while it's being

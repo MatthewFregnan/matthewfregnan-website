@@ -1571,6 +1571,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const TILE = 'a.portfolio-item, a.portfolio-item-vertical';
   const tiles = () => [...document.querySelectorAll(TILE)].filter((a) => !a.closest('.pm'));
   const tileFor = (path) => tiles().find((a) => pathOf(a) === path && !a.hidden) || null;
+  // "Get in touch" in the window opens the contact pop-up on top of it, so it lives directly in the page
+  // (not inside the footer, which is switched off behind the window), and the window is left as it was
+  const contact = document.getElementById('contact-panel');
+  if (contact && contact.parentElement !== document.body) document.body.append(contact);
+  const mailHref = document.querySelector('a[data-contact]')?.getAttribute('href') || '';
+  const contactLink = (text, cls) => `<a class="${cls}" href="${mailHref}" data-contact>${text}</a>`;
   const pathOf = (a) => new URL(a.href, location.href).pathname;
   const isProject = (path) => /^\/[^/]+\/[^/]+\/$/.test(path);
   const pageTitle = document.title;
@@ -1614,7 +1620,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="pm-panel" tabindex="-1">
         <button type="button" class="pm-close" data-pm-close aria-label="Close">${ICON_CLOSE}</button>
         <div class="pm-info"></div>
-        <div class="pm-foot"><a class="pm-page" href="${path}">Open project page</a></div>
+        <div class="pm-foot"><span class="pm-cta">Have a project like this? ${contactLink('Get in touch', 'pm-cta-link')}</span></div>
       </div>`;
     const panel = el.querySelector('.pm-panel');
     const node = document.importNode(main, true);
@@ -1686,6 +1692,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (vp) { try { player = new VideoPlayer(vp, { video: handed?.video }); } catch (e) { console.warn('Video player failed to start', e); } }
     if (handed && player?.video !== handed.video) { handed.video.pause(); handed.video.remove(); handed = null; }
     if (handed) try { sessionStorage.removeItem('mf-resume'); } catch { /* fine */ }
+    // Watched to the end: a quiet prompt over the last frame (Get in touch / Watch again). It goes as soon
+    // as the video plays again.
+    const v = player?.video;
+    if (v) {
+      const end = document.createElement('div');
+      end.className = 'pm-end';
+      end.hidden = true;
+      end.innerHTML = `<p class="pm-end-q">Have a project like this?</p>
+        <div class="pm-end-btns">${contactLink('Get in touch', 'pm-end-btn is-main')}<button type="button" class="pm-end-btn" data-again>Watch again</button></div>`;
+      player.shell.append(end);
+      v.addEventListener('ended', () => {
+        if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+        end.hidden = false;
+        requestAnimationFrame(() => requestAnimationFrame(() => end.classList.add('is-shown')));
+      });
+      v.addEventListener('play', () => { end.classList.remove('is-shown'); end.hidden = true; });
+      end.querySelector('[data-again]').addEventListener('click', () => player.toggle());
+    }
     return () => {
       const v = player?.video;
       if (!v || box !== el) return;
@@ -1739,7 +1763,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.dispatchEvent(new Event('pm:open'));
     clearNames();
     if (push) history.pushState({ pm: path }, '', path);
-    [...document.body.children].forEach((c) => { c.inert = true; });
+    [...document.body.children].forEach((c) => { if (c !== contact) c.inert = true; });
     const shell0 = shellOf(el);
     const fly = !reduce.matches && onScreen(from) && shell0;
     el.classList.add(fly ? 'pm-flip' : 'pm-animate');
@@ -1887,6 +1911,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', (e) => {
     if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     if (box) {
+      if (e.target.closest('.pm a[data-contact]')) { player?.video?.pause(); return; }
       if (e.target.closest('[data-pm-close]')) { e.preventDefault(); run(() => close()); return; }
       const next = e.target.closest('.pm a.pm-next');
       if (next) { e.preventDefault(); if (!pending) run(() => swap(pathOf(next))); }
@@ -1898,7 +1923,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!pending) run(() => open(pathOf(a), a));
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && box && !document.fullscreenElement && !document.webkitFullscreenElement) { e.preventDefault(); run(() => close()); }
+    if (e.key === 'Escape' && box && !contact?.open && !document.fullscreenElement && !document.webkitFullscreenElement) { e.preventDefault(); run(() => close()); }
   });
   // Back closes it; Forward (after closing) opens it again
   window.addEventListener('popstate', (e) => {
