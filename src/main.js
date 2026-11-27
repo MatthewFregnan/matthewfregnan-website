@@ -1557,21 +1557,23 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// Home page: a project opened from the Featured or Reels rows comes up in a floating window over the home
-// page instead of going to its own page: the video fills the top of the window (carrying on from the
-// preview if one was playing), with the title and details under it. It's the project page's own content
-// (fetched, and fetched ahead on hover), its address goes in the address bar so it can be shared or
-// reloaded, and Back, Esc, the close button or a click outside close it again. The tile's video grows into
-// the window and shrinks back into the tile on close.
+// Project window: a project tile (home page rows, section pages, client pages, My work) opens the project
+// in a floating window over the page instead of going to its own page: the video fills the top of the
+// window (carrying on from the preview if one was playing), with the title and details under it. It's the
+// project page's own content (fetched, and fetched ahead on hover), its address goes in the address bar so
+// it can be shared or reloaded, and Back, Esc, the close button, a click outside or (phones) pulling it
+// down close it again. The tile's video grows into the window and shrinks back into the tile on close.
+// Project pages themselves keep their tiles as ordinary links.
 document.addEventListener('DOMContentLoaded', () => {
-  const rows = [...document.querySelectorAll('.row-track')];
-  if (!rows.length || !window.fetch || !window.DOMParser) return;
+  if (document.querySelector('.project-main') || !window.fetch || !window.DOMParser) return;
   const root = document.documentElement;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   const TILE = 'a.portfolio-item, a.portfolio-item-vertical';
+  const tiles = () => [...document.querySelectorAll(TILE)].filter((a) => !a.closest('.pm'));
+  const tileFor = (path) => tiles().find((a) => pathOf(a) === path && !a.hidden) || null;
   const pathOf = (a) => new URL(a.href, location.href).pathname;
   const isProject = (path) => /^\/[^/]+\/[^/]+\/$/.test(path);
-  const homeTitle = document.title;
+  const pageTitle = document.title;
 
   const cache = new Map();
   const load = (path) => {
@@ -1585,13 +1587,13 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   // fetch ahead: a mouse resting on a tile, or a finger touching one
   let aheadTimer = null;
-  rows.forEach((row) => {
-    row.addEventListener('pointerover', (e) => {
-      const a = e.target.closest(TILE);
-      clearTimeout(aheadTimer);
-      if (a) aheadTimer = setTimeout(() => load(pathOf(a)).catch(() => {}), e.pointerType === 'mouse' ? 120 : 0);
-    }, { passive: true });
-  });
+  document.addEventListener('pointerover', (e) => {
+    const a = e.target.closest?.(TILE);
+    if (!a || a.closest('.pm')) return;
+    clearTimeout(aheadTimer);
+    const path = pathOf(a);
+    if (isProject(path)) aheadTimer = setTimeout(() => load(path).catch(() => {}), e.pointerType === 'mouse' ? 120 : 0);
+  }, { passive: true });
 
   const ICON_CLOSE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   const ICON_NEXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
@@ -1670,7 +1672,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const mount = (el, doc, path, handed = null) => {
     box = el;
     openPath = path;
-    document.title = doc.title || homeTitle;
+    document.title = doc.title || pageTitle;
     const vp = el.querySelector('.video-player[data-video-sources]');
     player = null;
     if (vp?.dataset.poster) {
@@ -1771,7 +1773,7 @@ document.addEventListener('DOMContentLoaded', () => {
     box.replaceWith(el);
     const play = mount(el, doc, path);
     el.querySelector('.pm-panel').focus({ preventScroll: true });
-    opener = rows.flatMap((r) => [...r.querySelectorAll(TILE)]).find((a) => pathOf(a) === path && !a.hidden) || null;
+    opener = tileFor(path);
     play();
     window.mfTrack?.(path);
   };
@@ -1795,6 +1797,11 @@ document.addEventListener('DOMContentLoaded', () => {
         { transform: moved, borderRadius: r1, opacity: 1, offset: 0.8 },
         { transform: moved, borderRadius: r1, opacity: 0 },
       ], { duration: 440, easing: EASE, fill: 'forwards' }).finished.catch(() => {});
+    } else if (!reduce.matches && el.classList.contains('pm-dragging')) {
+      // pulled down but its tile isn't on screen: it carries on down and away
+      const panel = el.querySelector('.pm-panel');
+      el.querySelector('.pm-scrim').animate({ opacity: [getComputedStyle(el.querySelector('.pm-scrim')).opacity, 0] }, { duration: 300, fill: 'forwards' });
+      await panel.animate({ transform: [getComputedStyle(panel).transform, `translateY(${window.innerHeight}px)`] }, { duration: 300, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }).finished.catch(() => {});
     } else if (!reduce.matches) {
       el.classList.add('pm-leaving');
       await new Promise((r) => setTimeout(r, 220));
@@ -1804,10 +1811,62 @@ document.addEventListener('DOMContentLoaded', () => {
     box = null; openPath = null; opener = null; leaving = false;
     [...document.body.children].forEach((c) => { c.inert = false; });
     root.classList.remove('pm-open', 'pm-active');
-    document.title = homeTitle;
+    document.title = pageTitle;
     tile?.focus({ preventScroll: true });
     document.dispatchEvent(new Event('pm:close'));
   };
+
+  // Phones: pull the window down (from the top of it) to close. It follows your finger with the page
+  // showing through behind; let go far enough (or flick it) and it flies back into its tile, otherwise it
+  // springs back into place.
+  let drag = null;
+  const SPRING = 'cubic-bezier(0.22, 1, 0.36, 1)';
+  document.addEventListener('touchstart', (e) => {
+    if (!box || pending || e.touches.length !== 1 || box.scrollTop > 0) return;
+    if (e.target.closest('.vp-bar, input, iframe, .pm-foot')) return;
+    const t = e.touches[0];
+    drag = { x: t.clientX, y: t.clientY, dy: 0, on: false, at: 0, panel: box.querySelector('.pm-panel'), scrim: box.querySelector('.pm-scrim') };
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!drag || !box) return;
+    const t = e.touches[0];
+    if (!drag.on) {
+      const dx = t.clientX - drag.x;
+      const dy = t.clientY - drag.y;
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (dy <= 0 || Math.abs(dx) > dy || box.scrollTop > 0) { drag = null; return; }   // scrolling, not pulling
+      drag.on = true;
+      drag.y = t.clientY;
+      drag.at = performance.now();
+      drag.panel.getAnimations().forEach((a) => a.finish());
+      box.classList.remove('pm-flip');
+      box.classList.add('pm-dragging');
+    }
+    e.preventDefault();
+    const d = Math.max(0, t.clientY - drag.y);
+    drag.v = (d - drag.dy) / Math.max(1, performance.now() - (drag.last || drag.at));   // px per ms, for a flick
+    drag.last = performance.now();
+    drag.dy = d;
+    drag.panel.style.transform = `translateY(${d}px)`;
+    drag.scrim.style.opacity = String(Math.max(0.2, 1 - d / 600));
+  }, { passive: false });
+  const letGo = () => {
+    const d = drag;
+    drag = null;
+    if (!d || !d.on || !box) return;
+    if (d.dy > 130 || (d.dy > 40 && d.v > 0.6)) { run(() => close()); return; }
+    d.panel.style.transition = `transform 0.4s ${SPRING}`;
+    d.scrim.style.transition = 'opacity 0.4s ease';
+    d.panel.style.transform = '';
+    d.scrim.style.opacity = '';
+    setTimeout(() => {
+      d.panel.style.transition = '';
+      d.scrim.style.transition = '';
+      if (!drag) box?.classList.remove('pm-dragging');
+    }, 420);
+  };
+  document.addEventListener('touchend', letGo);
+  document.addEventListener('touchcancel', letGo);
 
   document.addEventListener('click', (e) => {
     if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -1818,7 +1877,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const a = e.target.closest(TILE);
-    if (!a || e.defaultPrevented || !a.closest('.row-track') || !isProject(pathOf(a))) return;
+    if (!a || e.defaultPrevented || a.closest('.pm') || !isProject(pathOf(a))) return;
     e.preventDefault();
     if (!pending) run(() => open(pathOf(a), a));
   });
@@ -1830,7 +1889,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const p = e.state?.pm;
     run(() => {
       if (p && box) return swap(p, 'none');
-      if (p) return open(p, rows.flatMap((r) => [...r.querySelectorAll(TILE)]).find((a) => pathOf(a) === p && !a.hidden) || null, false);
+      if (p) return open(p, tileFor(p), false);
       if (box) return close(true);
     });
   });

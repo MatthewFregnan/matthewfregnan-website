@@ -1082,6 +1082,19 @@ a.is-opening { cursor: progress; }
   .pm-page { align-self: flex-start; }
 }
 
+/* Phones: a small handle at the top says the window can be pulled down to close; while it's being
+   pulled its top corners round off like a sheet and the page shows through behind it. */
+@media (max-width: 639px) {
+  .pm-panel::before {
+    content: ""; position: absolute; top: calc(8px + env(safe-area-inset-top)); left: 50%; z-index: 6;
+    width: 38px; height: 4px; margin-left: -19px; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.55); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4); pointer-events: none;
+  }
+  .pm-panel { transition: border-radius 0.25s ease; }
+  .pm-dragging .pm-panel { border-radius: 18px 18px 0 0; }
+}
+.pm-dragging .pm-panel { will-change: transform; }
+
 /* Opening and closing. The video itself flies from its tile into place (src/main.js) while the window
    fills in around it: the backdrop darkens, the window's panel and words fade up. Closing reverses it.
    Without a tile to fly from (or with reduced motion) the window simply rises in and sinks away. */
