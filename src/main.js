@@ -1786,8 +1786,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const tile = opener && opener.isConnected && !opener.hidden ? opener : null;
     const to = tile ? (tileMedia(tile) || tile).getBoundingClientRect() : null;
     const shell = shellOf(el);
-    if (!reduce.matches && shell && onScreen(to) && onScreen(shell.getBoundingClientRect()) && !document.fullscreenElement) {
-      // back into its tile, fading out as it lands so the tile's picture shows through
+    const pulled = el.classList.contains('pm-dragging');
+    if (el.classList.contains('pm-flip')) {
+      // closed while still growing in: the grow stops where it is, and the close carries on from there
+      shell?.getAnimations().forEach((x) => { x.commitStyles?.(); x.cancel(); });
+      el.classList.remove('pm-flip');
+    }
+    // the sound eases away with the picture rather than cutting off
+    const v = player?.video;
+    if (v && !v.paused && !v.muted && !reduce.matches) {
+      const v0 = v.volume;
+      const t0 = performance.now();
+      player.ramping = true;
+      const down = (now) => { const k = Math.min(1, (now - t0) / 300); v.volume = v0 * (1 - k); if (k < 1 && box === el) requestAnimationFrame(down); };
+      requestAnimationFrame(down);
+    }
+    if (pulled && !reduce.matches && shell && onScreen(to) && onScreen(shell.getBoundingClientRect()) && !document.fullscreenElement) {
+      // pulled down on a phone: it carries on into its tile, fading as it lands so the tile's picture shows through
       el.classList.add('pm-flip-out');
       const [moved] = flight(to, shell.getBoundingClientRect());
       const r0 = endRadius(el, shell);
@@ -1797,14 +1812,15 @@ document.addEventListener('DOMContentLoaded', () => {
         { transform: moved, borderRadius: r1, opacity: 1, offset: 0.8 },
         { transform: moved, borderRadius: r1, opacity: 0 },
       ], { duration: 440, easing: EASE, fill: 'forwards' }).finished.catch(() => {});
-    } else if (!reduce.matches && el.classList.contains('pm-dragging')) {
+    } else if (!reduce.matches && pulled) {
       // pulled down but its tile isn't on screen: it carries on down and away
       const panel = el.querySelector('.pm-panel');
       el.querySelector('.pm-scrim').animate({ opacity: [getComputedStyle(el.querySelector('.pm-scrim')).opacity, 0] }, { duration: 300, fill: 'forwards' });
       await panel.animate({ transform: [getComputedStyle(panel).transform, `translateY(${window.innerHeight}px)`] }, { duration: 300, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }).finished.catch(() => {});
     } else if (!reduce.matches) {
+      // closed with the button, Esc, a click outside or Back: the window settles back and fades away
       el.classList.add('pm-leaving');
-      await new Promise((r) => setTimeout(r, 220));
+      await new Promise((r) => setTimeout(r, 340));
     }
     unmount();
     el.remove();

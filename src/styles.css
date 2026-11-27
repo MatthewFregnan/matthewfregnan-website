@@ -1105,8 +1105,9 @@ a.is-opening { cursor: progress; }
 .pm .video-container video { background: transparent; }   /* the thumbnail behind it shows until it plays */
 .pm-animate .pm-scrim { animation: pm-fade 0.3s ease both; }
 .pm-animate .pm-panel { animation: pm-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.pm-leaving .pm-scrim { animation: pm-fade 0.22s ease reverse both; }
-.pm-leaving .pm-panel { animation: pm-rise 0.22s ease-in reverse both; }
+@keyframes pm-out { to { opacity: 0; transform: translateY(10px) scale(0.975); } }
+.pm-leaving .pm-scrim { animation: pm-fade 0.34s cubic-bezier(0.4, 0, 0.2, 1) reverse both; }
+.pm-leaving .pm-panel { animation: pm-out 0.3s cubic-bezier(0.4, 0, 0.2, 1) both; }
 .pm-flip .pm-panel, .pm-flip-out .pm-panel { overflow: visible; }
 .pm-flip .player-shell, .pm-flip-out .player-shell { z-index: 3; }
 .pm-flip .vp-bar, .pm-flip .vp-big, .pm-flip-out .vp-bar, .pm-flip-out .vp-big { opacity: 0 !important; }
