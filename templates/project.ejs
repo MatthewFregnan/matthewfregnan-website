@@ -20,7 +20,8 @@
     </h1>
 
     <% if (project.client) { %>
-      <p class="pp-client text-site-text-muted mb-8"><%= project.client %></p>
+      <% const clientMark = clientMarkOf(project); %>
+      <p class="pp-client text-site-text-muted mb-8"<% if (clientMark) { %> data-logo="<%= clientMark %>" data-logo-k="<%= logoScale(project) %>"<% } %>><%= project.client %></p>
     <% } %>
 
     <!-- Video: starts on the first working source. Hosted video files play in the site's own player

@@ -587,7 +587,7 @@ function fileHash(file) {
 async function renderTemplate(templateName, data) {
   const templatePath = path.join(TEMPLATES_DIR, `${templateName}.ejs`);
   const template = await fs.readFile(templatePath, 'utf8');
-  return ejs.render(template, { focusOf, logoOf, logoScale, logoPosition, imageUrl, rolesOf, ...data }, { filename: templatePath });
+  return ejs.render(template, { focusOf, logoOf, clientMarkOf, logoScale, logoPosition, imageUrl, rolesOf, ...data }, { filename: templatePath });
 }
 
 // Build CSS with Tailwind
@@ -678,6 +678,10 @@ let LOGO_POSITION = 'corner';
 const logoPosition = () => LOGO_POSITION;
 function logoOf(p) {
   if (LOGO_POSITION === 'none') return '';
+  return clientMarkOf(p);
+}
+// The client's logo whatever the tiles do (the project window's phone caption uses it)
+function clientMarkOf(p) {
   const file = CLIENT_LOGOS.get(String(p.client || '').trim().toLowerCase());
   if (!file || !fs.existsSync(path.join(IMAGES_DIR, 'logos', file))) return '';
   // the white copy made by makeWhiteLogos, versioned by the original file

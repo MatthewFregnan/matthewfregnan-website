@@ -1606,7 +1606,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Phones, portrait videos: a full-screen player like Reels / TikTok. The name, title and a line of
   // description sit over the bottom of the video, the post's numbers (likes, comments, views) run down
-  // the right with share and sound, tapping the words brings up the full details in a sheet, and
+  // the right with details and sound, tapping the words brings up the full details in a sheet, and
   // swiping up goes to the next project (its picture already waiting underneath). Landscape videos on
   // phones stay pinned at the top while the details scroll under them, as in the YouTube app.
   const phone = window.matchMedia('(max-width: 639px)');
@@ -1615,7 +1615,6 @@ document.addEventListener('DOMContentLoaded', () => {
     like: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
     comment: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
     view: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
-    share: '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/>',
     details: '<path d="M15 12H3"/><path d="M17 18H3"/><path d="M21 6H3"/>',
     sound: '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.4 18.4a9 9 0 0 0 0-12.8"/>',
     muted: '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M22 9l-6 6M16 9l6 6"/>',
@@ -1632,16 +1631,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const k = li.dataset.kind;
       return `<span class="pm-rail-item${k === 'view' ? '' : ' is-fill'}" aria-label="${esc(`${n} ${li.querySelector('.stats-w')?.textContent.trim() || ''}`)}">${svg(RAIL[k] || '')}<span>${esc(n)}</span></span>`;
     }).join('');
+    const logoEl = node.querySelector('.pp-client[data-logo]');
+    const logo = logoEl?.dataset.logo || '';
+    const client = text('.pp-client');
     const hud = document.createElement('div');
     hud.className = 'pm-hud';
     hud.innerHTML = `<button type="button" class="pm-cap" data-pm-sheet aria-label="Show details">
-        ${text('.pp-client') ? `<span class="pm-cap-client">${esc(text('.pp-client'))}</span>` : ''}
+        ${client ? `<span class="pm-cap-client">${logo ? `<img class="pm-cap-logo" src="${esc(logo)}" alt="" style="--logo-k: ${Number(logoEl.dataset.logoK) || 1}">` : ''}<span>${esc(client)}</span></span>` : ''}
         <span class="pm-cap-title">${esc(text('.pp-title'))}</span>
         ${desc ? `<span class="pm-cap-desc">${esc(desc)}</span>` : ''}
         <span class="pm-cap-more">more</span>
       </button>
       <div class="pm-rail">${stats}
-        <button type="button" class="pm-rail-item" data-pm-share aria-label="Share">${svg(RAIL.share)}<span>Share</span></button>
         <button type="button" class="pm-rail-item" data-pm-sheet aria-label="Details">${svg(RAIL.details)}<span>Details</span></button>
         <button type="button" class="pm-rail-item" data-pm-sound aria-label="Sound">${svg(RAIL.sound)}<span>Sound</span></button>
       </div>`;
@@ -2066,17 +2067,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.target.closest('[data-pm-sound]')) {
         const v = player?.video;
         if (v) { v.muted = !v.muted; if (!v.muted && v.volume < 0.05) v.volume = PLAYER_VOLUME; }
-        return;
-      }
-      const share = e.target.closest('[data-pm-share]');
-      if (share) {
-        const url = location.origin + (openPath || location.pathname);
-        const label = share.querySelector('span');
-        if (navigator.share) navigator.share({ title: document.title, url }).catch(() => {});
-        else navigator.clipboard?.writeText(url).then(() => {
-          label.textContent = 'Copied';
-          setTimeout(() => { label.textContent = 'Share'; }, 1600);
-        }).catch(() => {});
         return;
       }
       const next = e.target.closest('.pm a.pm-next');
