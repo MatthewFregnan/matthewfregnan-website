@@ -486,11 +486,11 @@ class VideoPlayer {
     btn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
   }
 
-  teardown() {
+  teardown(keepPlaying = false) {
     (this.cleanup || []).forEach((fn) => fn());
     this.cleanup = [];
     clearTimeout(this.idleTimer);
-    this.video?.pause?.();
+    if (!keepPlaying) this.video?.pause?.();   // (the project window carries a playing video on to the next project)
     this.video = null;
     this.bar = null;
     this.ramping = false;
@@ -1591,11 +1591,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const pageTitle = document.title;
 
   const cache = new Map();
+  const srcFor = new Map();   // project path -> its video file, known as soon as its page has loaded
   const load = (path) => {
     if (!cache.has(path)) {
       cache.set(path, fetch(path, { credentials: 'same-origin' })
         .then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); })
-        .then((html) => new DOMParser().parseFromString(html, 'text/html'))
+        .then((html) => {
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const v = doc.querySelector('.pp-media video[src]');
+          if (v) srcFor.set(path, new URL(v.getAttribute('src'), location.href).href);
+          return doc;
+        })
         .catch((e) => { cache.delete(path); throw e; }));
     }
     return cache.get(path);
@@ -1879,6 +1885,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // full-screen phone layout: the sound button follows the video, and the next project's picture
     // waits underneath for a swipe up
+    // a video actually playing with sound means sound is wanted from here on (a later video the
+    // browser keeps silent doesn't change that; only the Sound / mute buttons do)
+    if (v) {
+      const heard = () => { if (!v.muted && !v.paused && soundWanted !== true) rememberSound(v); };
+      v.addEventListener('playing', heard, sig);
+      v.addEventListener('volumechange', heard, sig);
+    }
     const sound = el.querySelector('[data-pm-sound]');
     if (sound && v) {
       const sync = () => {
@@ -1911,11 +1924,11 @@ document.addEventListener('DOMContentLoaded', () => {
       soundUp(v);
     };
   };
-  const unmount = () => {
+  const unmount = (keepPlaying = false) => {
     mountAC?.abort();
     mountAC = null;
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
-    try { player?.teardown(); } catch { /* gone anyway */ }
+    try { player?.teardown(keepPlaying); } catch { /* gone anyway */ }
     player = null;
   };
 
@@ -1986,7 +1999,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = doc && build(doc, path);
     if (!el) { location.href = path; return; }
     const keep = slid && !given ? player?.video : null;
-    unmount();
+    unmount(!!given && given.video === player?.video);
     if (push === 'replace') history.replaceState({ pm: path }, '', path);
     if (!reduce.matches) el.classList.add(slid && el.classList.contains('pm-reel') ? 'pm-slid' : 'pm-swapped');
     box.replaceWith(el);
@@ -2159,18 +2172,32 @@ document.addEventListener('DOMContentLoaded', () => {
         // on up and away: the next one's picture, already underneath, fills the screen and plays
         const el = box;
         const cur = player?.video;
-        // the waiting video starts now, with the sound as the last one had it
+        // The next video starts right now, while the finger is lifting: phones only allow sound from
+        // inside a touch. Sound follows what was last chosen with the Sound button (so one video the
+        // browser kept silent doesn't silence the rest), or the current video if it hasn't been touched.
+        const wantMuted = soundWanted === null ? (cur ? cur.muted : true) : !soundWanted;
+        const start = (v) => {
+          v.muted = wantMuted;
+          v.volume = PLAYER_VOLUME;
+          v.play()?.catch(() => { v.muted = true; v.play().catch(() => {}); });
+        };
         const pv = el.querySelector('.pm-peek video');
         let given = null;
         if (pv && pv.dataset.for === d.next) {
+          // waiting underneath, already loaded
           pv.dataset.taken = '1';
-          pv.muted = cur ? cur.muted : soundWanted === false;
-          pv.volume = PLAYER_VOLUME;
-          try { if (pv.currentTime > 0.5) pv.currentTime = 0; } catch { /* fine */ }
-          pv.play()?.catch(() => { pv.muted = true; pv.play().catch(() => {}); });
+          try { if (pv.currentTime > 0) pv.currentTime = 0; } catch { /* fine */ }   // always from the very start
+          start(pv);
           given = { video: pv, started: true };
+        } else if (cur && srcFor.has(d.next)) {
+          // swiped before it was ready: this video takes the next file, started inside the touch too
+          cur.pause();
+          cur.src = srcFor.get(d.next);
+          cur.preload = 'auto';
+          start(cur);
+          given = { video: cur, started: true };
         }
-        cur?.pause();
+        if (cur && given?.video !== cur) cur.pause();
         const go = !reduce.matches
           ? d.panel.animate({ transform: [`translateY(${d.dy}px)`, `translateY(${-window.innerHeight}px)`] }, { duration: 240, easing: 'cubic-bezier(0.25, 0.8, 0.35, 1)', fill: 'forwards' }).finished.catch(() => {})
           : Promise.resolve();
