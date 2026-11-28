@@ -239,6 +239,7 @@ class VideoPlayer {
       (this.cleanup ||= []).push(() => target.removeEventListener(ev, fn));
     };
     on(video, 'play', () => mark('start'));
+    if (handed && !video.paused) mark('start');   // arrived already playing (project window)
     on(video, 'timeupdate', () => {
       const d = video.duration;
       if (!d || !isFinite(d)) return;
@@ -1800,14 +1801,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const peek = el.querySelector('.pm-peek-title');
     if (peek) peek.textContent = f.title;
   };
+  // The next video waits, loaded, in its own player just below the screen: a swipe up reveals it and
+  // it starts the moment the finger lifts (still inside the touch, so phones let it keep the sound).
   const primePeek = (el) => {
     const nx = el.querySelector('.pm-next');
     const pk = el.querySelector('.pm-peek');
     if (!nx || !pk) return;
+    const next = pathOf(nx);
+    if (pk.dataset.for === next) return;
+    pk.dataset.for = next;
     pk.style.backgroundImage = '';
-    load(pathOf(nx)).then((d) => {
-      const p = d.querySelector('.video-player[data-poster]')?.dataset.poster;
-      if (p && pk.isConnected) pk.style.backgroundImage = `url("${p}")`;
+    pk.querySelector('video')?.remove();
+    load(next).then((d) => {
+      if (!pk.isConnected || pk.dataset.for !== next) return;
+      const poster = d.querySelector('.video-player[data-poster]')?.dataset.poster;
+      if (poster) pk.style.backgroundImage = `url("${poster}")`;
+      const src = d.querySelector('.pp-media video')?.getAttribute('src');
+      if (!src) return;
+      const pv = document.createElement('video');
+      pv.className = 'pm-peek-video';
+      pv.muted = true;
+      pv.playsInline = true;
+      pv.setAttribute('playsinline', '');
+      pv.preload = 'auto';
+      pv.dataset.for = next;
+      if (poster) pv.poster = poster;
+      pv.src = src;
+      pk.prepend(pv);
+      // a moment of silent play gets the start downloaded and its first frame up (phones otherwise
+      // fetch little or nothing for a video that isn't playing)
+      pv.play().then(() => {
+        if (pv.dataset.taken) return;
+        pv.pause();
+        try { pv.currentTime = 0; } catch { /* fine */ }
+      }).catch(() => {});
     }).catch(() => {});
   };
   let mountAC = null;   // the window's own listeners on the video, removed when it changes
@@ -1864,13 +1891,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (el.classList.contains('pm-reel')) {
       watched.add(path);
-      primePeek(el);
-      pickNext(path).then((f) => { if (f && box === el) { setNext(el, f); primePeek(el); } });
+      pickNext(path).then((f) => {
+        if (box !== el) return;
+        if (f) setNext(el, f);
+        primePeek(el);
+      });
     }
     return () => {
       const v = player?.video;
       if (!v || box !== el) return;
-      if (handed) { soundUp(v); return; }
+      if (handed) { if (!handed.started) soundUp(v); return; }   // swiped in: already playing as it should
       // it opened to be watched: play now, from where a preview of it got to if there was one
       let r = null;
       try { r = JSON.parse(sessionStorage.getItem('mf-resume') || 'null'); sessionStorage.removeItem('mf-resume'); } catch { /* fine */ }
@@ -1949,13 +1979,13 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Next project, from inside the window: the window stays, its contents fade across
-  const swap = async (path, push = 'replace', slid = false) => {
+  const swap = async (path, push = 'replace', slid = false, given = null) => {
     if (!box || path === openPath) return;
     let doc;
     try { doc = await load(path); } catch { doc = null; }
     const el = doc && build(doc, path);
     if (!el) { location.href = path; return; }
-    const keep = slid ? player?.video : null;
+    const keep = slid && !given ? player?.video : null;
     unmount();
     if (push === 'replace') history.replaceState({ pm: path }, '', path);
     if (!reduce.matches) el.classList.add(slid && el.classList.contains('pm-reel') ? 'pm-slid' : 'pm-swapped');
@@ -1963,7 +1993,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // swiped on: the same video element takes the next file (see soundUp)
     let handed = null;
     const want = el.querySelector('.video-player video')?.getAttribute('src');
-    if (keep && want) {
+    if (given && want && new URL(want, location.href).href === given.video.src) handed = given;
+    else if (given) { given.video.pause(); given.video.remove(); }
+    if (!handed && keep && want) {
       keep.pause();
       keep.src = want;
       keep.preload = 'auto';
@@ -2126,11 +2158,23 @@ document.addEventListener('DOMContentLoaded', () => {
       if (d.next && (d.dy < -110 || (d.dy < -36 && d.v < -0.5))) {
         // on up and away: the next one's picture, already underneath, fills the screen and plays
         const el = box;
+        const cur = player?.video;
+        // the waiting video starts now, with the sound as the last one had it
+        const pv = el.querySelector('.pm-peek video');
+        let given = null;
+        if (pv && pv.dataset.for === d.next) {
+          pv.dataset.taken = '1';
+          pv.muted = cur ? cur.muted : soundWanted === false;
+          pv.volume = PLAYER_VOLUME;
+          try { if (pv.currentTime > 0.5) pv.currentTime = 0; } catch { /* fine */ }
+          pv.play()?.catch(() => { pv.muted = true; pv.play().catch(() => {}); });
+          given = { video: pv, started: true };
+        }
+        cur?.pause();
         const go = !reduce.matches
-          ? d.panel.animate({ transform: [`translateY(${d.dy}px)`, `translateY(${-window.innerHeight}px)`] }, { duration: 260, easing: 'cubic-bezier(0.3, 0.6, 0.4, 1)', fill: 'forwards' }).finished.catch(() => {})
+          ? d.panel.animate({ transform: [`translateY(${d.dy}px)`, `translateY(${-window.innerHeight}px)`] }, { duration: 240, easing: 'cubic-bezier(0.25, 0.8, 0.35, 1)', fill: 'forwards' }).finished.catch(() => {})
           : Promise.resolve();
-        player?.video?.pause();
-        run(async () => { await go; if (box === el) await swap(d.next, 'replace', true); });
+        run(async () => { await go; if (box === el) await swap(d.next, 'replace', true, given); });
         return;
       }
       springBack(d.panel);
