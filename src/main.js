@@ -1638,8 +1638,7 @@ document.addEventListener('DOMContentLoaded', () => {
     el.classList.add('pm-can-reel');
     const text = (sel) => (node.querySelector(sel)?.textContent || '').trim();
     const esc = (t) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const desc = text('.ctx-description, .pp-details .prose p')
-      || [...node.querySelectorAll('.role-list li')].map((li) => li.textContent.trim()).join(' · ');
+    const desc = text('.ctx-description, .pp-details .prose p');
     const order = { like: 0, comment: 1, view: 2 };
     const stats = [...node.querySelectorAll('.stats-fact li[data-kind]')].sort((a, b) => order[a.dataset.kind] - order[b.dataset.kind]).map((li) => {
       const n = li.querySelector('.stats-n')?.textContent.trim() || '';
@@ -1809,6 +1808,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   // The next video waits, loaded, in its own player just below the screen: a swipe up reveals it and
   // it starts the moment the finger lifts (still inside the touch, so phones let it keep the sound).
+  let spare = null;   // the video element that just finished playing, ready to wait with the next one
   const primePeek = (el) => {
     const nx = el.querySelector('.pm-next');
     const pk = el.querySelector('.pm-peek');
@@ -1817,21 +1817,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (pk.dataset.for === next) return;
     pk.dataset.for = next;
     pk.style.backgroundImage = '';
-    pk.querySelector('video')?.remove();
+    // only two video elements take turns (the one playing, and this one waiting with the next video):
+    // phones cope badly with a fresh player for every swipe, and stop allowing sound after a few
+    const waiting = pk.querySelector('video');
+    if (waiting) { waiting.pause(); spare ||= waiting; waiting.remove(); }
     load(next).then((d) => {
       if (!pk.isConnected || pk.dataset.for !== next) return;
       const poster = d.querySelector('.video-player[data-poster]')?.dataset.poster;
       if (poster) pk.style.backgroundImage = `url("${poster}")`;
       const src = d.querySelector('.pp-media video')?.getAttribute('src');
       if (!src) return;
-      const pv = document.createElement('video');
+      const pv = spare || document.createElement('video');
+      spare = null;
+      pv.dataset.pmOwn = '1';
       pv.className = 'pm-peek-video';
+      pv.removeAttribute('aria-label');
       pv.muted = true;
+      pv.loop = false;
       pv.playsInline = true;
       pv.setAttribute('playsinline', '');
       pv.preload = 'auto';
+      delete pv.dataset.taken;
       pv.dataset.for = next;
-      if (poster) pv.poster = poster;
+      pv.poster = poster || '';
       pv.src = src;
       pk.prepend(pv);
       // a moment of silent play gets the start downloaded and its first frame up (phones otherwise
@@ -1999,7 +2007,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = doc && build(doc, path);
     if (!el) { location.href = path; return; }
     const keep = slid && !given ? player?.video : null;
-    unmount(!!given && given.video === player?.video);
+    const was = player?.video;
+    unmount(!!given && given.video === was);
+    if (given && was && was !== given.video && was.dataset.pmOwn && el.classList.contains('pm-can-reel')) { was.pause(); spare = was; }
     if (push === 'replace') history.replaceState({ pm: path }, '', path);
     if (!reduce.matches) el.classList.add(slid && el.classList.contains('pm-reel') ? 'pm-slid' : 'pm-swapped');
     box.replaceWith(el);
@@ -2179,7 +2189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const start = (v) => {
           v.muted = wantMuted;
           v.volume = PLAYER_VOLUME;
-          v.play()?.catch(() => { v.muted = true; v.play().catch(() => {}); });
+          v.play()?.catch((err) => { if (err?.name === 'NotAllowedError') { v.muted = true; v.play().catch(() => {}); } });
         };
         const pv = el.querySelector('.pm-peek video');
         let given = null;
@@ -2235,6 +2245,15 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     if (!pending) run(() => open(pathOf(a), a));
   });
+  // Full-screen phone layout: if a video comes up silent when sound was wanted (the browser's doing),
+  // a tap on it brings the sound back rather than pausing it
+  document.addEventListener('click', (e) => {
+    const v = e.target.closest?.('.pm-reel .video-container video');
+    if (!v || v !== player?.video || !v.muted || soundWanted !== true || v.paused) return;
+    e.stopPropagation();
+    v.muted = false;
+    if (v.volume < 0.05) v.volume = PLAYER_VOLUME;
+  }, true);
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || !box || contact?.open || document.fullscreenElement || document.webkitFullscreenElement) return;
     e.preventDefault();
