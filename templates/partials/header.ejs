@@ -20,6 +20,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css?v=<%= assetVersion.css %>">
+  <% if (typeof projectPage !== 'undefined' && projectPage) { %>
+  <%# Phones open project pages straight into the project window (src/main.js): the page stays hidden
+      until it's up, so it never shows first. If the script doesn't get going, the page shows anyway. %>
+  <script>
+    if (window.matchMedia && matchMedia('(max-width: 639px)').matches && window.fetch && window.DOMParser) {
+      document.documentElement.classList.add('pm-boot');
+      setTimeout(function () { if (!document.querySelector('.pm')) document.documentElement.classList.remove('pm-boot'); }, 5000);
+    }
+  </script>
+  <% } %>
 </head>
 <body class="min-h-screen flex flex-col">
   <!-- Header -->

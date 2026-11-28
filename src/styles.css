@@ -1212,3 +1212,6 @@ a.is-opening { cursor: progress; }
 .pm-swapped .pm-panel > *, .pm-swapped .project-main > * { animation: pm-fade 0.3s ease both; }
 .pm-swapped .pm-sheet > *, .pm-swapped .pm-hud { animation: pm-fade 0.3s ease both; }
 .pm-slid .pm-hud, .pm-slid .pm-close { animation: pm-fade 0.35s 0.05s ease both; }
+/* a project page landed on with a phone: hidden while it opens into the project window */
+html.pm-boot body { background: #000; }
+html.pm-boot body > :not(.pm):not(#contact-panel) { visibility: hidden; }

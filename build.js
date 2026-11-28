@@ -1206,6 +1206,7 @@ async function buildPages() {
         ...commonData,
         title: `${project.title} | ${siteConfig.title}`,
         activePage: category.slug,
+        projectPage: true,
         category,
         project,
         more: moreWork(project, categoryProjects, category),
@@ -1283,6 +1284,14 @@ async function buildPages() {
 
   // Generate sitemap and robots.txt
   await generateSitemap(projects, siteConfig);
+  // The phone project window's swipe-up feed (src/main.js): every social video that plays in the site's
+  // own player, with its client, so the next one can be another from the same client, then any.
+  const vertical = projects.categories.find(c => c.id === 'vertical');
+  if (vertical) {
+    const feed = projects.projects.filter(p => p.category === 'vertical' && p.videoFile)
+      .map(p => ({ path: `/${vertical.slug}/${p.id}/`, title: p.title, client: String(p.client || '').trim().toLowerCase() }));
+    await fs.outputFile(path.join(DIST_DIR, 'social-feed.json'), JSON.stringify(feed));
+  }
   await generateRobotsTxt(siteConfig);
 }
 

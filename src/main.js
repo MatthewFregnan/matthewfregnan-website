@@ -233,8 +233,13 @@ class VideoPlayer {
     const base = location.pathname.replace(/\/?$/, '/');
     const sent = new Set();
     const mark = (m) => { if (!sent.has(m)) { sent.add(m); window.mfTrack?.(`/watch${base}${m}/`); } };
-    video.addEventListener('play', () => mark('start'));
-    video.addEventListener('timeupdate', () => {
+    // removed again in teardown (the phone project window reuses a video element for the next project)
+    const on = (target, ev, fn) => {
+      target.addEventListener(ev, fn);
+      (this.cleanup ||= []).push(() => target.removeEventListener(ev, fn));
+    };
+    on(video, 'play', () => mark('start'));
+    on(video, 'timeupdate', () => {
       const d = video.duration;
       if (!d || !isFinite(d)) return;
       const f = video.currentTime / d;
@@ -271,11 +276,6 @@ class VideoPlayer {
     const vol = $('.vp-vol');
     if (!handed) video.volume = PLAYER_VOLUME;   // a handed-over video fades its own sound up (project window)
     vol.style.setProperty('--played', `${PLAYER_VOLUME * 100}%`);
-
-    const on = (target, ev, fn) => {
-      target.addEventListener(ev, fn);
-      (this.cleanup ||= []).push(() => target.removeEventListener(ev, fn));
-    };
 
     on(video, 'click', () => this.toggle());
     on(video, 'dblclick', () => this.toggleFullscreen());
@@ -342,7 +342,9 @@ class VideoPlayer {
     });
     on(document, 'fullscreenchange', () => this.updateFsIcon());
     on(document, 'webkitfullscreenchange', () => this.updateFsIcon());
-    if (!handed) this.resume();
+    // a project page on a phone opens in the project window instead; the page's own player stays still
+    const underWindow = document.documentElement.classList.contains('pm-boot') && !this.root.closest('.pm');
+    if (!handed && !underWindow) this.resume();
   }
 
   // Arrived by clicking a playing preview of this same video: carry on from that moment. It starts by
@@ -1565,8 +1567,14 @@ document.addEventListener('DOMContentLoaded', () => {
 // down close it again. The tile's video grows into the window and shrinks back into the tile on close.
 // Project pages themselves keep their tiles as ordinary links.
 document.addEventListener('DOMContentLoaded', () => {
-  if (document.querySelector('.project-main') || !window.fetch || !window.DOMParser) return;
   const root = document.documentElement;
+  // Project pages keep their own layout, except on phones, where the page opens straight into the
+  // window's phone layouts (pm-boot, set as the page starts in templates/project.ejs, keeps the page
+  // itself hidden meanwhile)
+  const projectPage = !!document.querySelector('.project-main');
+  if ((projectPage && !root.classList.contains('pm-boot')) || !window.fetch || !window.DOMParser) { root.classList.remove('pm-boot'); return; }
+  let standalone = false;   // opened by landing on a project page: closing goes to its section
+  let leftPage = false;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   const TILE = 'a.portfolio-item, a.portfolio-item-vertical';
   const tiles = () => [...document.querySelectorAll(TILE)].filter((a) => !a.closest('.pm'));
@@ -1738,7 +1746,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Sound up gently to the player's level; if the browser won't allow sound without a fresh tap, it
   // carries on silently (the player's speaker button turns it on).
+  // Sound: once someone turns it on (or off) in the window, the next videos keep that, for this visit.
+  // Swiping to the next video also keeps the same video element (only its file changes), which phones
+  // let carry on with sound where a fresh element would have to start silent.
+  let soundWanted = null;
+  try { const w = sessionStorage.getItem('pm-sound'); if (w) soundWanted = w === 'on'; } catch { /* fine */ }
+  const rememberSound = (v) => {
+    soundWanted = !v.muted;
+    try { sessionStorage.setItem('pm-sound', soundWanted ? 'on' : 'off'); } catch { /* fine */ }
+  };
   const soundUp = (v) => {
+    if (soundWanted === false) { v.muted = true; v.volume = PLAYER_VOLUME; if (v.paused) v.play().catch(() => {}); return; }
     if (!v.paused && !v.muted && v.volume > 0.05) { v.volume = PLAYER_VOLUME; return; }   // already audible
     player.ramping = true;
     v.volume = 0;
@@ -1752,8 +1770,52 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => { if (box && player?.video === v && v.paused) silent(); }, 250);
     }
   };
+  // The swipe-up feed (phones, portrait videos): after the first video, another from the same client,
+  // then the rest of the social videos in a random order, none twice until they've all been seen.
+  let feed = null;
+  const feedList = () => (feed ||= fetch('/social-feed.json').then((r) => (r.ok ? r.json() : [])).catch(() => []));
+  const watched = new Set();
+  const pickNext = async (path) => {
+    const list = await feedList();
+    const me = list.find((f) => f.path === path);
+    if (!me) return null;
+    let pool = list.filter((f) => !watched.has(f.path));
+    if (!pool.length) { watched.clear(); watched.add(path); pool = list.filter((f) => f.path !== path); }
+    const any = (a) => a[Math.floor(Math.random() * a.length)];
+    const same = watched.size <= 1 && me.client ? pool.filter((f) => f.client === me.client) : [];
+    return same.length ? any(same) : pool.length ? any(pool) : null;
+  };
+  const setNext = (el, f) => {
+    const foot = el.querySelector('.pm-foot');
+    let a = el.querySelector('.pm-next');
+    if (!a && foot) {
+      a = document.createElement('a');
+      a.className = 'pm-next';
+      a.innerHTML = `<span class="pm-next-label">Next project</span><span class="pm-next-title"></span>${ICON_NEXT}`;
+      foot.append(a);
+    }
+    if (!a) return;
+    a.href = f.path;
+    a.querySelector('.pm-next-title').textContent = f.title;
+    const peek = el.querySelector('.pm-peek-title');
+    if (peek) peek.textContent = f.title;
+  };
+  const primePeek = (el) => {
+    const nx = el.querySelector('.pm-next');
+    const pk = el.querySelector('.pm-peek');
+    if (!nx || !pk) return;
+    pk.style.backgroundImage = '';
+    load(pathOf(nx)).then((d) => {
+      const p = d.querySelector('.video-player[data-poster]')?.dataset.poster;
+      if (p && pk.isConnected) pk.style.backgroundImage = `url("${p}")`;
+    }).catch(() => {});
+  };
+  let mountAC = null;   // the window's own listeners on the video, removed when it changes
   const mount = (el, doc, path, handed = null) => {
     box = el;
+    mountAC?.abort();
+    mountAC = new AbortController();
+    const sig = { signal: mountAC.signal };
     openPath = path;
     document.title = doc.title || pageTitle;
     const vp = el.querySelector('.video-player[data-video-sources]');
@@ -1763,10 +1825,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const c = vp.querySelector('.video-container');
       if (c) {
         c.style.background = `#000 url("${vp.dataset.poster}") center / contain no-repeat`;
-        c.querySelector('video')?.addEventListener('playing', () => { c.style.background = '#000'; }, { once: true });
       }
     }
     if (vp) { try { player = new VideoPlayer(vp, { video: handed?.video }); } catch (e) { console.warn('Video player failed to start', e); } }
+    const c0 = vp?.querySelector('.video-container');
+    if (c0 && player?.video) player.video.addEventListener('playing', () => { c0.style.background = '#000'; }, { once: true, ...sig });
     if (handed && player?.video !== handed.video) { handed.video.pause(); handed.video.remove(); handed = null; }
     if (handed) try { sessionStorage.removeItem('mf-resume'); } catch { /* fine */ }
     // Watched to the end: a quiet prompt over the last frame (Get in touch / Watch again). It goes as soon
@@ -1783,8 +1846,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
         end.hidden = false;
         requestAnimationFrame(() => requestAnimationFrame(() => end.classList.add('is-shown')));
-      });
-      v.addEventListener('play', () => { end.classList.remove('is-shown'); end.hidden = true; });
+      }, sig);
+      v.addEventListener('play', () => { end.classList.remove('is-shown'); end.hidden = true; }, sig);
       end.querySelector('[data-again]').addEventListener('click', () => player.toggle());
     }
     // full-screen phone layout: the sound button follows the video, and the next project's picture
@@ -1796,16 +1859,13 @@ document.addEventListener('DOMContentLoaded', () => {
         sound.querySelector('span').textContent = v.muted ? 'Muted' : 'Sound';
         sound.setAttribute('aria-label', v.muted ? 'Turn sound on' : 'Mute');
       };
-      v.addEventListener('volumechange', sync);
+      v.addEventListener('volumechange', sync, sig);
       sync();
     }
-    const nx = el.querySelector('.pm-next');
-    const pk = el.querySelector('.pm-peek');
-    if (nx && pk) {
-      load(pathOf(nx)).then((d) => {
-        const p = d.querySelector('.video-player[data-poster]')?.dataset.poster;
-        if (p) pk.style.backgroundImage = `url("${p}")`;
-      }).catch(() => {});
+    if (el.classList.contains('pm-reel')) {
+      watched.add(path);
+      primePeek(el);
+      pickNext(path).then((f) => { if (f && box === el) { setNext(el, f); primePeek(el); } });
     }
     return () => {
       const v = player?.video;
@@ -1822,6 +1882,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   };
   const unmount = () => {
+    mountAC?.abort();
+    mountAC = null;
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     try { player?.teardown(); } catch { /* gone anyway */ }
     player = null;
@@ -1852,8 +1914,13 @@ document.addEventListener('DOMContentLoaded', () => {
     try { doc = await load(path); } catch { doc = null; }
     tile?.classList.remove('is-opening');
     const el = doc && build(doc, path);
-    if (!el) { location.href = path; return; }
+    if (!el) {
+      if (standalone) { root.classList.remove('pm-boot'); standalone = false; return; }   // the page itself, then
+      location.href = path;
+      return;
+    }
     opener = tile;
+    watched.clear();
     const from = tile ? (tileMedia(tile) || tile).getBoundingClientRect() : null;
     const handed = tile && tile.dataset.preview && Previews.handOff(tile);
     if (Previews.current) Previews.stop(Previews.current);
@@ -1873,7 +1940,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const play = mount(el, doc, path, same ? handed : null);
     el.querySelector('.pm-panel').focus({ preventScroll: true });
     play();
-    window.mfTrack?.(path);
+    if (!standalone) window.mfTrack?.(path);   // a page landed on has counted itself
     if (fly) {
       const shell = shellOf(el);
       const a = shell.animate({ transform: flight(from, shell.getBoundingClientRect()), borderRadius: [tileRadius(tile), endRadius(el, shell)] }, { duration: 520, easing: EASE });
@@ -1888,11 +1955,21 @@ document.addEventListener('DOMContentLoaded', () => {
     try { doc = await load(path); } catch { doc = null; }
     const el = doc && build(doc, path);
     if (!el) { location.href = path; return; }
+    const keep = slid ? player?.video : null;
     unmount();
     if (push === 'replace') history.replaceState({ pm: path }, '', path);
     if (!reduce.matches) el.classList.add(slid && el.classList.contains('pm-reel') ? 'pm-slid' : 'pm-swapped');
     box.replaceWith(el);
-    const play = mount(el, doc, path);
+    // swiped on: the same video element takes the next file (see soundUp)
+    let handed = null;
+    const want = el.querySelector('.video-player video')?.getAttribute('src');
+    if (keep && want) {
+      keep.pause();
+      keep.src = want;
+      keep.preload = 'auto';
+      handed = { video: keep };
+    }
+    const play = mount(el, doc, path, handed);
     el.querySelector('.pm-panel').focus({ preventScroll: true });
     opener = tileFor(path);
     play();
@@ -1902,7 +1979,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const close = async (fromHistory = false) => {
     if (!box) return;
     // the window has its own place in the browser's history: closing it is going Back
-    if (!fromHistory && history.state?.pm) { if (!leaving) { leaving = true; history.back(); } return; }
+    if (!fromHistory && !standalone && history.state?.pm) { if (!leaving) { leaving = true; history.back(); } return; }
     const el = box;
     const tile = opener && opener.isConnected && !opener.hidden ? opener : null;
     const to = tile ? (tileMedia(tile) || tile).getBoundingClientRect() : null;
@@ -1942,6 +2019,14 @@ document.addEventListener('DOMContentLoaded', () => {
       // closed with the button, Esc, a click outside or Back: the window settles back and fades away
       el.classList.add('pm-leaving');
       await new Promise((r) => setTimeout(r, 340));
+    }
+    if (standalone) {
+      // landed on this project page: closing goes on to its section (the page stays hidden behind)
+      unmount();
+      el.style.visibility = 'hidden';
+      leftPage = true;
+      location.href = `/${location.pathname.split('/')[1]}/`;
+      return;
     }
     unmount();
     el.remove();
@@ -2066,9 +2151,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.target.closest('[data-pm-sheet-close]')) { showSheet(false); return; }
       if (e.target.closest('[data-pm-sound]')) {
         const v = player?.video;
-        if (v) { v.muted = !v.muted; if (!v.muted && v.volume < 0.05) v.volume = PLAYER_VOLUME; }
+        if (v) { v.muted = !v.muted; if (!v.muted && v.volume < 0.05) v.volume = PLAYER_VOLUME; rememberSound(v); }
         return;
       }
+      if (e.target.closest('.pm .vp-mute') && player?.video) rememberSound(player.video);   // its own handler has run
       const next = e.target.closest('.pm a.pm-next');
       if (next) { e.preventDefault(); if (!pending) run(() => swap(pathOf(next))); }
       return;
@@ -2093,4 +2179,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (box) return close(true);
     });
   });
+
+  // Landed on a project page on a phone: it opens straight into the window (the video full screen for
+  // social videos, pinned at the top for landscape ones). Coming back to it later with Back reloads it.
+  if (projectPage) {
+    standalone = true;
+    history.replaceState({ ...(history.state || {}), pm: location.pathname }, '');
+    run(() => open(location.pathname, null, false));
+    window.addEventListener('pageshow', (e) => { if (e.persisted && leftPage) location.reload(); });
+  }
 });
